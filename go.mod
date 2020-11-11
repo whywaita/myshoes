@@ -1,4 +1,4 @@
-// +heroku goVersion go1.15gi
+// +heroku goVersion go1.15
 
 module github.com/whywaita/myshoes
 
