@@ -17,6 +17,7 @@ type conf struct {
 	}
 
 	MySQLDSN string
+	Port     int
 }
 
 // Config Environment keys
@@ -25,6 +26,7 @@ const (
 	EnvGitHubAppSecret           = "GITHUB_APP_SECRET"
 	EnvGitHubAppPrivateKeyBase64 = "GITHUB_PRIVATE_KEY_BASE64"
 	EnvMySQLURL                  = "MYSQL_URL"
+	EnvPort                      = "PORT"
 )
 
 func init() {
@@ -55,4 +57,14 @@ func init() {
 		log.Panicf("%s must be set", EnvMySQLURL)
 	}
 	Config.MySQLDSN = mysqlURL
+
+	p := os.Getenv(EnvPort)
+	if p == "" {
+		p = "8080"
+	}
+	pp, err := strconv.Atoi(p)
+	if err != nil {
+		log.Panicf("failed to parse PORT: %+v", err)
+	}
+	Config.Port = pp
 }

@@ -158,4 +158,4 @@ Temporary Items
 # End of https://www.toptal.com/developers/gitignore/api/macos,intellij,go
 
 .idea
-/api/proto/*.go
+#/api/proto/*.go
