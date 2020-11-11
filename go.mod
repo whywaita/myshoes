@@ -1,4 +1,5 @@
 // +heroku goVersion go1.15
+// +heroku install ./cmd/server/...
 
 module github.com/whywaita/myshoes
 
