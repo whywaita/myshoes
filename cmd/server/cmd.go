@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 
@@ -11,8 +10,6 @@ import (
 	"github.com/whywaita/myshoes/pkg/datastore/mysql"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
-
-	"github.com/whywaita/myshoes/pkg/shoes"
 )
 
 func main() {
@@ -42,16 +39,16 @@ func New() (*myShoes, error) {
 }
 
 func (m *myShoes) Run() error {
-	pluginClient, teardown, err := shoes.GetClient()
-	if err != nil {
-		return fmt.Errorf("failed to get plugin client: %w", err)
-	}
-
-	if err := pluginClient.AddInstance(context.Background()); err != nil {
-		return fmt.Errorf("failed to AddInstance: %w", err)
-	}
-
-	defer teardown()
+	//pluginClient, teardown, err := shoes.GetClient()
+	//if err != nil {
+	//	return fmt.Errorf("failed to get plugin client: %w", err)
+	//}
+	//
+	//if err := pluginClient.AddInstance(context.Background()); err != nil {
+	//	return fmt.Errorf("failed to AddInstance: %w", err)
+	//}
+	//
+	//defer teardown()
 
 	if err := web.Serve(); err != nil {
 		return fmt.Errorf("failed to serve: %w", err)
