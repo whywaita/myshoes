@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package myshoes.shoes;
+option go_package = ".;myshoes";
+
+service Shoes {
+    rpc AddInstance(AddInstanceRequest) returns (AddInstanceResponse) {}
+    rpc DeleteInstance(DeleteInstanceRequest) returns (DeleteInstanceResponse) {}
+}
+
+message AddInstanceRequest {}
+
+message AddInstanceResponse {}
+
+message DeleteInstanceRequest {}
+
+message DeleteInstanceResponse {}

@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package plugin;
+option go_package = ".;plugin";
+
+import "google/protobuf/empty.proto";
+
+service GRPCStdio {
+    // StreamStdio returns a stream that contains all the stdout/stderr.
+    // This RPC endpoint must only be called ONCE. Once stdio data is consumed
+    // it is not sent again.
+    //
+    // Callers should connect early to prevent blocking on the plugin process.
+    rpc StreamStdio(google.protobuf.Empty) returns (stream StdioData);
+}
+
+// StdioData is a single chunk of stdout or stderr data that is streamed
+// from GRPCStdio.
+message StdioData {
+    enum Channel {
+        INVALID = 0;
+        STDOUT = 1;
+        STDERR = 2;
+    }
+
+    Channel channel = 1;
+    bytes data = 2;
+}
