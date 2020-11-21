@@ -14,6 +14,9 @@ Auto scaling self-hosted runner :runner: for GitHub Actions
 
 - Virtual Machine Image on your cloud privider
   - TODO: write setup path later.
+  - install a some commands.
+    - curl(1)
+    - jq(1)
 
 ## Configure Environment
 

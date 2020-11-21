@@ -4,27 +4,27 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/whywaita/myshoes/pkg/web"
-
 	"github.com/whywaita/myshoes/internal/config"
-	"github.com/whywaita/myshoes/pkg/datastore/mysql"
-
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/datastore/mysql"
+	"github.com/whywaita/myshoes/pkg/shoes"
+	"github.com/whywaita/myshoes/pkg/web"
 )
 
 func main() {
-	shoes, err := New()
+	myshoes, err := New()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := shoes.Run(); err != nil {
+	if err := myshoes.Run(); err != nil {
 		log.Fatalln(err)
 	}
 }
 
 type myShoes struct {
-	ds datastore.Datastore
+	ds    datastore.Datastore
+	shoes shoes.ShoesClient
 }
 
 func New() (*myShoes, error) {
@@ -39,18 +39,7 @@ func New() (*myShoes, error) {
 }
 
 func (m *myShoes) Run() error {
-	//pluginClient, teardown, err := shoes.GetClient()
-	//if err != nil {
-	//	return fmt.Errorf("failed to get plugin client: %w", err)
-	//}
-	//
-	//if err := pluginClient.AddInstance(context.Background()); err != nil {
-	//	return fmt.Errorf("failed to AddInstance: %w", err)
-	//}
-	//
-	//defer teardown()
-
-	if err := web.Serve(); err != nil {
+	if err := web.Serve(m.ds); err != nil {
 		return fmt.Errorf("failed to serve: %w", err)
 	}
 

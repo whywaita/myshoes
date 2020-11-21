@@ -13,6 +13,8 @@ require (
 	github.com/google/go-github/v32 v32.1.0
 	github.com/hashicorp/go-plugin v1.4.0
 	github.com/jmoiron/sqlx v1.2.0
+	github.com/satori/go.uuid v1.2.0
+	goji.io v2.0.2+incompatible
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.0
 )

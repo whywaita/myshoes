@@ -1,0 +1,105 @@
+package web
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+
+	"github.com/whywaita/myshoes/pkg/gh"
+
+	"goji.io/pat"
+
+	uuid "github.com/satori/go.uuid"
+	"github.com/whywaita/myshoes/pkg/datastore"
+)
+
+func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+	t := datastore.Target{}
+
+	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
+		log.Println(err)
+		outputErrorMsg(w, http.StatusBadRequest, "json decode error")
+		return
+	}
+
+	if err := gh.ExistGitHubRepository(t); err != nil {
+		log.Println(err)
+		outputErrorMsg(w, http.StatusBadRequest, "github scope is invalid (maybe, not found)")
+		return
+	}
+
+	u := uuid.NewV4()
+	t.UUID = u.String()
+	if err := ds.CreateTarget(t); err != nil {
+		log.Println(err)
+		outputErrorMsg(w, http.StatusInternalServerError, "datastore create error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json;charset=utf-8")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(t)
+	return
+}
+
+func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+	targetID, err := parseReqTargetID(r)
+	if err != nil {
+		log.Println(err)
+		outputErrorMsg(w, http.StatusBadRequest, "incorrect target id")
+	}
+
+	target, err := ds.GetTarget(targetID.String())
+	if err != nil {
+		log.Println(err)
+		outputErrorMsg(w, http.StatusInternalServerError, "datastore read error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(target)
+	return
+}
+
+func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {}
+
+func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+	targetID, err := parseReqTargetID(r)
+	if err != nil {
+		log.Println(err)
+		outputErrorMsg(w, http.StatusBadRequest, "incorrect target id")
+		return
+	}
+
+	if err := ds.DeleteTarget(targetID.String()); err != nil {
+		log.Println(err)
+		outputErrorMsg(w, http.StatusInternalServerError, "datastore delete error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
+func parseReqTargetID(r *http.Request) (*uuid.UUID, error) {
+	targetIDStr := pat.Param(r, "id")
+	targetID, err := uuid.FromString(targetIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse target id: %w", err)
+	}
+
+	return &targetID, nil
+}
+
+func outputErrorMsg(w http.ResponseWriter, status int, msg string) {
+	w.Header().Set("Content-Type", "application/json;charset=utf-8")
+
+	w.WriteHeader(status)
+
+	json.NewEncoder(w).Encode(struct {
+		Error string `json:"error"`
+	}{Error: msg})
+}

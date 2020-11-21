@@ -1,6 +1,8 @@
 package mysql
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -15,6 +17,7 @@ type MySQL struct {
 	Conn *sqlx.DB
 }
 
+// New create mysql connection
 func New(dsn string) (*MySQL, error) {
 	conn, err := sqlx.Open("mysql", dsn+"?parseTime=true")
 	if err != nil {
@@ -31,8 +34,8 @@ func New(dsn string) (*MySQL, error) {
 }
 
 func (m *MySQL) CreateTarget(target datastore.Target) error {
-	query := `INSERT INTO targets(uuid, scope, github_personal_token) VALUES (?, ?, ?)`
-	if _, err := m.Conn.Exec(query, target.UUID, target.Scope, target.GitHubPersonalToken); err != nil {
+	query := `INSERT INTO targets(uuid, scope, ghe_domain, github_personal_token) VALUES (?, ?, ?, ?)`
+	if _, err := m.Conn.Exec(query, target.UUID, target.Scope, target.GHEDomain, target.GitHubPersonalToken); err != nil {
 		return fmt.Errorf("failed to execute INSERT query: %w", err)
 	}
 
@@ -41,7 +44,7 @@ func (m *MySQL) CreateTarget(target datastore.Target) error {
 
 func (m *MySQL) GetTarget(uuid string) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, github_personal_token FROM targets WHERE uuid = "%s"`, uuid)
+	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, created_at, updated_at FROM targets WHERE uuid = "%s"`, uuid)
 	if err := m.Conn.Get(&t, query); err != nil {
 		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
 	}
@@ -49,10 +52,14 @@ func (m *MySQL) GetTarget(uuid string) (*datastore.Target, error) {
 	return &t, nil
 }
 
-func (m *MySQL) GetTargetByScope(scope string) (*datastore.Target, error) {
+func (m *MySQL) GetTargetByScope(gheDomain, scope string) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, github_personal_token FROM targets WHERE scope = "%s"`, scope)
+	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, created_at, updated_at FROM targets WHERE ghe_domain = "%s" AND scope = "%s"`, gheDomain, scope)
 	if err := m.Conn.Get(&t, query); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, datastore.ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
 	}
 
