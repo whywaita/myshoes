@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,6 +16,7 @@ import (
 )
 
 func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+	ctx := context.Background()
 	t := datastore.Target{}
 
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
@@ -29,9 +31,8 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
-	u := uuid.NewV4()
-	t.UUID = u.String()
-	if err := ds.CreateTarget(t); err != nil {
+	t.UUID = uuid.NewV4()
+	if err := ds.CreateTarget(ctx, t); err != nil {
 		log.Println(err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore create error")
 		return
@@ -44,13 +45,14 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 }
 
 func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+	ctx := context.Background()
 	targetID, err := parseReqTargetID(r)
 	if err != nil {
 		log.Println(err)
 		outputErrorMsg(w, http.StatusBadRequest, "incorrect target id")
 	}
 
-	target, err := ds.GetTarget(targetID.String())
+	target, err := ds.GetTarget(ctx, targetID)
 	if err != nil {
 		log.Println(err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore read error")
@@ -66,6 +68,7 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {}
 
 func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+	ctx := context.Background()
 	targetID, err := parseReqTargetID(r)
 	if err != nil {
 		log.Println(err)
@@ -73,7 +76,7 @@ func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
-	if err := ds.DeleteTarget(targetID.String()); err != nil {
+	if err := ds.DeleteTarget(ctx, targetID); err != nil {
 		log.Println(err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore delete error")
 		return
@@ -84,14 +87,14 @@ func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	return
 }
 
-func parseReqTargetID(r *http.Request) (*uuid.UUID, error) {
+func parseReqTargetID(r *http.Request) (uuid.UUID, error) {
 	targetIDStr := pat.Param(r, "id")
 	targetID, err := uuid.FromString(targetIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse target id: %w", err)
+		return uuid.UUID{}, fmt.Errorf("failed to parse target id: %w", err)
 	}
 
-	return &targetID, nil
+	return targetID, nil
 }
 
 func outputErrorMsg(w http.ResponseWriter, status int, msg string) {

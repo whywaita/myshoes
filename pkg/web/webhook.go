@@ -2,21 +2,18 @@ package web
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/whywaita/myshoes/pkg/datastore"
-
-	"github.com/whywaita/myshoes/pkg/shoes"
-
-	"github.com/whywaita/myshoes/internal/config"
-	"github.com/whywaita/myshoes/pkg/logger"
-
-	"github.com/whywaita/myshoes/pkg/gh"
-
 	"github.com/google/go-github/v32/github"
+	uuid "github.com/satori/go.uuid"
+	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/gh"
+	"github.com/whywaita/myshoes/pkg/logger"
 )
 
 func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
@@ -74,35 +71,47 @@ func processEvent(ctx context.Context, event *github.CheckRunEvent, ds datastore
 		gheDomain = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 	}
 
-	if _, err := searchRepo(ds, gheDomain, repoName); err != nil {
+	if _, err := searchRepo(ctx, ds, gheDomain, repoName); err != nil {
 		return fmt.Errorf("failed to search registered target: %w", err)
 	}
 
 	// TODO: enqueue to datastore
-
-	client, teardown, err := shoes.GetClient()
-	if err != nil {
-		return fmt.Errorf("failed to get plugin client: %w", err)
+	jobID := uuid.NewV4()
+	var jobDomain sql.NullString
+	if gheDomain == "" {
+		jobDomain = sql.NullString{
+			Valid: false,
+		}
+	} else {
+		jobDomain = sql.NullString{
+			String: gheDomain,
+			Valid:  true,
+		}
 	}
 
-	if err := client.AddInstance(ctx); err != nil {
-		return fmt.Errorf("failed to add instance: %w", err)
+	j := datastore.Job{
+		UUID:           jobID,
+		GHEDomain:      jobDomain,
+		Repository:     repoName,
+		CheckEventJSON: *event,
 	}
-	teardown()
+	if err := ds.EnqueueJob(ctx, j); err != nil {
+		return fmt.Errorf("failed to enqueue job: %w", err)
+	}
 
 	return nil
 }
 
 // searchRepo search datastore.Target from datastore
 // format of repo is "orgs/repos"
-func searchRepo(ds datastore.Datastore, gheDomain, repo string) (*datastore.Target, error) {
+func searchRepo(ctx context.Context, ds datastore.Datastore, gheDomain, repo string) (*datastore.Target, error) {
 	sep := strings.Split(repo, "/")
 	if len(sep) != 2 {
 		return nil, fmt.Errorf("incorrect repo format ex: orgs/repo")
 	}
 
 	// use repo scope if set repo
-	repoTarget, err := ds.GetTargetByScope(gheDomain, repo)
+	repoTarget, err := ds.GetTargetByScope(ctx, gheDomain, repo)
 	if err == nil {
 		return repoTarget, nil
 	} else if err != datastore.ErrNotFound {
@@ -111,7 +120,7 @@ func searchRepo(ds datastore.Datastore, gheDomain, repo string) (*datastore.Targ
 
 	// repo is not found, so search org target
 	org := sep[0]
-	orgTarget, err := ds.GetTargetByScope(gheDomain, org)
+	orgTarget, err := ds.GetTargetByScope(ctx, gheDomain, org)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target: %w", err)
 	}

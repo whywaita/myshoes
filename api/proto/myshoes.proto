@@ -8,7 +8,9 @@ service Shoes {
     rpc DeleteInstance(DeleteInstanceRequest) returns (DeleteInstanceResponse) {}
 }
 
-message AddInstanceRequest {}
+message AddInstanceRequest {
+    string setupScript = 1;
+}
 
 message AddInstanceResponse {}
 

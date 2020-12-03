@@ -9,7 +9,7 @@ require (
 	github.com/bradleyfalzon/ghinstallation v1.1.1
 	github.com/go-sql-driver/mysql v1.4.0
 	github.com/golang/protobuf v1.4.3
-	github.com/google/go-github v17.0.0+incompatible // indirect
+	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-github/v32 v32.1.0
 	github.com/hashicorp/go-plugin v1.4.0
 	github.com/jmoiron/sqlx v1.2.0

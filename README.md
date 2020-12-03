@@ -2,18 +2,17 @@
 
 Auto scaling self-hosted runner :runner: for GitHub Actions
 
-# Setup
+## Setup
 
-## Required
+### Required
 
 - network connectivity
-  - github.com to myshoes OR GitHub Enterprise Server to myshoes (`/github/events`)
-  - Runner machine to myshoes (`/setup`)
+  - github.com **OR** your GitHub Enterprise Server to myshoes (`/github/events`)
 
-## Prepare
+### Prepare
 
 - Virtual Machine Image on your cloud privider
-  - TODO: write setup path later.
+  - Ubuntu
   - install a some commands.
     - curl(1)
     - jq(1)
@@ -24,3 +23,5 @@ Auto scaling self-hosted runner :runner: for GitHub Actions
 - `GITHUB_APP_SECRET`
 - `GITHUB_PRIVATE_KEY_BASE64`
   - base64 encoded private key from GitHub Apps
+
+and some values from shoes provider. 

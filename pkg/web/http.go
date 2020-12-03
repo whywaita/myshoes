@@ -21,7 +21,6 @@ func Serve(ds datastore.Datastore) error {
 	mux.HandleFunc(pat.Post("/github/events"), func(w http.ResponseWriter, r *http.Request) {
 		handleGitHubEvent(w, r, ds)
 	})
-	mux.HandleFunc(pat.Get("/runner/setup"), handleRunnerSetup)
 
 	// REST API for targets
 	mux.HandleFunc(pat.Post("/targets"), func(w http.ResponseWriter, r *http.Request) {

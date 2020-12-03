@@ -1,13 +1,14 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 
-	"github.com/whywaita/myshoes/pkg/datastore"
-
 	"github.com/jmoiron/sqlx"
+	uuid "github.com/satori/go.uuid"
+	"github.com/whywaita/myshoes/pkg/datastore"
 
 	// mysql driver
 	_ "github.com/go-sql-driver/mysql"
@@ -33,29 +34,29 @@ func New(dsn string) (*MySQL, error) {
 	}, nil
 }
 
-func (m *MySQL) CreateTarget(target datastore.Target) error {
-	query := `INSERT INTO targets(uuid, scope, ghe_domain, github_personal_token) VALUES (?, ?, ?, ?)`
-	if _, err := m.Conn.Exec(query, target.UUID, target.Scope, target.GHEDomain, target.GitHubPersonalToken); err != nil {
+func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error {
+	query := `INSERT INTO targets(uuid, scope, ghe_domain, github_personal_token, resource_type) VALUES (?, ?, ?, ?, ?)`
+	if _, err := m.Conn.ExecContext(ctx, query, target.UUID, target.Scope, target.GHEDomain, target.GitHubPersonalToken, target.ResourceType); err != nil {
 		return fmt.Errorf("failed to execute INSERT query: %w", err)
 	}
 
 	return nil
 }
 
-func (m *MySQL) GetTarget(uuid string) (*datastore.Target, error) {
+func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, created_at, updated_at FROM targets WHERE uuid = "%s"`, uuid)
-	if err := m.Conn.Get(&t, query); err != nil {
+	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, created_at, updated_at FROM targets WHERE uuid = "%s"`, id.String())
+	if err := m.Conn.GetContext(ctx, &t, query); err != nil {
 		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
 	}
 
 	return &t, nil
 }
 
-func (m *MySQL) GetTargetByScope(gheDomain, scope string) (*datastore.Target, error) {
+func (m *MySQL) GetTargetByScope(ctx context.Context, gheDomain, scope string) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, created_at, updated_at FROM targets WHERE ghe_domain = "%s" AND scope = "%s"`, gheDomain, scope)
-	if err := m.Conn.Get(&t, query); err != nil {
+	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, created_at, updated_at FROM targets WHERE ghe_domain = "%s" AND scope = "%s"`, gheDomain, scope)
+	if err := m.Conn.GetContext(ctx, &t, query); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
 		}
@@ -66,9 +67,37 @@ func (m *MySQL) GetTargetByScope(gheDomain, scope string) (*datastore.Target, er
 	return &t, nil
 }
 
-func (m *MySQL) DeleteTarget(uuid string) error {
-	query := fmt.Sprintf(`DELETE FROM targets WHERE uuid = "%s"`, uuid)
-	if _, err := m.Conn.Exec(query, uuid); err != nil {
+func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
+	query := `DELETE FROM targets WHERE uuid = "?"`
+	if _, err := m.Conn.ExecContext(ctx, query, id.String()); err != nil {
+		return fmt.Errorf("failed to execute DELETE query: %w", err)
+	}
+
+	return nil
+}
+
+func (m *MySQL) EnqueueJob(ctx context.Context, job datastore.Job) error {
+	query := `INSERT INTO jobs(uuid, ghe_domain, repository) VALUES (?, ?, ?)`
+	if _, err := m.Conn.ExecContext(ctx, query, job.UUID, job.GHEDomain, job.Repository); err != nil {
+		return fmt.Errorf("failed to execute INSERT query: %w", err)
+	}
+
+	return nil
+}
+
+func (m *MySQL) GetJob(ctx context.Context) ([]datastore.Job, error) {
+	var jobs []datastore.Job
+	query := `SELECT uuid, ghe_domain, repository, check_event FROM jobs`
+	if err := m.Conn.SelectContext(ctx, &jobs, query); err != nil {
+		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
+	}
+
+	return jobs, nil
+}
+
+func (m *MySQL) DeleteJob(ctx context.Context, id uuid.UUID) error {
+	query := fmt.Sprintf(`DELETE FROM jobs WHERE uuid = "?"`)
+	if _, err := m.Conn.ExecContext(ctx, query, id.String()); err != nil {
 		return fmt.Errorf("failed to execute DELETE query: %w", err)
 	}
 
