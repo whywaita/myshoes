@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+
+	"github.com/whywaita/myshoes/pkg/logger"
 
 	"github.com/whywaita/myshoes/pkg/gh"
 
@@ -20,20 +21,20 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	t := datastore.Target{}
 
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
-		log.Println(err)
+		logger.Logf("%+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, "json decode error")
 		return
 	}
 
 	if err := gh.ExistGitHubRepository(t); err != nil {
-		log.Println(err)
+		logger.Logf("%+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, "github scope is invalid (maybe, not found)")
 		return
 	}
 
 	t.UUID = uuid.NewV4()
 	if err := ds.CreateTarget(ctx, t); err != nil {
-		log.Println(err)
+		logger.Logf("%+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore create error")
 		return
 	}
@@ -48,13 +49,13 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 	ctx := context.Background()
 	targetID, err := parseReqTargetID(r)
 	if err != nil {
-		log.Println(err)
+		logger.Logf("%+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, "incorrect target id")
 	}
 
 	target, err := ds.GetTarget(ctx, targetID)
 	if err != nil {
-		log.Println(err)
+		logger.Logf("%+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore read error")
 		return
 	}
@@ -71,13 +72,13 @@ func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	ctx := context.Background()
 	targetID, err := parseReqTargetID(r)
 	if err != nil {
-		log.Println(err)
+		logger.Logf("%+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, "incorrect target id")
 		return
 	}
 
 	if err := ds.DeleteTarget(ctx, targetID); err != nil {
-		log.Println(err)
+		logger.Logf("%+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore delete error")
 		return
 	}

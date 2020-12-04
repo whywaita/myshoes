@@ -3,8 +3,9 @@ package starter
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/whywaita/myshoes/pkg/logger"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/shoes"
@@ -29,6 +30,8 @@ func New(ds datastore.Datastore, s safety.Safety) *Starter {
 }
 
 func (s *Starter) Loop() error {
+	logger.Logf("start starter loop")
+
 	ctx := context.Background()
 	ticker := time.NewTicker(pistolInterval)
 
@@ -37,7 +40,7 @@ func (s *Starter) Loop() error {
 		case <-ticker.C:
 			// TODO: get job -> safety check -> bung!
 			if err := s.do(ctx); err != nil {
-				log.Println(err)
+				logger.Logf("%+v", err)
 			}
 		}
 	}
@@ -50,11 +53,11 @@ func (s *Starter) do(ctx context.Context) error {
 	}
 
 	for _, j := range jobs {
-		log.Printf("start job (job id: %s)\n", j.UUID.String())
+		logger.Logf("start job (job id: %s)\n", j.UUID.String())
 
 		isOK, err := s.safety.Check(&j)
 		if err != nil {
-			log.Printf("failed to check safery: %+v\n", err)
+			logger.Logf("failed to check safery: %+v\n", err)
 			continue
 		}
 		if !isOK {
@@ -63,11 +66,11 @@ func (s *Starter) do(ctx context.Context) error {
 		}
 
 		if err := s.bung(ctx, j); err != nil {
-			log.Printf("failed to bung: %+v\n", err)
+			logger.Logf("failed to bung: %+v\n", err)
 			continue
 		}
 		if err := s.ds.DeleteJob(ctx, j.UUID); err != nil {
-			log.Printf("failed to delete job: %+v\n", err)
+			logger.Logf("failed to delete job: %+v\n", err)
 			continue
 		}
 	}
