@@ -9,11 +9,16 @@ service Shoes {
 }
 
 message AddInstanceRequest {
-    string setupScript = 1;
+    string runner_id = 1;
+    string setup_script = 2;
 }
 
-message AddInstanceResponse {}
+message AddInstanceResponse {
+    string cloud_id = 1;
+}
 
-message DeleteInstanceRequest {}
+message DeleteInstanceRequest {
+    string cloud_id = 1;
+}
 
 message DeleteInstanceResponse {}
