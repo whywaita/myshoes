@@ -11,6 +11,7 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-github/v32 v32.1.0
+	github.com/gophercloud/gophercloud v0.14.0 // indirect
 	github.com/hashicorp/go-plugin v1.4.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/satori/go.uuid v1.2.0

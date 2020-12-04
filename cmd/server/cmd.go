@@ -7,8 +7,10 @@ import (
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/datastore/mysql"
-	"github.com/whywaita/myshoes/pkg/shoes"
+	"github.com/whywaita/myshoes/pkg/starter"
+	"github.com/whywaita/myshoes/pkg/starter/safety/unlimited"
 	"github.com/whywaita/myshoes/pkg/web"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
@@ -24,7 +26,7 @@ func main() {
 
 type myShoes struct {
 	ds    datastore.Datastore
-	shoes shoes.ShoesClient
+	start *starter.Starter
 }
 
 func New() (*myShoes, error) {
@@ -33,14 +35,34 @@ func New() (*myShoes, error) {
 		return nil, fmt.Errorf("failed to mysql.New: %w", err)
 	}
 
+	unlimit := unlimited.Unlimit{}
+
+	s := starter.New(m, unlimit)
+
 	return &myShoes{
-		ds: m,
+		ds:    m,
+		start: s,
 	}, nil
 }
 
 func (m *myShoes) Run() error {
-	if err := web.Serve(m.ds); err != nil {
-		return fmt.Errorf("failed to serve: %w", err)
+	eg := errgroup.Group{}
+
+	eg.Go(func() error {
+		if err := web.Serve(m.ds); err != nil {
+			return fmt.Errorf("failed to serve: %w", err)
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := m.start.Loop(); err != nil {
+			return fmt.Errorf("failed to loop: %w", err)
+		}
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("failed to wait errgroup: %w", err)
 	}
 
 	return nil
