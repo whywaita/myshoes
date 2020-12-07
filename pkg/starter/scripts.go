@@ -7,11 +7,7 @@ import (
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
-func (s *Starter) getSetupScript(ctx context.Context, job datastore.Job) (string, error) {
-	target, err := s.ds.GetTarget(ctx, job.TargetID)
-	if err != nil {
-		return "", fmt.Errorf("failed to retrieve relational target (job: %s, target: %s): %w", job.UUID, job.TargetID, err)
-	}
+func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target) (string, error) {
 
 	script := fmt.Sprintf(templateCreateLatestRunnerOnce, target.Scope, target.GHEDomain.String, target.GitHubPersonalToken)
 	return script, nil

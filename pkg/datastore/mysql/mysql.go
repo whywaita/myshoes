@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	uuid "github.com/satori/go.uuid"
@@ -102,6 +103,24 @@ func (m *MySQL) DeleteJob(ctx context.Context, id uuid.UUID) error {
 	query := fmt.Sprintf(`DELETE FROM jobs WHERE uuid = ?`)
 	if _, err := m.Conn.ExecContext(ctx, query, id.String()); err != nil {
 		return fmt.Errorf("failed to execute DELETE query: %w", err)
+	}
+
+	return nil
+}
+
+func (m *MySQL) CreateRunner(ctx context.Context, runner datastore.Runner) error {
+	query := `INSERT INTO runners(uuid, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+	if _, err := m.Conn.ExecContext(ctx, query, runner.UUID.String(), runner.ShoesType, runner.IPAddress, runner.TargetID.String(), runner.CloudID, runner.CreatedAt, runner.UpdatedAt); err != nil {
+		return fmt.Errorf("failed to execute INSERT query: %w", err)
+	}
+
+	return nil
+}
+
+func (m *MySQL) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time) error {
+	query := `UPDATE runners SET deleted=1, deleted_at = ? WHERE uuid = ? `
+	if _, err := m.Conn.ExecContext(ctx, query, deletedAt, id.String()); err != nil {
+		return fmt.Errorf("failed to execute UPDATE query: %w", err)
 	}
 
 	return nil

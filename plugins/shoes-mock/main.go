@@ -51,7 +51,9 @@ func (m Mock) AddInstance(ctx context.Context, req *pb.AddInstanceRequest) (*pb.
 		return nil, status.Errorf(codes.Internal, "failed to exec AddInstance: %+v", err)
 	}
 	return &pb.AddInstanceResponse{
-		CloudId: "uuid",
+		CloudId:   "uuid",
+		ShoesType: "mock",
+		IpAddress: "192.0.2.100",
 	}, nil
 }
 

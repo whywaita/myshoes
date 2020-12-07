@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS runners (
     shoes_type VARCHAR(255) NOT NULL,
     ip_address VARCHAR(255) NOT NULL,
     target_id VARCHAR(36) NOT NULL,
+    cloud_id VARCHAR(36) NOT NULL,
     deleted bool DEFAULT false,
     FOREIGN KEY fk_target_id(target_id) REFERENCES targets(uuid) ON DELETE RESTRICT,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
@@ -26,9 +27,10 @@ CREATE TABLE IF NOT EXISTS runners (
 CREATE TABLE IF NOT EXISTS jobs (
     uuid VARCHAR(36) NOT NULL PRIMARY KEY,
     ghe_domain VARCHAR(255),
-    repository VARCHAR(255),
-    check_event TEXT,
-    target_id VARCHAR(36),
+    repository VARCHAR(255) NOT NULL,
+    check_event TEXT NOT NULL,
+    target_id VARCHAR(36) NOT NULL,
+    FOREIGN KEY fk_target_id(target_id) REFERENCES targets(uuid) ON DELETE RESTRICT,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp
 );

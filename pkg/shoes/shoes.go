@@ -66,7 +66,7 @@ func (p *ShoesPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker,
 
 // ShoesClient is plugin client interface
 type ShoesClient interface {
-	AddInstance(ctx context.Context, runnerID, setupScript string) error
+	AddInstance(ctx context.Context, runnerID, setupScript string) (string, string, string, error)
 	DeleteInstance(ctx context.Context, cloudID string) error
 }
 
@@ -76,19 +76,17 @@ type GRPCClient struct {
 }
 
 // AddInstance create instance for runner
-func (c *GRPCClient) AddInstance(ctx context.Context, runnerID, setupScript string) error {
+func (c *GRPCClient) AddInstance(ctx context.Context, runnerID, setupScript string) (string, string, string, error) {
 	req := &pb.AddInstanceRequest{
 		RunnerId:    runnerID,
 		SetupScript: setupScript,
 	}
 	resp, err := c.client.AddInstance(ctx, req)
 	if err != nil {
-		return fmt.Errorf("failed to AddInstance: %w", err)
+		return "", "", "", fmt.Errorf("failed to AddInstance: %w", err)
 	}
 
-	fmt.Printf("%+v\n", resp)
-
-	return nil
+	return resp.CloudId, resp.IpAddress, resp.ShoesType, nil
 }
 
 // DeleteInstance delete instance for runner

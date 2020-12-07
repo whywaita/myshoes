@@ -24,6 +24,9 @@ type Datastore interface {
 	EnqueueJob(ctx context.Context, job Job) error
 	GetJob(ctx context.Context) ([]Job, error)
 	DeleteJob(ctx context.Context, id uuid.UUID) error
+
+	CreateRunner(ctx context.Context, runner Runner) error
+	DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time) error
 }
 
 // Target is a target repository that will add auto-scaling runner.
@@ -62,7 +65,20 @@ type Job struct {
 	GHEDomain      sql.NullString `db:"ghe_domain"`
 	Repository     string         `db:"repository"` // repo (:owner/:repo)
 	CheckEventJSON string         `db:"check_event"`
+	TargetID       uuid.UUID      `db:"target_id"`
 	CreatedAt      time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt      time.Time      `db:"updated_at" json:"updated_at"`
-	TargetID       uuid.UUID      `db:"target_id"`
+}
+
+// Runner is a runner
+type Runner struct {
+	UUID      uuid.UUID `db:"uuid"`
+	ShoesType string    `db:"shoes_type"`
+	IPAddress string    `db:"ip_address"`
+	TargetID  uuid.UUID `db:"target_id"`
+	CloudID   string    `db:"cloud_id"`
+	Deleted   bool      `db:"deleted"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+	DeletedAt time.Time `db:"deleted_at"`
 }

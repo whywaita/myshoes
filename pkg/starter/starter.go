@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/whywaita/myshoes/pkg/logger"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -84,15 +86,36 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to get plugin client: %w", err)
 	}
 
-	script, err := s.getSetupScript(ctx, job)
+	target, err := s.ds.GetTarget(ctx, job.TargetID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve relational target (job: %s, target: %s): %w", job.UUID, job.TargetID, err)
+	}
+
+	script, err := s.getSetupScript(ctx, *target)
 	if err != nil {
 		return fmt.Errorf("failed to get setup script: %w", err)
 	}
 
-	if err := client.AddInstance(ctx, job.UUID.String(), script); err != nil {
+	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, job.UUID.String(), script)
+	if err != nil {
 		return fmt.Errorf("failed to add instance: %w", err)
 	}
 	teardown()
+
+	runnerID := uuid.NewV4()
+	now := time.Now()
+	r := datastore.Runner{
+		UUID:      runnerID,
+		ShoesType: shoesType,
+		IPAddress: ipAddress,
+		TargetID:  target.UUID,
+		CloudID:   cloudID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := s.ds.CreateRunner(ctx, r); err != nil {
+		return fmt.Errorf("failed to create runner: %w", err)
+	}
 
 	return nil
 }

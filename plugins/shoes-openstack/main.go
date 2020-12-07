@@ -120,7 +120,9 @@ func (p OpenStackClient) AddInstance(ctx context.Context, req *pb.AddInstanceReq
 	}
 
 	return &pb.AddInstanceResponse{
-		CloudId: server.ID,
+		CloudId:   server.ID,
+		ShoesType: "openstack",
+		IpAddress: server.AccessIPv4,
 	}, nil
 }
 

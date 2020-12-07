@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"sync"
+	"time"
 
 	uuid "github.com/satori/go.uuid"
 
@@ -13,6 +14,7 @@ type Memory struct {
 	mu      *sync.RWMutex
 	targets map[uuid.UUID]datastore.Target
 	jobs    map[uuid.UUID]datastore.Job
+	runners map[uuid.UUID]datastore.Runner
 }
 
 // New create map
@@ -20,11 +22,13 @@ func New() (*Memory, error) {
 	m := &sync.RWMutex{}
 	t := map[uuid.UUID]datastore.Target{}
 	j := map[uuid.UUID]datastore.Job{}
+	r := map[uuid.UUID]datastore.Runner{}
 
 	return &Memory{
 		mu:      m,
 		targets: t,
 		jobs:    j,
+		runners: r,
 	}, nil
 }
 
@@ -104,5 +108,22 @@ func (m *Memory) DeleteJob(ctx context.Context, id uuid.UUID) error {
 	defer m.mu.Unlock()
 
 	delete(m.jobs, id)
+	return nil
+}
+
+func (m *Memory) CreateRunner(ctx context.Context, runner datastore.Runner) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.runners[runner.UUID] = runner
+
+	return nil
+}
+
+func (m *Memory) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Ticker) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delete(m.runners, id)
 	return nil
 }
