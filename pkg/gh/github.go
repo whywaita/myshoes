@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whywaita/myshoes/pkg/datastore"
-
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/v32/github"
 	"github.com/whywaita/myshoes/internal/config"
@@ -34,8 +32,8 @@ func NewClient(installationID int64) (*github.Client, error) {
 }
 
 // ExistGitHubRepository check exist of github repository
-func ExistGitHubRepository(t datastore.Target) error {
-	repoURL, err := getRepositoryURL(t.Scope, t.GHEDomain.String, t.GHEDomain.Valid)
+func ExistGitHubRepository(scope, gheDomain string, gheDomainValid bool, githubPersonalToken string) error {
+	repoURL, err := getRepositoryURL(scope, gheDomain, gheDomainValid)
 	if err != nil {
 		return fmt.Errorf("failed to get repository url: %w", err)
 	}
@@ -45,7 +43,7 @@ func ExistGitHubRepository(t datastore.Target) error {
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Add("Authorization", fmt.Sprintf("token %s", t.GitHubPersonalToken))
+	req.Header.Add("Authorization", fmt.Sprintf("token %s", githubPersonalToken))
 
 	resp, err := client.Do(req)
 	if err != nil {

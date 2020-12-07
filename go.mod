@@ -7,11 +7,12 @@ go 1.15
 
 require (
 	github.com/bradleyfalzon/ghinstallation v1.1.1
+	github.com/gleicon/go-httplogger v0.0.0-20170829021956-ab2410a250ca
 	github.com/go-sql-driver/mysql v1.4.0
 	github.com/golang/protobuf v1.4.3
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-github/v32 v32.1.0
-	github.com/gophercloud/gophercloud v0.14.0 // indirect
+	github.com/gophercloud/gophercloud v0.14.0
 	github.com/hashicorp/go-plugin v1.4.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/satori/go.uuid v1.2.0

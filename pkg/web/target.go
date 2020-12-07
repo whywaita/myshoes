@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/whywaita/myshoes/pkg/logger"
 
@@ -17,6 +18,7 @@ import (
 )
 
 func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+	// input values: scope, gpt, ghe_domain, resource_type
 	ctx := context.Background()
 	t := datastore.Target{}
 
@@ -26,13 +28,18 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
-	if err := gh.ExistGitHubRepository(t); err != nil {
+	// TODO: input validate
+
+	if err := gh.ExistGitHubRepository(t.Scope, t.GHEDomain.String, t.GHEDomain.Valid, t.GitHubPersonalToken); err != nil {
 		logger.Logf("%+v", err)
-		outputErrorMsg(w, http.StatusBadRequest, "github scope is invalid (maybe, not found)")
+		outputErrorMsg(w, http.StatusBadRequest, "github scope is invalid (maybe, repository is not found)")
 		return
 	}
 
 	t.UUID = uuid.NewV4()
+	now := time.Now()
+	t.CreatedAt = now
+	t.UpdatedAt = now
 	if err := ds.CreateTarget(ctx, t); err != nil {
 		logger.Logf("%+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore create error")

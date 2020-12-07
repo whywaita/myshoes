@@ -9,8 +9,9 @@ type conf struct {
 		PEM       []byte
 	}
 
-	MySQLDSN string
-	Port     int
+	MySQLDSN        string
+	Port            int
+	ShoesPluginPath string
 }
 
 // Config Environment keys
@@ -20,4 +21,5 @@ const (
 	EnvGitHubAppPrivateKeyBase64 = "GITHUB_PRIVATE_KEY_BASE64"
 	EnvMySQLURL                  = "MYSQL_URL"
 	EnvPort                      = "PORT"
+	EnvShoesPluginPath           = "PLUGIN"
 )

@@ -12,6 +12,8 @@ import (
 
 	goji "goji.io"
 	"goji.io/pat"
+
+	httplogger "github.com/gleicon/go-httplogger"
 )
 
 // Serve start webhook receiver
@@ -37,7 +39,9 @@ func Serve(ds datastore.Datastore) error {
 	})
 
 	logger.Logf("start webhook receiver")
-	if err := http.ListenAndServe(":"+strconv.Itoa(config.Config.Port), mux); err != nil {
+	if err := http.ListenAndServe(
+		":"+strconv.Itoa(config.Config.Port),
+		httplogger.HTTPLogger(mux)); err != nil {
 		return fmt.Errorf("failed to listen and serve: %w", err)
 	}
 

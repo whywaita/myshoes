@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -33,26 +34,41 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 	}
 
 	switch event := webhookEvent.(type) {
-	case *github.CheckRunEvent:
-		if err := processEvent(ctx, event, ds); err != nil {
-			logger.Logf("failed to process event: %+v\n", err)
+	case *github.PingEvent:
+		if err := processPingWebhook(ctx, event); err != nil {
+			logger.Logf("failed to process ping event: %+v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		} else {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+	case *github.CheckRunEvent:
+		if err := processCheckRunWebhook(ctx, event, ds); err != nil {
+			logger.Logf("failed to process check_run event: %+v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	default:
+		logger.Logf("receive not register event(%+v), return NotFound", event)
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
-
-	w.WriteHeader(http.StatusNotFound)
-	return
 }
 
-func processEvent(ctx context.Context, event *github.CheckRunEvent, ds datastore.Datastore) error {
+func processPingWebhook(ctx context.Context, event *github.PingEvent) error {
+	return nil
+}
+
+func processCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds datastore.Datastore) error {
 	if event.GetAction() != "created" {
 		return nil
 	}
 
+	// TODO: check signature
 	installationID := event.GetInstallation().GetID()
 	//client, err := newGitHubClient(installationID)
 	_, err := gh.NewClient(installationID)
@@ -66,11 +82,16 @@ func processEvent(ctx context.Context, event *github.CheckRunEvent, ds datastore
 	if err != nil {
 		return fmt.Errorf("failed to parse repository url from event: %w", err)
 	}
+	var domain string
 	gheDomain := ""
 	if u.Host != "github.com" {
 		gheDomain = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+		domain = gheDomain
+	} else {
+		domain = "https://github.com"
 	}
 
+	logger.Logf("receive webhook repository: %s/%s", domain, repoName)
 	if _, err := searchRepo(ctx, ds, gheDomain, repoName); err != nil {
 		return fmt.Errorf("failed to search registered target: %w", err)
 	}
@@ -89,11 +110,16 @@ func processEvent(ctx context.Context, event *github.CheckRunEvent, ds datastore
 		}
 	}
 
+	jb, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to json.Marshal: %w", err)
+	}
+
 	j := datastore.Job{
 		UUID:           jobID,
 		GHEDomain:      jobDomain,
 		Repository:     repoName,
-		CheckEventJSON: *event,
+		CheckEventJSON: string(jb),
 	}
 	if err := ds.EnqueueJob(ctx, j); err != nil {
 		return fmt.Errorf("failed to enqueue job: %w", err)
@@ -115,14 +141,14 @@ func searchRepo(ctx context.Context, ds datastore.Datastore, gheDomain, repo str
 	if err == nil {
 		return repoTarget, nil
 	} else if err != datastore.ErrNotFound {
-		return nil, fmt.Errorf("failed to get target: %w", err)
+		return nil, fmt.Errorf("failed to get target from repo: %w", err)
 	}
 
 	// repo is not found, so search org target
 	org := sep[0]
 	orgTarget, err := ds.GetTargetByScope(ctx, gheDomain, org)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get target: %w", err)
+		return nil, fmt.Errorf("failed to get target from organization: %w", err)
 	}
 
 	return orgTarget, nil

@@ -85,7 +85,7 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to get plugin client: %w", err)
 	}
 
-	if err := client.AddInstance(ctx); err != nil {
+	if err := client.AddInstance(ctx, job.UUID.String(), "echo 0"); err != nil {
 		return fmt.Errorf("failed to add instance: %w", err)
 	}
 	teardown()

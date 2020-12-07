@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"strconv"
+
+	"github.com/whywaita/myshoes/pkg/logger"
 )
 
 func init() {
@@ -47,4 +49,11 @@ func init() {
 		log.Panicf("failed to parse PORT: %+v", err)
 	}
 	Config.Port = pp
+
+	pluginPath := os.Getenv(EnvShoesPluginPath)
+	if pluginPath == "" {
+		log.Panicf("%s must be set", EnvShoesPluginPath)
+	}
+	Config.ShoesPluginPath = pluginPath
+	logger.Logf("use plugin path is %s", pluginPath)
 }

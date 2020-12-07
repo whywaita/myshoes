@@ -55,7 +55,10 @@ func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target,
 
 func (m *MySQL) GetTargetByScope(ctx context.Context, gheDomain, scope string) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, created_at, updated_at FROM targets WHERE ghe_domain = "%s" AND scope = "%s"`, gheDomain, scope)
+	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, created_at, updated_at FROM targets WHERE scope = "%s"`, scope)
+	if gheDomain != "" {
+		query = fmt.Sprintf(`%s AND ghe_domain = "%s"`, query, gheDomain)
+	}
 	if err := m.Conn.GetContext(ctx, &t, query); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
@@ -77,8 +80,8 @@ func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 }
 
 func (m *MySQL) EnqueueJob(ctx context.Context, job datastore.Job) error {
-	query := `INSERT INTO jobs(uuid, ghe_domain, repository) VALUES (?, ?, ?)`
-	if _, err := m.Conn.ExecContext(ctx, query, job.UUID, job.GHEDomain, job.Repository); err != nil {
+	query := `INSERT INTO jobs(uuid, ghe_domain, repository, check_event) VALUES (?, ?, ?, ?)`
+	if _, err := m.Conn.ExecContext(ctx, query, job.UUID, job.GHEDomain, job.Repository, job.CheckEventJSON); err != nil {
 		return fmt.Errorf("failed to execute INSERT query: %w", err)
 	}
 
@@ -96,7 +99,7 @@ func (m *MySQL) GetJob(ctx context.Context) ([]datastore.Job, error) {
 }
 
 func (m *MySQL) DeleteJob(ctx context.Context, id uuid.UUID) error {
-	query := fmt.Sprintf(`DELETE FROM jobs WHERE uuid = "?"`)
+	query := fmt.Sprintf(`DELETE FROM jobs WHERE uuid = ?`)
 	if _, err := m.Conn.ExecContext(ctx, query, id.String()); err != nil {
 		return fmt.Errorf("failed to execute DELETE query: %w", err)
 	}

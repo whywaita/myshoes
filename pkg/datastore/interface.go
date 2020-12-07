@@ -6,7 +6,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/go-github/v32/github"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -59,10 +58,10 @@ func (r *ResourceType) String() string {
 
 // Job is a runner job
 type Job struct {
-	UUID           uuid.UUID            `db:"uuid"`
-	GHEDomain      sql.NullString       `db:"ghe_domain"`
-	Repository     string               `db:"repository"`
-	CheckEventJSON github.CheckRunEvent `db:"check_event"`
-	CreatedAt      time.Time            `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time            `db:"updated_at" json:"updated_at"`
+	UUID           uuid.UUID      `db:"uuid"`
+	GHEDomain      sql.NullString `db:"ghe_domain"`
+	Repository     string         `db:"repository"`
+	CheckEventJSON string         `db:"check_event"`
+	CreatedAt      time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time      `db:"updated_at" json:"updated_at"`
 }

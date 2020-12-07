@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	pb "github.com/whywaita/myshoes/api/proto"
+	"github.com/whywaita/myshoes/internal/config"
 	"google.golang.org/grpc"
 )
 
@@ -15,7 +16,7 @@ import (
 func GetClient() (ShoesClient, func(), error) {
 	Handshake := plugin.HandshakeConfig{
 		ProtocolVersion:  1,
-		MagicCookieKey:   "BASIC_PLUGIN",
+		MagicCookieKey:   "SHOES_PLUGIN_MAGIC_COOKIE",
 		MagicCookieValue: "are_you_a_shoes?",
 	}
 	PluginMap := map[string]plugin.Plugin{
@@ -25,10 +26,12 @@ func GetClient() (ShoesClient, func(), error) {
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig:  Handshake,
 		Plugins:          PluginMap,
-		Cmd:              exec.Command(os.Getenv("PLUGIN")),
-		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+		Cmd:              exec.Command(config.Config.ShoesPluginPath),
+		Managed:          true,
+		Stderr:           os.Stderr,
 		SyncStdout:       os.Stdout,
 		SyncStderr:       os.Stderr,
+		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 	})
 
 	rpcClient, err := client.Client()
@@ -47,6 +50,8 @@ func GetClient() (ShoesClient, func(), error) {
 // ShoesPlugin is plugin implement
 type ShoesPlugin struct {
 	plugin.Plugin
+
+	Impl ShoesClient
 }
 
 // GRPCServer is server
@@ -61,8 +66,8 @@ func (p *ShoesPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker,
 
 // ShoesClient is plugin client interface
 type ShoesClient interface {
-	AddInstance(ctx context.Context) error
-	DeleteInstance(ctx context.Context) error
+	AddInstance(ctx context.Context, runnerID, setupScript string) error
+	DeleteInstance(ctx context.Context, cloudID string) error
 }
 
 // GRPCClient is plugin client implement
@@ -71,19 +76,26 @@ type GRPCClient struct {
 }
 
 // AddInstance create instance for runner
-func (c *GRPCClient) AddInstance(ctx context.Context) error {
-	req := &pb.AddInstanceRequest{}
-	_, err := c.client.AddInstance(ctx, req)
+func (c *GRPCClient) AddInstance(ctx context.Context, runnerID, setupScript string) error {
+	req := &pb.AddInstanceRequest{
+		RunnerId:    runnerID,
+		SetupScript: setupScript,
+	}
+	resp, err := c.client.AddInstance(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to AddInstance: %w", err)
 	}
+
+	fmt.Printf("%+v\n", resp)
 
 	return nil
 }
 
 // DeleteInstance delete instance for runner
-func (c *GRPCClient) DeleteInstance(ctx context.Context) error {
-	req := &pb.DeleteInstanceRequest{}
+func (c *GRPCClient) DeleteInstance(ctx context.Context, cloudID string) error {
+	req := &pb.DeleteInstanceRequest{
+		CloudId: cloudID,
+	}
 	_, err := c.client.DeleteInstance(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to DeleteInstance: %w", err)

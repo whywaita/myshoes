@@ -16,7 +16,7 @@ import (
 func main() {
 	myshoes, err := New()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	if err := myshoes.Run(); err != nil {
@@ -30,17 +30,17 @@ type myShoes struct {
 }
 
 func New() (*myShoes, error) {
-	m, err := mysql.New(config.Config.MySQLDSN)
+	ds, err := mysql.New(config.Config.MySQLDSN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to mysql.New: %w", err)
 	}
 
 	unlimit := unlimited.Unlimit{}
 
-	s := starter.New(m, unlimit)
+	s := starter.New(ds, unlimit)
 
 	return &myShoes{
-		ds:    m,
+		ds:    ds,
 		start: s,
 	}, nil
 }
