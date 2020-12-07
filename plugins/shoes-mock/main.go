@@ -2,49 +2,63 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
-	"os"
-	"os/signal"
+	"os/exec"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/hashicorp/go-plugin"
 	pb "github.com/whywaita/myshoes/api/proto"
-	"github.com/whywaita/myshoes/pkg/pluginutils"
-)
-
-const (
-	listenAddress = "127.0.0.1:8080"
 )
 
 func main() {
-	grpcServer, lis, handshakeBody, err := pluginutils.Setup(listenAddress)
-	if err != nil {
-		log.Fatal(err)
+	handshake := plugin.HandshakeConfig{
+		ProtocolVersion:  1,
+		MagicCookieKey:   "SHOES_PLUGIN_MAGIC_COOKIE",
+		MagicCookieValue: "are_you_a_shoes?",
+	}
+	pluginMap := map[string]plugin.Plugin{
+		"shoes_grpc": &MockPlugin{},
 	}
 
-	p := &MockPlugin{}
-	pb.RegisterShoesServer(grpcServer, p)
-
-	go func() {
-		err = grpcServer.Serve(*lis)
-		if err != nil {
-			log.Fatalf("failed to serve gRPC Server: %+v\n", err)
-		}
-	}()
-	defer grpcServer.Stop()
-
-	fmt.Printf(handshakeBody)
-
-	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt)
-	<-quit
+	plugin.Serve(&plugin.ServeConfig{
+		HandshakeConfig: handshake,
+		Plugins:         pluginMap,
+		GRPCServer:      plugin.DefaultGRPCServer,
+	})
 }
 
-type MockPlugin struct{}
-
-func (p *MockPlugin) AddInstance(ctx context.Context, req *pb.AddInstanceRequest) (*pb.AddInstanceResponse, error) {
-	return &pb.AddInstanceResponse{}, nil
+type MockPlugin struct {
+	plugin.Plugin
 }
 
-func (p *MockPlugin) DeleteInstance(ctx context.Context, req *pb.DeleteInstanceRequest) (*pb.DeleteInstanceResponse, error) {
+func (p *MockPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
+	server := Mock{}
+	pb.RegisterShoesServer(s, server)
+
+	return nil
+}
+
+func (p *MockPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+	return nil, nil
+}
+
+type Mock struct{}
+
+func (m Mock) AddInstance(ctx context.Context, req *pb.AddInstanceRequest) (*pb.AddInstanceResponse, error) {
+	if err := exec.Command("touch", "./AddInstance").Run(); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to exec AddInstance: %+v", err)
+	}
+	return &pb.AddInstanceResponse{
+		CloudId: "uuid",
+	}, nil
+}
+
+func (m Mock) DeleteInstance(ctx context.Context, req *pb.DeleteInstanceRequest) (*pb.DeleteInstanceResponse, error) {
+	if err := exec.Command("touch", "DeleteInstance").Run(); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to exec DeleteInstance: %+v", err)
+	}
+
 	return &pb.DeleteInstanceResponse{}, nil
 }

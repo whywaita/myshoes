@@ -5,25 +5,23 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
+	"strings"
+
+	uuid "github.com/satori/go.uuid"
+
+	"github.com/hashicorp/go-plugin"
+	"google.golang.org/grpc"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-
 	"github.com/gophercloud/gophercloud"
-	"github.com/whywaita/myshoes/pkg/pluginutils"
-
 	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	pb "github.com/whywaita/myshoes/api/proto"
 )
 
 const (
-	DefaultPort   = "8080"
-	DefaultRegion = "RegionOne"
-
-	EnvPort      = "PORT"
 	EnvFlavorID  = "OS_FLAVOR_ID"
 	EnvImageID   = "OS_IMAGE_ID"
 	EnvNetworkID = "OS_NETWORK_ID"
@@ -36,40 +34,49 @@ func main() {
 }
 
 func run() error {
-	c, err := loadConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
+	handshake := plugin.HandshakeConfig{
+		ProtocolVersion:  1,
+		MagicCookieKey:   "SHOES_PLUGIN_MAGIC_COOKIE",
+		MagicCookieValue: "are_you_a_shoes?",
+	}
+	pluginMap := map[string]plugin.Plugin{
+		"shoes_grpc": &OpenStackPlugin{},
 	}
 
-	grpcServer, lis, handshakeBody, err := pluginutils.Setup(c.listenAddress)
-	if err != nil {
-		return fmt.Errorf("failed to setup plugin: %w", err)
-	}
-
-	p, err := New(c)
-	if err != nil {
-		return fmt.Errorf("failed to setup openstack client: %w", err)
-	}
-	pb.RegisterShoesServer(grpcServer, p)
-
-	go func() {
-		err = grpcServer.Serve(*lis)
-		if err != nil {
-			log.Fatalf("failed to serve gRPC Server: %+v\n", err)
-		}
-	}()
-	defer grpcServer.Stop()
-
-	fmt.Printf(handshakeBody)
-
-	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt)
-	<-quit
+	plugin.Serve(&plugin.ServeConfig{
+		HandshakeConfig: handshake,
+		Plugins:         pluginMap,
+		GRPCServer:      plugin.DefaultGRPCServer,
+	})
 
 	return nil
 }
 
 type OpenStackPlugin struct {
+	plugin.Plugin
+}
+
+func (o *OpenStackPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
+	c, err := loadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	client, err := New(c)
+	if err != nil {
+		return fmt.Errorf("failed to create OpenStackClient: %w", err)
+	}
+
+	pb.RegisterShoesServer(s, client)
+
+	return nil
+}
+
+func (o *OpenStackPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+	return nil, nil
+}
+
+type OpenStackClient struct {
 	computeClient *gophercloud.ServiceClient
 
 	flavorID  string
@@ -77,8 +84,8 @@ type OpenStackPlugin struct {
 	networkID string
 }
 
-func New(c config) (*OpenStackPlugin, error) {
-	p := &OpenStackPlugin{
+func New(c config) (*OpenStackClient, error) {
+	p := &OpenStackClient{
 		flavorID:  c.flavorID,
 		imageID:   c.imageID,
 		networkID: c.networkID,
@@ -93,9 +100,14 @@ func New(c config) (*OpenStackPlugin, error) {
 	return p, nil
 }
 
-func (p *OpenStackPlugin) AddInstance(ctx context.Context, req *pb.AddInstanceRequest) (*pb.AddInstanceResponse, error) {
+func (p OpenStackClient) AddInstance(ctx context.Context, req *pb.AddInstanceRequest) (*pb.AddInstanceResponse, error) {
+	if _, err := uuid.FromString(req.RunnerId); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "failed to parse request id as a uuid v4: %+v", err)
+	}
+
+	instanceName := fmt.Sprintf("myshoes-%s", req.RunnerId)
 	createOpts := servers.CreateOpts{
-		Name:      req.RunnerId,
+		Name:      instanceName,
 		FlavorRef: p.flavorID,
 		ImageRef:  p.imageID,
 		Networks:  []servers.Network{{UUID: p.networkID}},
@@ -112,7 +124,7 @@ func (p *OpenStackPlugin) AddInstance(ctx context.Context, req *pb.AddInstanceRe
 	}, nil
 }
 
-func (p *OpenStackPlugin) DeleteInstance(ctx context.Context, req *pb.DeleteInstanceRequest) (*pb.DeleteInstanceResponse, error) {
+func (p OpenStackClient) DeleteInstance(ctx context.Context, req *pb.DeleteInstanceRequest) (*pb.DeleteInstanceResponse, error) {
 	err := servers.Delete(p.computeClient, req.CloudId).ExtractErr()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete server: %+v", err)
@@ -132,17 +144,16 @@ type config struct {
 func loadConfig() (config, error) {
 	var c config
 
-	var port string
-	if os.Getenv(EnvPort) == "" {
-		port = DefaultPort
-	} else {
-		port = os.Getenv(EnvPort)
+	var unsetValues []string
+	for _, e := range []string{EnvFlavorID, EnvImageID, EnvNetworkID} {
+		if os.Getenv(e) == "" {
+			unsetValues = append(unsetValues, e)
+		}
 	}
-	c.listenAddress = fmt.Sprintf("127.0.0.1:%s", port)
+	if len(unsetValues) != 0 {
+		return config{}, fmt.Errorf("must be set %s", strings.Join(unsetValues, ", "))
+	}
 
-	if os.Getenv(EnvFlavorID) == "" || os.Getenv(EnvImageID) == "" || os.Getenv(EnvNetworkID) == "" {
-		return config{}, fmt.Errorf("must be set instance ids")
-	}
 	c.flavorID = os.Getenv(EnvFlavorID)
 	c.imageID = os.Getenv(EnvImageID)
 	c.networkID = os.Getenv(EnvNetworkID)
