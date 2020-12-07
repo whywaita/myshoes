@@ -60,8 +60,9 @@ func (r *ResourceType) String() string {
 type Job struct {
 	UUID           uuid.UUID      `db:"uuid"`
 	GHEDomain      sql.NullString `db:"ghe_domain"`
-	Repository     string         `db:"repository"`
+	Repository     string         `db:"repository"` // repo (:owner/:repo)
 	CheckEventJSON string         `db:"check_event"`
 	CreatedAt      time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt      time.Time      `db:"updated_at" json:"updated_at"`
+	TargetID       uuid.UUID      `db:"target_id"`
 }

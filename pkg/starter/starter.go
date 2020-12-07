@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	pistolInterval = 10 * time.Second
+	PistolInterval = 10 * time.Second
 )
 
 // Starter is dispatcher for running job
@@ -33,12 +33,11 @@ func (s *Starter) Loop() error {
 	logger.Logf("start starter loop")
 
 	ctx := context.Background()
-	ticker := time.NewTicker(pistolInterval)
+	ticker := time.NewTicker(PistolInterval)
 
 	for {
 		select {
 		case <-ticker.C:
-			// TODO: get job -> safety check -> bung!
 			if err := s.do(ctx); err != nil {
 				logger.Logf("%+v", err)
 			}
@@ -85,7 +84,12 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to get plugin client: %w", err)
 	}
 
-	if err := client.AddInstance(ctx, job.UUID.String(), "echo 0"); err != nil {
+	script, err := s.getSetupScript(ctx, job)
+	if err != nil {
+		return fmt.Errorf("failed to get setup script: %w", err)
+	}
+
+	if err := client.AddInstance(ctx, job.UUID.String(), script); err != nil {
 		return fmt.Errorf("failed to add instance: %w", err)
 	}
 	teardown()

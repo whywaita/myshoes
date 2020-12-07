@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     uuid VARCHAR(36) NOT NULL PRIMARY KEY,
     ghe_domain VARCHAR(255),
     repository VARCHAR(255),
+    check_event TEXT,
+    target_id VARCHAR(36),
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
-    updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp,
-    check_event TEXT
+    updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp
 );

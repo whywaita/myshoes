@@ -92,11 +92,11 @@ func processCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 	}
 
 	logger.Logf("receive webhook repository: %s/%s", domain, repoName)
-	if _, err := searchRepo(ctx, ds, gheDomain, repoName); err != nil {
+	target, err := searchRepo(ctx, ds, gheDomain, repoName)
+	if err != nil {
 		return fmt.Errorf("failed to search registered target: %w", err)
 	}
 
-	// TODO: enqueue to datastore
 	jobID := uuid.NewV4()
 	var jobDomain sql.NullString
 	if gheDomain == "" {
@@ -120,6 +120,7 @@ func processCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 		GHEDomain:      jobDomain,
 		Repository:     repoName,
 		CheckEventJSON: string(jb),
+		TargetID:       target.UUID,
 	}
 	if err := ds.EnqueueJob(ctx, j); err != nil {
 		return fmt.Errorf("failed to enqueue job: %w", err)

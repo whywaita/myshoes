@@ -80,8 +80,8 @@ func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 }
 
 func (m *MySQL) EnqueueJob(ctx context.Context, job datastore.Job) error {
-	query := `INSERT INTO jobs(uuid, ghe_domain, repository, check_event) VALUES (?, ?, ?, ?)`
-	if _, err := m.Conn.ExecContext(ctx, query, job.UUID, job.GHEDomain, job.Repository, job.CheckEventJSON); err != nil {
+	query := `INSERT INTO jobs(uuid, ghe_domain, repository, check_event, target_id) VALUES (?, ?, ?, ?, ?)`
+	if _, err := m.Conn.ExecContext(ctx, query, job.UUID, job.GHEDomain, job.Repository, job.CheckEventJSON, job.TargetID.String()); err != nil {
 		return fmt.Errorf("failed to execute INSERT query: %w", err)
 	}
 
@@ -90,7 +90,7 @@ func (m *MySQL) EnqueueJob(ctx context.Context, job datastore.Job) error {
 
 func (m *MySQL) GetJob(ctx context.Context) ([]datastore.Job, error) {
 	var jobs []datastore.Job
-	query := `SELECT uuid, ghe_domain, repository, check_event FROM jobs`
+	query := `SELECT uuid, ghe_domain, repository, check_event, target_id FROM jobs`
 	if err := m.Conn.SelectContext(ctx, &jobs, query); err != nil {
 		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
 	}
