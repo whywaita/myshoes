@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/whywaita/myshoes/pkg/runner"
 
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
@@ -101,13 +101,12 @@ func New(c config) (*OpenStackClient, error) {
 }
 
 func (p OpenStackClient) AddInstance(ctx context.Context, req *pb.AddInstanceRequest) (*pb.AddInstanceResponse, error) {
-	if _, err := uuid.FromString(req.RunnerId); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "failed to parse request id as a uuid v4: %+v", err)
+	if _, err := runner.ToUUID(req.RunnerName); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "failed to parse request name: %+v", err)
 	}
 
-	instanceName := fmt.Sprintf("myshoes-%s", req.RunnerId)
 	createOpts := servers.CreateOpts{
-		Name:      instanceName,
+		Name:      req.RunnerName,
 		FlavorRef: p.flavorID,
 		ImageRef:  p.imageID,
 		Networks:  []servers.Network{{UUID: p.networkID}},

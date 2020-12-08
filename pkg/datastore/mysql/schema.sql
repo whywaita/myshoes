@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS targets (
     ghe_domain VARCHAR(255),
     github_personal_token VARCHAR(255) NOT NULL,
     resource_type ENUM('nano', 'micro', 'small', 'medium', 'large', 'xlarge', '2xlarge', '3xlarge', '4xlarge') NOT NULL,
+    runner_user VARCHAR(255),
     UNIQUE (ghe_domain, scope),
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp

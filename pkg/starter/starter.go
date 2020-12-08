@@ -41,7 +41,7 @@ func (s *Starter) Loop() error {
 		select {
 		case <-ticker.C:
 			if err := s.do(ctx); err != nil {
-				logger.Logf("%+v", err)
+				logger.Logf("failed to start do: %+v", err)
 			}
 		}
 	}
@@ -81,27 +81,26 @@ func (s *Starter) do(ctx context.Context) error {
 
 // bung is start runner, like a pistol! :)
 func (s *Starter) bung(ctx context.Context, job datastore.Job) error {
+	logger.Logf("start create instance (job: %s)", job.UUID)
 	client, teardown, err := shoes.GetClient()
 	if err != nil {
 		return fmt.Errorf("failed to get plugin client: %w", err)
 	}
+	defer teardown()
 
 	target, err := s.ds.GetTarget(ctx, job.TargetID)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve relational target (job: %s, target: %s): %w", job.UUID, job.TargetID, err)
 	}
 
-	script, err := s.getSetupScript(ctx, *target)
-	if err != nil {
-		return fmt.Errorf("failed to get setup script: %w", err)
-	}
-
+	script := s.getSetupScript(*target)
 	runnerName := runner.ToName(job.UUID.String())
 	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script)
 	if err != nil {
 		return fmt.Errorf("failed to add instance: %w", err)
 	}
-	teardown()
+
+	logger.Logf("instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
 
 	now := time.Now()
 	r := datastore.Runner{

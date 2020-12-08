@@ -1,21 +1,25 @@
 package starter
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
-func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target) (string, error) {
+func (s *Starter) getSetupScript(target datastore.Target) string {
+	runnerUser := ""
+	if target.RunnerUser.Valid {
+		runnerUser = target.RunnerUser.String
+	}
 
-	script := fmt.Sprintf(templateCreateLatestRunnerOnce, target.Scope, target.GHEDomain.String, target.GitHubPersonalToken)
-	return script, nil
+	script := fmt.Sprintf(templateCreateLatestRunnerOnce, target.Scope, target.GHEDomain.String, target.GitHubPersonalToken, runnerUser)
+	return script
 }
 
+// templateCreateLatestRunnerOnce is script template of setup runner.
+// need to set runnerUser if execute using root permission. (for example, use cloud-init)
 // original script: https://github.com/actions/runner/blob/80bf68db812beb298b7534012b261e6f222e004a/scripts/create-latest-svc.sh
-const templateCreateLatestRunnerOnce = `
-#/bin/bash
+const templateCreateLatestRunnerOnce = `#!/bin/bash
 
 set -e
 
@@ -48,9 +52,16 @@ ghe_hostname=%s
 runner_name=${3:-$(hostname)}
 svc_user=${4:-$USER}
 RUNNER_CFG_PAT=%s
+RUNNER_USER=%s
+
+env
+
+sudo_prefix=""
+if [ $(id -u) -eq 0 ]; then  # if root
+sudo_prefix="sudo -E -u ${RUNNER_USER} "
+fi
 
 echo "Configuring runner @ ${runner_scope}"
-sudo echo
 
 #---------------------------------------
 # Validate Environment
@@ -70,12 +81,15 @@ if [ -z "${RUNNER_CFG_PAT}" ]; then fatal "RUNNER_CFG_PAT must be set before cal
 which curl || fatal "curl required.  Please install in PATH with apt-get, brew, etc"
 which jq || fatal "jq required.  Please install in PATH with apt-get, brew, etc"
 
+# move /tmp, /tmp is path of all user writable.
+cd /tmp
+
 # bail early if there's already a runner there. also sudo early
 if [ -d ./runner ]; then
     fatal "Runner already exists.  Use a different directory or delete ./runner"
 fi
 
-sudo -u ${svc_user} mkdir runner
+${sudo_prefix}mkdir runner
 
 # TODO: validate not in a container
 # TODO: validate systemd or osx svc installer
@@ -134,7 +148,9 @@ echo "Extracting ${runner_file} to ./runner"
 tar xzf "./${runner_file}" -C runner
 
 # export of pass
-sudo chown -R $svc_user ./runner
+if [ $(id -u) -eq 0 ]; then
+chown -R ${RUNNER_USER} ./runner
+fi
 
 pushd ./runner
 
@@ -149,7 +165,7 @@ fi
 echo
 echo "Configuring ${runner_name} @ $runner_url"
 echo "./config.sh --unattended --url $runner_url --token *** --name $runner_name"
-./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name
+${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name
 echo "./run.sh --once"
-./run.sh --once
+${sudo_prefix}./run.sh --once
 `

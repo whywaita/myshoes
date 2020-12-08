@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/whywaita/myshoes/pkg/shoes"
+
 	"github.com/google/go-github/v32/github"
 	uuid "github.com/satori/go.uuid"
 
@@ -15,7 +17,8 @@ import (
 )
 
 var (
-	GoalCheckerInterval = 10 * time.Second
+	GoalCheckerInterval = 1 * time.Minute
+	MustRunntingTime    = 10 * time.Minute
 )
 
 type Manager struct {
@@ -38,7 +41,7 @@ func (m *Manager) Loop(ctx context.Context) error {
 		select {
 		case <-ticker.C:
 			if err := m.do(ctx); err != nil {
-				logger.Logf("%+v", err)
+				logger.Logf("failed to starter: %+v", err)
 			}
 		}
 	}
@@ -64,79 +67,44 @@ func (m *Manager) do(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) removeOfflineRunner(ctx context.Context, t *datastore.Target) error {
-	switch gh.DetectScope(t.Scope) {
-	case gh.Repository:
-		return m.removeOfflineRunnerRepo(ctx, t)
-	case gh.Organization:
-		return m.removeOfflineRunnerOrg(ctx, t)
-	default:
-		return fmt.Errorf("failed to detect scope")
-	}
-}
-
 var (
 	StatusWillDelete = "offline"
 )
 
-func (m *Manager) removeOfflineRunnerOrg(ctx context.Context, t *datastore.Target) error {
-	var rs []*github.Runner
-	var offlineRunners []*github.Runner
+type Runner struct {
+	github *github.Runner
+	ds     *datastore.Runner
+}
+
+func (m *Manager) removeOfflineRunner(ctx context.Context, t *datastore.Target) error {
+	var owner, repo string
+
+	switch gh.DetectScope(t.Scope) {
+	case gh.Organization:
+		owner = t.Scope
+		repo = ""
+	case gh.Repository:
+		s := strings.Split(t.Scope, "/")
+		owner = s[0]
+		repo = s[1]
+	}
+
 	client := gh.NewClient(ctx, t.GitHubPersonalToken)
 
-	var opts = &github.ListOptions{
-		Page:    0,
-		PerPage: 10,
+	offlineRunners, err := getOfflineRunner(ctx, client, owner, repo)
+	if err != nil {
+		return fmt.Errorf("failed to get offline runner: %w", err)
 	}
 
-	for {
-		runners, _, err := client.Actions.ListOrganizationRunners(ctx, t.Scope, opts)
-		if err != nil {
-			return fmt.Errorf("failed to list organization runners: %w", err)
-		}
-
-		for _, r := range runners.Runners {
-			if r.GetStatus() == StatusWillDelete {
-				offlineRunners = append(offlineRunners, r)
-			}
-		}
-
-		rs = append(rs, runners.Runners...)
-		if len(rs) == runners.TotalCount {
-			break
-		}
-		opts.Page = opts.Page + 1
+	sanitizedRunners, err := m.sanitizeOfflineRunner(ctx, offlineRunners)
+	if err != nil {
+		return fmt.Errorf("failed to sanitize offline runner: %w", err)
 	}
 
-	if len(offlineRunners) == 1 {
-		// only one runner for queuing, not remove.
-		return nil
-	}
-
-	for _, offlineRunner := range offlineRunners {
-		runnerUUID, err := ToUUID(*offlineRunner.Name)
-		if err != nil {
-			logger.Logf("not uuid in offline runner (runner name: %s), will ignore: %+v", *offlineRunner.Name, err)
-			continue
-		}
-		if _, err := m.ds.GetRunner(ctx, runnerUUID); err != nil {
-			if err == datastore.ErrNotFound {
-				// not managed in myshoes (maybe first runner)
-			} else {
-				logger.Logf("failed to retrieve organization runner (runner uuid: %s)  %+v", runnerUUID, err)
-			}
-
-			continue
-		}
-
+	for _, offlineRunner := range sanitizedRunners {
 		// delete runner from GitHub
-		logger.Logf("will delete organization runner: %s", runnerUUID)
-		if _, err := client.Actions.RemoveOrganizationRunner(ctx, t.Scope, *offlineRunner.ID); err != nil {
-			logger.Logf("failed to remove organization runner (runner uuid: %s): %+v", runnerUUID, err)
-			continue
-		}
-		if err := m.ds.DeleteRunner(ctx, runnerUUID, time.Now()); err != nil {
-			logger.Logf("failed to remove organization runner from datastore (runner uuid: %s): %+v", runnerUUID, err)
+		if err := m.deleteRunner(ctx, client, offlineRunner.ds, *offlineRunner.github.ID, owner, repo); err != nil {
+			logger.Logf("failed to delete runner: %+v\n", err)
 			continue
 		}
 	}
@@ -144,51 +112,22 @@ func (m *Manager) removeOfflineRunnerOrg(ctx context.Context, t *datastore.Targe
 	return nil
 }
 
-func (m *Manager) removeOfflineRunnerRepo(ctx context.Context, t *datastore.Target) error {
-	s := strings.Split(t.Scope, "/")
-	owner := s[0]
-	repo := s[1]
-
-	var rs []*github.Runner
-	var offlineRunners []*github.Runner
-	client := gh.NewClient(ctx, t.GitHubPersonalToken)
-
-	var opts = &github.ListOptions{
-		Page:    0,
-		PerPage: 10,
-	}
-
-	for {
-		runners, _, err := client.Actions.ListRunners(ctx, owner, repo, opts)
-		if err != nil {
-			return fmt.Errorf("failed to list repository runners: %w", err)
-		}
-
-		for _, r := range runners.Runners {
-			if r.GetStatus() == StatusWillDelete {
-				offlineRunners = append(offlineRunners, r)
-			}
-		}
-
-		rs = append(rs, runners.Runners...)
-		if len(rs) == runners.TotalCount {
-			break
-		}
-		opts.Page = opts.Page + 1
-	}
+func (m *Manager) sanitizeOfflineRunner(ctx context.Context, offlineRunners []*github.Runner) ([]Runner, error) {
+	var sanitized []Runner
 
 	if len(offlineRunners) == 1 {
 		// only one runner for queuing, not remove.
-		return nil
+		return nil, nil
 	}
 
-	for _, offlineRunner := range offlineRunners {
-		runnerUUID, err := ToUUID(*offlineRunner.Name)
+	for _, r := range offlineRunners {
+		runnerUUID, err := ToUUID(*r.Name)
 		if err != nil {
-			logger.Logf("not uuid in offline runner (runner name: %s), will ignore: %+v", *offlineRunner.Name, err)
+			//logger.Logf("not uuid in offline runner (runner name: %s), will ignore: %+v", *r.Name, err)
 			continue
 		}
-		if _, err := m.ds.GetRunner(ctx, runnerUUID); err != nil {
+		dsRunner, err := m.ds.GetRunner(ctx, runnerUUID)
+		if err != nil {
 			if err == datastore.ErrNotFound {
 				// not managed in myshoes (maybe first runner)
 			} else {
@@ -198,16 +137,102 @@ func (m *Manager) removeOfflineRunnerRepo(ctx context.Context, t *datastore.Targ
 			continue
 		}
 
-		// delete runner from GitHub
-		logger.Logf("will delete repository runner: %s", runnerUUID)
-		if _, err := client.Actions.RemoveRunner(ctx, owner, repo, *offlineRunner.ID); err != nil {
-			logger.Logf("failed to remove repository runner (runner uuid): %+v", t.UUID, err)
+		// not delete recently within MustRunningTime
+		spent := dsRunner.CreatedAt.Add(MustRunntingTime)
+		if !spent.Before(time.Now()) {
 			continue
 		}
-		if err := m.ds.DeleteRunner(ctx, runnerUUID, time.Now()); err != nil {
-			logger.Logf("failed to remove repository runner from datastore (runner uuid: %s): %+v", runnerUUID, err)
-			continue
+
+		runner := Runner{
+			github: r,
+			ds:     dsRunner,
 		}
+		sanitized = append(sanitized, runner)
+	}
+
+	return sanitized, nil
+}
+
+// getOfflineRunner retrieve runner that status is offline from GitHub.
+func getOfflineRunner(ctx context.Context, githubClient *github.Client, owner, repo string) ([]*github.Runner, error) {
+	var rs []*github.Runner
+	var offlineRunners []*github.Runner
+
+	isOrg := false
+	if repo == "" {
+		isOrg = true
+	}
+
+	var opts = &github.ListOptions{
+		Page:    0,
+		PerPage: 10,
+	}
+
+	for {
+		var runners *github.Runners
+		var err error
+
+		if isOrg {
+			runners, _, err = githubClient.Actions.ListOrganizationRunners(ctx, owner, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list organization runners: %w", err)
+			}
+		} else {
+			runners, _, err = githubClient.Actions.ListRunners(ctx, owner, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list repository runners: %w", err)
+			}
+		}
+
+		for _, r := range runners.Runners {
+			if r.GetStatus() == StatusWillDelete {
+				offlineRunners = append(offlineRunners, r)
+			}
+		}
+
+		rs = append(rs, runners.Runners...)
+		if len(rs) == runners.TotalCount {
+			break
+		}
+		opts.Page = opts.Page + 1
+	}
+
+	return offlineRunners, nil
+}
+
+// deleteRunner delete runner in github, shoes, datastore.
+// runnerUUID is uuid in datastore, runnerID is id from GitHub.
+func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client, runner *datastore.Runner, runnerID int64, owner, repo string) error {
+	logger.Logf("will delete repository runner: %s", runner.UUID.String())
+
+	isOrg := false
+	if repo == "" {
+		isOrg = true
+	}
+
+	if isOrg {
+		if _, err := githubClient.Actions.RemoveOrganizationRunner(ctx, owner, runnerID); err != nil {
+			return fmt.Errorf("failed to remove organization runner (runner uuid: %s): %+v", runner.UUID.String(), err)
+
+		}
+	} else {
+		if _, err := githubClient.Actions.RemoveRunner(ctx, owner, repo, runnerID); err != nil {
+			return fmt.Errorf("failed to remove repository runner (runner uuid: %s): %+v", runner.UUID.String(), err)
+		}
+	}
+
+	client, teardown, err := shoes.GetClient()
+	if err != nil {
+		return fmt.Errorf("failed to get plugin client: %w", err)
+	}
+	defer teardown()
+
+	if err := client.DeleteInstance(ctx, runner.CloudID); err != nil {
+		return fmt.Errorf("failed to delete instance: %w", err)
+	}
+
+	if err := m.ds.DeleteRunner(ctx, runner.UUID, time.Now()); err != nil {
+		return fmt.Errorf("failed to remove runner from datastore (runner uuid: %s): %+v", runner.UUID.String(), err)
 	}
 
 	return nil

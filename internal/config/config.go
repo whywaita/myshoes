@@ -12,6 +12,8 @@ type conf struct {
 	MySQLDSN        string
 	Port            int
 	ShoesPluginPath string
+
+	RunnerUser string
 }
 
 // Config Environment keys

@@ -36,8 +36,8 @@ func New(dsn string) (*MySQL, error) {
 }
 
 func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error {
-	query := `INSERT INTO targets(uuid, scope, ghe_domain, github_personal_token, resource_type) VALUES (?, ?, ?, ?, ?)`
-	if _, err := m.Conn.ExecContext(ctx, query, target.UUID, target.Scope, target.GHEDomain, target.GitHubPersonalToken, target.ResourceType); err != nil {
+	query := `INSERT INTO targets(uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user) VALUES (?, ?, ?, ?, ?, ?)`
+	if _, err := m.Conn.ExecContext(ctx, query, target.UUID, target.Scope, target.GHEDomain, target.GitHubPersonalToken, target.ResourceType, target.RunnerUser); err != nil {
 		return fmt.Errorf("failed to execute INSERT query: %w", err)
 	}
 
@@ -46,8 +46,8 @@ func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error
 
 func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, created_at, updated_at FROM targets WHERE uuid = "%s"`, id.String())
-	if err := m.Conn.GetContext(ctx, &t, query); err != nil {
+	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, created_at, updated_at FROM targets WHERE uuid = ?`)
+	if err := m.Conn.GetContext(ctx, &t, query, id.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
 		}
@@ -60,7 +60,7 @@ func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target,
 
 func (m *MySQL) GetTargetByScope(ctx context.Context, gheDomain, scope string) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, created_at, updated_at FROM targets WHERE scope = "%s"`, scope)
+	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, created_at, updated_at FROM targets WHERE scope = "%s"`, scope)
 	if gheDomain != "" {
 		query = fmt.Sprintf(`%s AND ghe_domain = "%s"`, query, gheDomain)
 	}
@@ -127,7 +127,7 @@ func (m *MySQL) CreateRunner(ctx context.Context, runner datastore.Runner) error
 
 func (m *MySQL) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 	var runners []datastore.Runner
-	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, created_at, updated_at, deleted_at FROM runners`
+	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, created_at, updated_at, deleted_at FROM runners WHERE deleted = 0`
 	err := m.Conn.SelectContext(ctx, &runners, query)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -143,7 +143,7 @@ func (m *MySQL) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 func (m *MySQL) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
 
-	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, created_at, updated_at, deleted_at FROM runners WHERE uuid = ?`
+	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, created_at, updated_at, deleted_at FROM runners WHERE uuid = ? AND deleted = 0`
 	if err := m.Conn.GetContext(ctx, &r, query, id.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound

@@ -38,6 +38,7 @@ type Target struct {
 	GitHubPersonalToken string         `db:"github_personal_token" json:"github_personal_token"` // TODO: encrypt
 	GHEDomain           sql.NullString `db:"ghe_domain" json:"ghe_domain"`
 	ResourceType        ResourceType   `db:"resource_type" json:"resource_type"`
+	RunnerUser          sql.NullString `db:"runner_user" json:"runner_user"`
 	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt           time.Time      `db:"updated_at" json:"updated_at"`
 }
