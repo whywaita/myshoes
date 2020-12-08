@@ -76,9 +76,10 @@ type GRPCClient struct {
 }
 
 // AddInstance create instance for runner
-func (c *GRPCClient) AddInstance(ctx context.Context, runnerID, setupScript string) (string, string, string, error) {
+func (c *GRPCClient) AddInstance(ctx context.Context, runnerName, setupScript string) (string, string, string, error) {
+
 	req := &pb.AddInstanceRequest{
-		RunnerId:    runnerID,
+		RunnerName:  runnerName,
 		SetupScript: setupScript,
 	}
 	resp, err := c.client.AddInstance(ctx, req)

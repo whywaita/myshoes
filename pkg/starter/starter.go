@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/whywaita/myshoes/pkg/runner"
 
 	"github.com/whywaita/myshoes/pkg/logger"
 
@@ -48,7 +48,7 @@ func (s *Starter) Loop() error {
 }
 
 func (s *Starter) do(ctx context.Context) error {
-	jobs, err := s.ds.GetJob(ctx)
+	jobs, err := s.ds.ListJobs(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get jobs: %w", err)
 	}
@@ -96,16 +96,16 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to get setup script: %w", err)
 	}
 
-	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, job.UUID.String(), script)
+	runnerName := runner.ToName(job.UUID.String())
+	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script)
 	if err != nil {
 		return fmt.Errorf("failed to add instance: %w", err)
 	}
 	teardown()
 
-	runnerID := uuid.NewV4()
 	now := time.Now()
 	r := datastore.Runner{
-		UUID:      runnerID,
+		UUID:      job.UUID,
 		ShoesType: shoesType,
 		IPAddress: ipAddress,
 		TargetID:  target.UUID,

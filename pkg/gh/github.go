@@ -1,13 +1,15 @@
 package gh
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
-	"time"
+
+	"golang.org/x/oauth2"
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/v32/github"
@@ -15,20 +17,28 @@ import (
 )
 
 // NewClient create a client of GitHub
-func NewClient(installationID int64) (*github.Client, error) {
+func NewClient(ctx context.Context, personalToken string) *github.Client {
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{
+			AccessToken: personalToken,
+		})
+	tc := oauth2.NewClient(ctx, ts)
+
+	return github.NewClient(tc)
+}
+
+// CheckSignature check trust installation id from event.
+func CheckSignature(installationID int64) error {
 	appID := config.Config.GitHub.AppID
 	pem := config.Config.GitHub.PEM
 
 	tr := http.DefaultTransport
-	itr, err := ghinstallation.New(tr, appID, installationID, pem)
+	_, err := ghinstallation.New(tr, appID, installationID, pem)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create GitHub installation: %w", err)
+		return fmt.Errorf("failed to create GitHub installation: %w", err)
 	}
 
-	return github.NewClient(&http.Client{
-		Transport: itr,
-		Timeout:   5 * time.Second,
-	}), nil
+	return nil
 }
 
 // ExistGitHubRepository check exist of github repository
@@ -67,7 +77,7 @@ func getRepositoryURL(scope, gheDomain string, gheDomainValid bool) (string, err
 	//   => https://{your_ghe_server_url}/api/repos/:owner/:repo
 	//   => https://{your_ghe_server_url}/api/orgs/:owner
 
-	s := detectScope(scope)
+	s := DetectScope(scope)
 	if s == Unknown {
 		return "", fmt.Errorf("failed to detect valid scope")
 	}
@@ -114,7 +124,7 @@ func (s Scope) String() string {
 	}
 }
 
-func detectScope(scope string) Scope {
+func DetectScope(scope string) Scope {
 	sep := strings.Split(scope, "/")
 	switch len(sep) {
 	case 1:

@@ -17,6 +17,7 @@ require (
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/satori/go.uuid v1.2.0
 	goji.io v2.0.2+incompatible
+	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.0
 )

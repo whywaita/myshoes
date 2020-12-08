@@ -22,10 +22,12 @@ type Datastore interface {
 	DeleteTarget(ctx context.Context, id uuid.UUID) error
 
 	EnqueueJob(ctx context.Context, job Job) error
-	GetJob(ctx context.Context) ([]Job, error)
+	ListJobs(ctx context.Context) ([]Job, error)
 	DeleteJob(ctx context.Context, id uuid.UUID) error
 
 	CreateRunner(ctx context.Context, runner Runner) error
+	ListRunners(ctx context.Context) ([]Runner, error)
+	GetRunner(ctx context.Context, id uuid.UUID) (*Runner, error)
 	DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time) error
 }
 
@@ -72,13 +74,13 @@ type Job struct {
 
 // Runner is a runner
 type Runner struct {
-	UUID      uuid.UUID `db:"uuid"`
-	ShoesType string    `db:"shoes_type"`
-	IPAddress string    `db:"ip_address"`
-	TargetID  uuid.UUID `db:"target_id"`
-	CloudID   string    `db:"cloud_id"`
-	Deleted   bool      `db:"deleted"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
-	DeletedAt time.Time `db:"deleted_at"`
+	UUID      uuid.UUID    `db:"uuid"`
+	ShoesType string       `db:"shoes_type"`
+	IPAddress string       `db:"ip_address"`
+	TargetID  uuid.UUID    `db:"target_id"`
+	CloudID   string       `db:"cloud_id"`
+	Deleted   bool         `db:"deleted"`
+	CreatedAt time.Time    `db:"created_at"`
+	UpdatedAt time.Time    `db:"updated_at"`
+	DeletedAt sql.NullTime `db:"deleted_at"`
 }

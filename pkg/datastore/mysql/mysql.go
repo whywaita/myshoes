@@ -48,6 +48,10 @@ func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target,
 	var t datastore.Target
 	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, created_at, updated_at FROM targets WHERE uuid = "%s"`, id.String())
 	if err := m.Conn.GetContext(ctx, &t, query); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, datastore.ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
 	}
 
@@ -89,10 +93,14 @@ func (m *MySQL) EnqueueJob(ctx context.Context, job datastore.Job) error {
 	return nil
 }
 
-func (m *MySQL) GetJob(ctx context.Context) ([]datastore.Job, error) {
+func (m *MySQL) ListJobs(ctx context.Context) ([]datastore.Job, error) {
 	var jobs []datastore.Job
 	query := `SELECT uuid, ghe_domain, repository, check_event, target_id FROM jobs`
 	if err := m.Conn.SelectContext(ctx, &jobs, query); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, datastore.ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
 	}
 
@@ -115,6 +123,36 @@ func (m *MySQL) CreateRunner(ctx context.Context, runner datastore.Runner) error
 	}
 
 	return nil
+}
+
+func (m *MySQL) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
+	var runners []datastore.Runner
+	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, created_at, updated_at, deleted_at FROM runners`
+	err := m.Conn.SelectContext(ctx, &runners, query)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, datastore.ErrNotFound
+		}
+
+		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
+	}
+
+	return runners, nil
+}
+
+func (m *MySQL) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
+	var r datastore.Runner
+
+	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, created_at, updated_at, deleted_at FROM runners WHERE uuid = ?`
+	if err := m.Conn.GetContext(ctx, &r, query, id.String()); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, datastore.ErrNotFound
+		}
+
+		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
+	}
+
+	return &r, nil
 }
 
 func (m *MySQL) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time) error {

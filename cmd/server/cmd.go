@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+
+	"github.com/whywaita/myshoes/pkg/runner"
 
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -27,6 +30,7 @@ func main() {
 type myShoes struct {
 	ds    datastore.Datastore
 	start *starter.Starter
+	run   *runner.Manager
 }
 
 func New() (*myShoes, error) {
@@ -36,12 +40,14 @@ func New() (*myShoes, error) {
 	}
 
 	unlimit := unlimited.Unlimit{}
-
 	s := starter.New(ds, unlimit)
+
+	manager := runner.New(ds)
 
 	return &myShoes{
 		ds:    ds,
 		start: s,
+		run:   manager,
 	}, nil
 }
 
@@ -56,7 +62,13 @@ func (m *myShoes) Run() error {
 	})
 	eg.Go(func() error {
 		if err := m.start.Loop(); err != nil {
-			return fmt.Errorf("failed to loop: %w", err)
+			return fmt.Errorf("failed to starter loop: %w", err)
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := m.run.Loop(context.Background()); err != nil {
+			return fmt.Errorf("failed to runner loop: %w", err)
 		}
 		return nil
 	})

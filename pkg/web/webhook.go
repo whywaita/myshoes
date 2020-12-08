@@ -68,11 +68,8 @@ func processCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 		return nil
 	}
 
-	// TODO: check signature
 	installationID := event.GetInstallation().GetID()
-	//client, err := newGitHubClient(installationID)
-	_, err := gh.NewClient(installationID)
-	if err != nil {
+	if err := gh.CheckSignature(installationID); err != nil {
 		return fmt.Errorf("failed to create GitHub client: %w", err)
 	}
 

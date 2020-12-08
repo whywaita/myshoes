@@ -90,12 +90,11 @@ func (m *Memory) EnqueueJob(ctx context.Context, job datastore.Job) error {
 	return nil
 }
 
-func (m *Memory) GetJob(ctx context.Context) ([]datastore.Job, error) {
+func (m *Memory) ListJobs(ctx context.Context) ([]datastore.Job, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	var jobs []datastore.Job
-
 	for _, j := range m.jobs {
 		jobs = append(jobs, j)
 	}
@@ -118,6 +117,30 @@ func (m *Memory) CreateRunner(ctx context.Context, runner datastore.Runner) erro
 	m.runners[runner.UUID] = runner
 
 	return nil
+}
+
+func (m *Memory) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	var runners []datastore.Runner
+	for _, r := range m.runners {
+		runners = append(runners, r)
+	}
+
+	return runners, nil
+}
+
+func (m *Memory) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	r, ok := m.runners[id]
+	if !ok {
+		return nil, datastore.ErrNotFound
+	}
+
+	return &r, nil
 }
 
 func (m *Memory) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Ticker) error {
