@@ -243,6 +243,6 @@ func ToName(uuid string) string {
 }
 
 func ToUUID(name string) (uuid.UUID, error) {
-	u := strings.TrimLeft(name, "myshoes-")
+	u := strings.TrimPrefix(name, "myshoes-")
 	return uuid.FromString(u)
 }
