@@ -4,11 +4,21 @@ package config
 
 import (
 	"encoding/base64"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/whywaita/myshoes/pkg/logger"
+)
+
+// PluginName is default value of plugin path.
+var (
+	PluginName = "shoes-http"
 )
 
 func init() {
@@ -54,6 +64,59 @@ func init() {
 	if pluginPath == "" {
 		log.Panicf("%s must be set", EnvShoesPluginPath)
 	}
-	Config.ShoesPluginPath = pluginPath
+	fp, err := fetch(pluginPath)
+	if err != nil {
+		log.Panicf("failed to fetch plugin binary: %+v", err)
+	}
+
+	Config.ShoesPluginPath = fp
 	logger.Logf("use plugin path is %s", pluginPath)
+}
+
+// fetch retrieve plugin binaries.
+// return saved file path.
+func fetch(p string) (string, error) {
+	u, err := url.Parse(p)
+	if err != nil {
+		// this is file path!
+		_, err := os.Stat(p)
+		if err != nil {
+			// not found
+			return "", fmt.Errorf("failed to stat file: %w", err)
+		}
+		return p, nil
+	}
+	switch u.Scheme {
+	case "http", "https":
+		return fetchHTTP(u)
+	default:
+		return "", fmt.Errorf("unsupported fetch schema")
+	}
+}
+
+func fetchHTTP(u *url.URL) (string, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to working directory: %w", err)
+	}
+	fp := filepath.Join(pwd, PluginName)
+	f, err := os.Create(fp)
+	if err != nil {
+		return "", fmt.Errorf("failed to create os file: %w", err)
+	}
+
+	resp, err := http.Get(u.String())
+	if err != nil {
+		return "", fmt.Errorf("failed to get config via HTTP(S): %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		_, err := io.Copy(f, resp.Body)
+		if err != nil {
+			return "", fmt.Errorf("failed to write file (path: %s): %w", fp, err)
+		}
+	}
+
+	return fp, nil
 }
