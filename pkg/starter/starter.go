@@ -3,6 +3,7 @@ package starter
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/whywaita/myshoes/pkg/runner"
@@ -15,6 +16,7 @@ import (
 )
 
 var (
+	// PistolInterval is interval of bung (a.k.a. create instance)
 	PistolInterval = 10 * time.Second
 )
 
@@ -24,6 +26,7 @@ type Starter struct {
 	safety safety.Safety
 }
 
+// New is create starter instance
 func New(ds datastore.Datastore, s safety.Safety) *Starter {
 	return &Starter{
 		ds:     ds,
@@ -31,6 +34,7 @@ func New(ds datastore.Datastore, s safety.Safety) *Starter {
 	}
 }
 
+// Loop is main loop for starter
 func (s *Starter) Loop() error {
 	logger.Logf("start starter loop")
 
@@ -53,28 +57,35 @@ func (s *Starter) do(ctx context.Context) error {
 		return fmt.Errorf("failed to get jobs: %w", err)
 	}
 
+	wg := &sync.WaitGroup{}
 	for _, j := range jobs {
-		logger.Logf("start job (job id: %s)\n", j.UUID.String())
+		wg.Add(1)
+		job := j
+		go func() {
+			logger.Logf("start job (job id: %s)\n", job.UUID.String())
 
-		isOK, err := s.safety.Check(&j)
-		if err != nil {
-			logger.Logf("failed to check safery: %+v\n", err)
-			continue
-		}
-		if !isOK {
-			// is not ok, save job
-			continue
-		}
+			isOK, err := s.safety.Check(&job)
+			if err != nil {
+				logger.Logf("failed to check safety: %+v\n", err)
+				return
+			}
+			if !isOK {
+				// is not ok, save job
+				return
+			}
 
-		if err := s.bung(ctx, j); err != nil {
-			logger.Logf("failed to bung: %+v\n", err)
-			continue
-		}
-		if err := s.ds.DeleteJob(ctx, j.UUID); err != nil {
-			logger.Logf("failed to delete job: %+v\n", err)
-			continue
-		}
+			if err := s.bung(ctx, job); err != nil {
+				logger.Logf("failed to bung: %+v\n", err)
+				return
+			}
+			if err := s.ds.DeleteJob(ctx, job.UUID); err != nil {
+				logger.Logf("failed to delete job: %+v\n", err)
+				return
+			}
+		}()
 	}
+
+	wg.Wait()
 
 	return nil
 }

@@ -76,7 +76,7 @@ func (m *MySQL) GetTargetByScope(ctx context.Context, gheDomain, scope string) (
 }
 
 func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM targets WHERE uuid = "?"`
+	query := `DELETE FROM targets WHERE uuid = ?`
 	if _, err := m.Conn.ExecContext(ctx, query, id.String()); err != nil {
 		return fmt.Errorf("failed to execute DELETE query: %w", err)
 	}

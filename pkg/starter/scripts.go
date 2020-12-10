@@ -102,7 +102,7 @@ echo "Generating a registration token..."
 
 base_api_url="https://api.github.com"
 if [ -n "${ghe_hostname}" ]; then
-    base_api_url="https://${ghe_hostname}/api/v3"
+    base_api_url="${ghe_hostname}/api/v3"
 fi
 
 # if the scope has a slash, it's a repo runner
@@ -159,7 +159,7 @@ pushd ./runner
 #---------------------------------------
 runner_url="https://github.com/${runner_scope}"
 if [ -n "${ghe_hostname}" ]; then
-    runner_url="https://${ghe_hostname}/${runner_scope}"
+    runner_url="${ghe_hostname}/${runner_scope}"
 fi
 
 echo

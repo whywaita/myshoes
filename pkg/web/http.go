@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -20,18 +21,32 @@ import (
 func Serve(ds datastore.Datastore) error {
 	mux := goji.NewMux()
 
+	mux.HandleFunc(pat.Get("/healthz"), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json;charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+
+		h := struct {
+			Health string `json:"health"`
+		}{
+			Health: "ok",
+		}
+
+		json.NewEncoder(w).Encode(h)
+		return
+	})
+
 	mux.HandleFunc(pat.Post("/github/events"), func(w http.ResponseWriter, r *http.Request) {
 		handleGitHubEvent(w, r, ds)
 	})
 
 	// REST API for targets
-	mux.HandleFunc(pat.Post("/targets"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Post("/target"), func(w http.ResponseWriter, r *http.Request) {
 		handleTargetCreate(w, r, ds)
 	})
-	mux.HandleFunc(pat.Get("/targets/:id"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Get("/target/:id"), func(w http.ResponseWriter, r *http.Request) {
 		handleTargetRead(w, r, ds)
 	})
-	mux.HandleFunc(pat.Put("/targets/:id"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Put("/target/:id"), func(w http.ResponseWriter, r *http.Request) {
 		handleTargetUpdate(w, r, ds)
 	})
 	mux.HandleFunc(pat.Delete("/target/:id"), func(w http.ResponseWriter, r *http.Request) {

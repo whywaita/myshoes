@@ -26,7 +26,7 @@ func TestDetectScope(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got := detectScope(test.input)
+		got := DetectScope(test.input)
 
 		if got != test.want {
 			t.Fatalf("want %+v, but got %+v", test.want, got)

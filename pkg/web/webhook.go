@@ -35,7 +35,7 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 
 	switch event := webhookEvent.(type) {
 	case *github.PingEvent:
-		if err := processPingWebhook(ctx, event); err != nil {
+		if err := receivePingWebhook(ctx, event); err != nil {
 			logger.Logf("failed to process ping event: %+v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -44,7 +44,7 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 			return
 		}
 	case *github.CheckRunEvent:
-		if err := processCheckRunWebhook(ctx, event, ds); err != nil {
+		if err := receiveCheckRunWebhook(ctx, event, ds); err != nil {
 			logger.Logf("failed to process check_run event: %+v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -59,22 +59,37 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 	}
 }
 
-func processPingWebhook(ctx context.Context, event *github.PingEvent) error {
+func receivePingWebhook(ctx context.Context, event *github.PingEvent) error {
 	return nil
 }
 
-func processCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds datastore.Datastore) error {
-	if event.GetAction() != "created" {
+func receiveCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds datastore.Datastore) error {
+	action := event.GetAction()
+	installationID := event.GetInstallation().GetID()
+
+	repoName := *(event.Repo.FullName)
+	repoURL := *(event.Repo.HTMLURL)
+
+	jb, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to json.Marshal: %w", err)
+	}
+
+	return processCheckRun(ctx, ds, action, repoName, repoURL, installationID, jb)
+}
+
+// processCheckRun process webhook event
+// repoName is :owner/:repo
+// repoURL is https://github.com/:owenr/:repo (in github.com) or https://github.example.com/:owner/:repo (in GitHub Enterprise)
+func processCheckRun(ctx context.Context, ds datastore.Datastore, checkAction, repoName, repoURL string, installationID int64, requestJSON []byte) error {
+	if checkAction != "created" {
 		return nil
 	}
 
-	installationID := event.GetInstallation().GetID()
 	if err := gh.CheckSignature(installationID); err != nil {
 		return fmt.Errorf("failed to create GitHub client: %w", err)
 	}
 
-	repoName := *(event.Repo.FullName)
-	repoURL := *(event.Repo.HTMLURL)
 	u, err := url.Parse(repoURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse repository url from event: %w", err)
@@ -107,16 +122,11 @@ func processCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 		}
 	}
 
-	jb, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to json.Marshal: %w", err)
-	}
-
 	j := datastore.Job{
 		UUID:           jobID,
 		GHEDomain:      jobDomain,
 		Repository:     repoName,
-		CheckEventJSON: string(jb),
+		CheckEventJSON: string(requestJSON),
 		TargetID:       target.UUID,
 	}
 	if err := ds.EnqueueJob(ctx, j); err != nil {

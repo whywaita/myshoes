@@ -18,7 +18,7 @@ import (
 
 var (
 	GoalCheckerInterval = 1 * time.Minute
-	MustRunntingTime    = 10 * time.Minute
+	MustRunningTime     = 10 * time.Minute // set time of instance create + download binaries + etc
 )
 
 type Manager struct {
@@ -89,7 +89,10 @@ func (m *Manager) removeOfflineRunner(ctx context.Context, t *datastore.Target) 
 		repo = s[1]
 	}
 
-	client := gh.NewClient(ctx, t.GitHubPersonalToken)
+	client, err := gh.NewClient(ctx, t.GitHubPersonalToken, t.GHEDomain.String)
+	if err != nil {
+		return fmt.Errorf("failed to create github client: %w", err)
+	}
 
 	offlineRunners, err := getOfflineRunner(ctx, client, owner, repo)
 	if err != nil {
@@ -138,7 +141,8 @@ func (m *Manager) sanitizeOfflineRunner(ctx context.Context, offlineRunners []*g
 		}
 
 		// not delete recently within MustRunningTime
-		spent := dsRunner.CreatedAt.Add(MustRunntingTime)
+		// this check protect to delete not running instance yet
+		spent := dsRunner.CreatedAt.Add(MustRunningTime)
 		if !spent.Before(time.Now()) {
 			continue
 		}

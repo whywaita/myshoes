@@ -17,14 +17,18 @@ import (
 )
 
 // NewClient create a client of GitHub
-func NewClient(ctx context.Context, personalToken string) *github.Client {
+func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Client, error) {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{
 			AccessToken: personalToken,
 		})
 	tc := oauth2.NewClient(ctx, ts)
 
-	return github.NewClient(tc)
+	if gheDomain == "" {
+		return github.NewClient(tc), nil
+	} else {
+		return github.NewEnterpriseClient(gheDomain, gheDomain, tc)
+	}
 }
 
 // CheckSignature check trust installation id from event.
