@@ -3,6 +3,7 @@ package starter
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -35,10 +36,9 @@ func New(ds datastore.Datastore, s safety.Safety) *Starter {
 }
 
 // Loop is main loop for starter
-func (s *Starter) Loop() error {
+func (s *Starter) Loop(ctx context.Context) error {
 	logger.Logf("start starter loop")
 
-	ctx := context.Background()
 	ticker := time.NewTicker(PistolInterval)
 
 	for {
@@ -61,7 +61,19 @@ func (s *Starter) do(ctx context.Context) error {
 	for _, j := range jobs {
 		wg.Add(1)
 		job := j
+
+		// self-hosted runner has a problem like a race condition. So wait a few random seconds.
+		rand.Seed(time.Now().UnixNano())
+		randTime := rand.Int63n(10)
+		randomizeSleepTime, err := time.ParseDuration(fmt.Sprintf("%ds", randTime))
+		if err != nil {
+			logger.Logf("failed to parse random time (%ds): %+v\n", randTime, err)
+			wg.Done()
+		}
+
 		go func() {
+			defer wg.Done()
+			time.Sleep(randomizeSleepTime)
 			logger.Logf("start job (job id: %s)\n", job.UUID.String())
 
 			isOK, err := s.safety.Check(&job)
