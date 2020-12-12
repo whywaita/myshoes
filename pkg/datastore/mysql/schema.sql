@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS runners (
     shoes_type VARCHAR(255) NOT NULL,
     ip_address VARCHAR(255) NOT NULL,
     target_id VARCHAR(36) NOT NULL,
-    cloud_id VARCHAR(36) NOT NULL,
+    cloud_id TEXT NOT NULL,
     deleted bool DEFAULT false,
     FOREIGN KEY fk_target_id(target_id) REFERENCES targets(uuid) ON DELETE RESTRICT,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,

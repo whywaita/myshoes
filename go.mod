@@ -1,7 +1,4 @@
-// +heroku goVersion go1.15
-// +heroku install ./cmd/server/...
-
-module github.com/whywaita/myshoes
+	module github.com/whywaita/myshoes
 
 go 1.15
 
@@ -18,6 +15,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	goji.io v2.0.2+incompatible
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.0
 )

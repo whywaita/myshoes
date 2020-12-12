@@ -54,8 +54,6 @@ svc_user=${4:-$USER}
 RUNNER_CFG_PAT=%s
 RUNNER_USER=%s
 
-env
-
 sudo_prefix=""
 if [ $(id -u) -eq 0 ]; then  # if root
 sudo_prefix="sudo -E -u ${RUNNER_USER} "
@@ -75,10 +73,22 @@ function fatal()
    exit 1
 }
 
+function install_jq()
+{
+    echo "jq is not installed, will be install jq."
+    if [ -e /etc/debian_version ] || [ -e /etc/debian_release ]; then
+        sudo apt-get update -y -qq
+        sudo apt-get install -y jq
+    elif [ -e /etc/redhat-release ]; then
+        sudo yum install -y jq
+    fi
+}
+
 if [ -z "${runner_scope}" ]; then fatal "supply scope as argument 1"; fi
 if [ -z "${RUNNER_CFG_PAT}" ]; then fatal "RUNNER_CFG_PAT must be set before calling"; fi
 
 which curl || fatal "curl required.  Please install in PATH with apt-get, brew, etc"
+which jq || install_jq
 which jq || fatal "jq required.  Please install in PATH with apt-get, brew, etc"
 
 # move /tmp, /tmp is path of all user writable.

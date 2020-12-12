@@ -12,13 +12,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/whywaita/myshoes/pkg/logger"
-)
-
-// PluginName is default value of plugin path.
-var (
-	PluginName = "shoes-http"
 )
 
 func init() {
@@ -76,15 +72,15 @@ func init() {
 // fetch retrieve plugin binaries.
 // return saved file path.
 func fetch(p string) (string, error) {
+	_, err := os.Stat(p)
+	if err == nil {
+		// this is file path!
+		return p, nil
+	}
+
 	u, err := url.Parse(p)
 	if err != nil {
-		// this is file path!
-		_, err := os.Stat(p)
-		if err != nil {
-			// not found
-			return "", fmt.Errorf("failed to stat file: %w", err)
-		}
-		return p, nil
+		return "", fmt.Errorf("failed to parse input url: %w", err)
 	}
 	switch u.Scheme {
 	case "http", "https":
@@ -94,12 +90,18 @@ func fetch(p string) (string, error) {
 	}
 }
 
+// fetchHTTP fetch plugin binary over HTTP(s).
+// save to
 func fetchHTTP(u *url.URL) (string, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to working directory: %w", err)
 	}
-	fp := filepath.Join(pwd, PluginName)
+
+	p := strings.Split(u.Path, "/")
+	fileName := p[len(p)-1]
+
+	fp := filepath.Join(pwd, fileName)
 	f, err := os.Create(fp)
 	if err != nil {
 		return "", fmt.Errorf("failed to create os file: %w", err)

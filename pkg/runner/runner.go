@@ -17,14 +17,18 @@ import (
 )
 
 var (
+	// GoalCheckerInterval is interval time of check deleting runner
 	GoalCheckerInterval = 1 * time.Minute
-	MustRunningTime     = 10 * time.Minute // set time of instance create + download binaries + etc
+	// MustRunningTime is set time of instance create + download binaries + etc
+	MustRunningTime = 10 * time.Minute
 )
 
+// Manager is runner management
 type Manager struct {
 	ds datastore.Datastore
 }
 
+// New create a Manager
 func New(ds datastore.Datastore) *Manager {
 	return &Manager{
 		ds: ds,
@@ -68,9 +72,11 @@ func (m *Manager) do(ctx context.Context) error {
 }
 
 var (
+	// StatusWillDelete is deleted target in GitHub runners
 	StatusWillDelete = "offline"
 )
 
+// Runner is a runner implement
 type Runner struct {
 	github *github.Runner
 	ds     *datastore.Runner
@@ -207,7 +213,7 @@ func getOfflineRunner(ctx context.Context, githubClient *github.Client, owner, r
 // deleteRunner delete runner in github, shoes, datastore.
 // runnerUUID is uuid in datastore, runnerID is id from GitHub.
 func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client, runner *datastore.Runner, runnerID int64, owner, repo string) error {
-	logger.Logf("will delete repository runner: %s", runner.UUID.String())
+	logger.Logf("will delete runner: %s", runner.UUID.String())
 
 	isOrg := false
 	if repo == "" {
@@ -242,10 +248,12 @@ func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client,
 	return nil
 }
 
+// ToName convert uuid to runner name
 func ToName(uuid string) string {
 	return fmt.Sprintf("myshoes-%s", uuid)
 }
 
+// ToUUID convert runner name  to uuid
 func ToUUID(name string) (uuid.UUID, error) {
 	u := strings.TrimPrefix(name, "myshoes-")
 	return uuid.FromString(u)

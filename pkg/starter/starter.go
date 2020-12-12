@@ -63,6 +63,7 @@ func (s *Starter) do(ctx context.Context) error {
 		job := j
 
 		// self-hosted runner has a problem like a race condition. So wait a few random seconds.
+		// ref: https://github.com/actions/runner/issues/510
 		rand.Seed(time.Now().UnixNano())
 		randTime := rand.Int63n(10)
 		randomizeSleepTime, err := time.ParseDuration(fmt.Sprintf("%ds", randTime))

@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	myshoes, err := New()
+	myshoes, err := newShoes()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -33,7 +33,8 @@ type myShoes struct {
 	run   *runner.Manager
 }
 
-func New() (*myShoes, error) {
+// newShoes create myshoes.
+func newShoes() (*myShoes, error) {
 	ds, err := mysql.New(config.Config.MySQLDSN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to mysql.New: %w", err)
@@ -51,8 +52,10 @@ func New() (*myShoes, error) {
 	}, nil
 }
 
+// Run start services.
 func (m *myShoes) Run() error {
 	eg := errgroup.Group{}
+	ctx := context.Background()
 
 	eg.Go(func() error {
 		if err := web.Serve(m.ds); err != nil {
@@ -61,13 +64,13 @@ func (m *myShoes) Run() error {
 		return nil
 	})
 	eg.Go(func() error {
-		if err := m.start.Loop(); err != nil {
+		if err := m.start.Loop(ctx); err != nil {
 			return fmt.Errorf("failed to starter loop: %w", err)
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := m.run.Loop(context.Background()); err != nil {
+		if err := m.run.Loop(ctx); err != nil {
 			return fmt.Errorf("failed to runner loop: %w", err)
 		}
 		return nil
