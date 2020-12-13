@@ -1,5 +1,6 @@
 package config
 
+// Config is config value
 var Config conf
 
 type conf struct {

@@ -21,6 +21,7 @@ func SetLogger(l *log.Logger) {
 	logMu.Unlock()
 }
 
+// Logf is interface for logger
 func Logf(format string, v ...interface{}) {
 	logMu.Lock()
 	logger.Printf(format, v...)

@@ -13,14 +13,14 @@ import (
 )
 
 // GetClient retrieve ShoesClient use shoes-plugin
-func GetClient() (ShoesClient, func(), error) {
+func GetClient() (Client, func(), error) {
 	Handshake := plugin.HandshakeConfig{
 		ProtocolVersion:  1,
 		MagicCookieKey:   "SHOES_PLUGIN_MAGIC_COOKIE",
 		MagicCookieValue: "are_you_a_shoes?",
 	}
 	PluginMap := map[string]plugin.Plugin{
-		"shoes_grpc": &ShoesPlugin{},
+		"shoes_grpc": &Plugin{},
 	}
 
 	client := plugin.NewClient(&plugin.ClientConfig{
@@ -44,28 +44,28 @@ func GetClient() (ShoesClient, func(), error) {
 		return nil, nil, fmt.Errorf("failed to shoes client instance: %w", err)
 	}
 
-	return raw.(ShoesClient), client.Kill, nil
+	return raw.(Client), client.Kill, nil
 }
 
-// ShoesPlugin is plugin implement
-type ShoesPlugin struct {
+// Plugin is plugin implement
+type Plugin struct {
 	plugin.Plugin
 
-	Impl ShoesClient
+	Impl Client
 }
 
 // GRPCServer is server
-func (p *ShoesPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
+func (p *Plugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 	return nil
 }
 
 // GRPCClient is client
-func (p *ShoesPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+func (p *Plugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &GRPCClient{client: pb.NewShoesClient(c)}, nil
 }
 
-// ShoesClient is plugin client interface
-type ShoesClient interface {
+// Client is plugin client interface
+type Client interface {
 	AddInstance(ctx context.Context, runnerID, setupScript string) (string, string, string, error)
 	DeleteInstance(ctx context.Context, cloudID string) error
 }

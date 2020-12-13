@@ -26,9 +26,10 @@ func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Cl
 
 	if gheDomain == "" {
 		return github.NewClient(tc), nil
-	} else {
-		return github.NewEnterpriseClient(gheDomain, gheDomain, tc)
 	}
+
+	return github.NewEnterpriseClient(gheDomain, gheDomain, tc)
+
 }
 
 // CheckSignature check trust installation id from event.
@@ -109,14 +110,17 @@ func getRepositoryURL(scope, gheDomain string, gheDomainValid bool) (string, err
 	return apiEndpoint.String(), nil
 }
 
+// Scope is scope for auto-scaling target
 type Scope int
 
+// Scope values
 const (
 	Unknown Scope = iota
 	Repository
 	Organization
 )
 
+// String is fmt.Stringer interface
 func (s Scope) String() string {
 	switch s {
 	case Repository:
@@ -128,6 +132,7 @@ func (s Scope) String() string {
 	}
 }
 
+// DetectScope detect a scope (repo or org)
 func DetectScope(scope string) Scope {
 	sep := strings.Split(scope, "/")
 	switch len(sep) {

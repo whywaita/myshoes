@@ -10,6 +10,7 @@ import (
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
+// Memory is implement datastore on-memory
 type Memory struct {
 	mu      *sync.RWMutex
 	targets map[uuid.UUID]datastore.Target
@@ -32,6 +33,7 @@ func New() (*Memory, error) {
 	}, nil
 }
 
+// CreateTarget create a target
 func (m *Memory) CreateTarget(ctx context.Context, target datastore.Target) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -40,6 +42,7 @@ func (m *Memory) CreateTarget(ctx context.Context, target datastore.Target) erro
 	return nil
 }
 
+// GetTarget get a target
 func (m *Memory) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -51,6 +54,7 @@ func (m *Memory) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target
 	return &t, nil
 }
 
+// GetTargetByScope get a target from scope
 func (m *Memory) GetTargetByScope(ctx context.Context, gheDomain, scope string) (*datastore.Target, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -74,6 +78,7 @@ func (m *Memory) GetTargetByScope(ctx context.Context, gheDomain, scope string) 
 	return nil, datastore.ErrNotFound
 }
 
+// DeleteTarget delete a target
 func (m *Memory) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -82,6 +87,7 @@ func (m *Memory) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// EnqueueJob add a job
 func (m *Memory) EnqueueJob(ctx context.Context, job datastore.Job) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -90,6 +96,7 @@ func (m *Memory) EnqueueJob(ctx context.Context, job datastore.Job) error {
 	return nil
 }
 
+// ListJobs get all jobs
 func (m *Memory) ListJobs(ctx context.Context) ([]datastore.Job, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -102,6 +109,7 @@ func (m *Memory) ListJobs(ctx context.Context) ([]datastore.Job, error) {
 	return jobs, nil
 }
 
+// DeleteJob delete a job
 func (m *Memory) DeleteJob(ctx context.Context, id uuid.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -110,6 +118,7 @@ func (m *Memory) DeleteJob(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// CreateRunner add a runner
 func (m *Memory) CreateRunner(ctx context.Context, runner datastore.Runner) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -119,6 +128,7 @@ func (m *Memory) CreateRunner(ctx context.Context, runner datastore.Runner) erro
 	return nil
 }
 
+// ListRunners get a all runners
 func (m *Memory) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -131,6 +141,7 @@ func (m *Memory) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 	return runners, nil
 }
 
+// GetRunner get a runner
 func (m *Memory) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -143,6 +154,7 @@ func (m *Memory) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner
 	return &r, nil
 }
 
+// DeleteRunner delete a runner
 func (m *Memory) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Ticker) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

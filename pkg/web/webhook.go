@@ -39,19 +39,19 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 			logger.Logf("failed to process ping event: %+v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
-		} else {
-			w.WriteHeader(http.StatusOK)
-			return
 		}
+
+		w.WriteHeader(http.StatusOK)
+		return
 	case *github.CheckRunEvent:
 		if err := receiveCheckRunWebhook(ctx, event, ds); err != nil {
 			logger.Logf("failed to process check_run event: %+v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
-		} else {
-			w.WriteHeader(http.StatusOK)
-			return
 		}
+
+		w.WriteHeader(http.StatusOK)
+		return
 	default:
 		logger.Logf("receive not register event(%+v), return NotFound", event)
 		w.WriteHeader(http.StatusNotFound)

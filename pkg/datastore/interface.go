@@ -46,6 +46,7 @@ type Target struct {
 // ResourceType is runner machine spec
 type ResourceType string
 
+// ResourceTypes
 const (
 	Nano    ResourceType = "nano"
 	Micro                = "micro"
