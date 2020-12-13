@@ -126,15 +126,12 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job) error {
 
 	logger.Logf("instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
 
-	now := time.Now()
 	r := datastore.Runner{
 		UUID:      job.UUID,
 		ShoesType: shoesType,
 		IPAddress: ipAddress,
 		TargetID:  target.UUID,
 		CloudID:   cloudID,
-		CreatedAt: now,
-		UpdatedAt: now,
 	}
 	if err := s.ds.CreateRunner(ctx, r); err != nil {
 		return fmt.Errorf("failed to create runner: %w", err)
