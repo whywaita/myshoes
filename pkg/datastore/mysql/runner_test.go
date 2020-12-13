@@ -115,9 +115,10 @@ func TestMySQL_ListRunners(t *testing.T) {
 		if len(test.want) != len(got) {
 			t.Fatalf("incorrect length runners, want: %d but got: %d", len(test.want), len(got))
 		}
-
-		got[0].CreatedAt = time.Time{}
-		got[0].UpdatedAt = time.Time{}
+		for i := range got {
+			got[i].CreatedAt = time.Time{}
+			got[i].UpdatedAt = time.Time{}
+		}
 
 		if diff := cmp.Diff(test.want, got); diff != "" {
 			t.Errorf("mismatch (-want +got):\n%s", diff)
