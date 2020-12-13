@@ -17,7 +17,8 @@ import (
 	"github.com/whywaita/myshoes/pkg/logger"
 )
 
-func init() {
+// Load load config from environment
+func Load() {
 	appID, err := strconv.ParseInt(os.Getenv(EnvGitHubAppID), 10, 64)
 	if err != nil {
 		log.Panicf("failed to parse %s: %+v", EnvGitHubAppID, err)

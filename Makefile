@@ -16,7 +16,6 @@ build-linux: ## Build for Linux
 	GOOS=linux GOARCH=amd64 go build -o myshoes-linux-amd64 -ldflags $(BUILD_LDFLAGS) cmd/server/cmd.go
 
 build-proto: ## Build proto file
-	protoc -I ./api/proto/plugin --go_out=plugins=grpc:./api/proto/plugin ./api/proto/plugin/*.proto
 	protoc -I ./api/proto/ --go_out=plugins=grpc:./api/proto/ ./api/proto/*.proto
 
 test: ## Exec test

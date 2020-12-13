@@ -16,6 +16,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+func init() {
+	config.Load()
+}
+
 func main() {
 	myshoes, err := newShoes()
 	if err != nil {
@@ -40,7 +44,7 @@ func newShoes() (*myShoes, error) {
 		return nil, fmt.Errorf("failed to mysql.New: %w", err)
 	}
 
-	unlimit := unlimited.Unlimit{}
+	unlimit := unlimited.Unlimited{}
 	s := starter.New(ds, unlimit)
 
 	manager := runner.New(ds)
