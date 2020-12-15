@@ -1,0 +1,1 @@
+web: ./scripts/heroku/run.sh

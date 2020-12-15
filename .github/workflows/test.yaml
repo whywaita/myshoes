@@ -1,0 +1,41 @@
+name: test
+on:
+  push:
+    branches:
+      - "**"
+  pull_request: {}
+
+env:
+  GOPRIVATE: "github.com/whywaita/*"
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - ubuntu-18.04
+    steps:
+      - name: setup go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.x
+      - name: checkout
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+      - name: Granting private modules access
+        run: |
+          git config --global url."https://whywaita:${{ secrets.GO_MODULES_TOKEN }}@github.com/whywaita".insteadOf "https://github.com/whywaita"
+      - name: lint
+        run: |
+          GO111MODULE=off GOBIN=$(pwd)/bin go get golang.org/x/lint/golint
+          bin/golint -set_exit_status ./...
+      - name: vet
+        run: |
+          go vet ./...
+      - name: test
+        run: |
+          make test
