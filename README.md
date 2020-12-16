@@ -77,7 +77,7 @@ you need to register a target that repository or organization.
 create target example:
 
 ```bash
-$ curl -XPOST -d '{"scope": "octocat/hello-world", "ghe_domain": "https://github.example.com", "resource_type": "micro", "runner_user": "ubuntu"}' ${your_shoes_host}/target
+$ curl -XPOST -d '{"scope": "octocat/hello-world", "ghe_domain": "https://github.example.com", "github_personal_token": "xxx", "resource_type": "micro", "runner_user": "ubuntu"}' ${your_shoes_host}/target
 ```
 
 ### create an offline runner (only one)
