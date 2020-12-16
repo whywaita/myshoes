@@ -54,9 +54,9 @@ $ ./myshoes
 
 and more a some values from [shoes provider](https://github.com/whywaita/myshoes-providers).
 
-## repository setup
+## Repository setup
 
-### register target
+### Register target
 
 you need to register a target that repository or organization.
 
@@ -80,7 +80,7 @@ create target example:
 $ curl -XPOST -d '{"scope": "octocat/hello-world", "ghe_domain": "https://github.example.com", "github_personal_token": "xxx", "resource_type": "micro", "runner_user": "ubuntu"}' ${your_shoes_host}/target
 ```
 
-### create an offline runner (only one)
+### Create an offline runner (only one)
 
 GitHub Actions need offline runner if queueing job.
 please create an offline runner in target repository.
@@ -92,3 +92,9 @@ please delete a runner after registered.
 ### Let's go using your shoes!
 
 :runner::runner::runner:
+
+## Known issue
+
+- sometimes occurred race condition if running multi jobs
+  - GitHub Action's runner has a problem like a race condition.
+  - related PullRequest: https://github.com/actions/runner/pull/660

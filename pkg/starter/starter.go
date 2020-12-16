@@ -3,7 +3,6 @@ package starter
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -63,19 +62,8 @@ func (s *Starter) do(ctx context.Context) error {
 		wg.Add(1)
 		job := j
 
-		// self-hosted runner has a problem like a race condition. So wait a few random seconds.
-		// ref: https://github.com/actions/runner/issues/510
-		rand.Seed(time.Now().UnixNano())
-		randTime := rand.Int63n(10)
-		randomizeSleepTime, err := time.ParseDuration(fmt.Sprintf("%ds", randTime))
-		if err != nil {
-			logger.Logf("failed to parse random time (%ds): %+v\n", randTime, err)
-			wg.Done()
-		}
-
 		go func() {
 			defer wg.Done()
-			time.Sleep(randomizeSleepTime)
 			logger.Logf("start job (job id: %s)\n", job.UUID.String())
 
 			isOK, err := s.safety.Check(&job)
