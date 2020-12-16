@@ -84,12 +84,23 @@ function install_jq()
     fi
 }
 
+function install_docker()
+{
+    echo "docker is not installed, will be install jq."
+    if [ -e /etc/debian_version ] || [ -e /etc/debian_release ]; then
+        sudo apt-get update -y -qq
+        sudo apt-get install -y docker.io
+    fi
+}
+
 if [ -z "${runner_scope}" ]; then fatal "supply scope as argument 1"; fi
 if [ -z "${RUNNER_CFG_PAT}" ]; then fatal "RUNNER_CFG_PAT must be set before calling"; fi
 
 which curl || fatal "curl required.  Please install in PATH with apt-get, brew, etc"
 which jq || install_jq
 which jq || fatal "jq required.  Please install in PATH with apt-get, brew, etc"
+which docker || install_docker
+which docker || fatal "docker required.  Please install in PATH with apt-get, brew, etc"
 
 # move /tmp, /tmp is path of all user writable.
 cd /tmp
