@@ -16,7 +16,7 @@ type MySQL struct {
 
 // New create mysql connection
 func New(dsn string) (*MySQL, error) {
-	conn, err := sqlx.Open("mysql", dsn+"?parseTime=true")
+	conn, err := sqlx.Open("mysql", dsn+"?parseTime=true&loc=Local")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mysql connection: %w", err)
 	}
