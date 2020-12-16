@@ -40,6 +40,7 @@ func (m *Manager) Loop(ctx context.Context) error {
 	logger.Logf("start runner loop")
 
 	ticker := time.NewTicker(GoalCheckerInterval)
+	defer ticker.Stop()
 
 	for {
 		select {

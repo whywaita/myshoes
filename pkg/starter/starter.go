@@ -40,6 +40,7 @@ func (s *Starter) Loop(ctx context.Context) error {
 	logger.Logf("start starter loop")
 
 	ticker := time.NewTicker(PistolInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
