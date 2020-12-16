@@ -40,18 +40,25 @@ $ ./myshoes
 ```
 
 - `PORT`
+  - default: 8080
   - Listen port for web application.
 - GitHub Apps information
+  - required
   - `GITHUB_APP_ID`
   - `GITHUB_APP_SECRET` (if you set)
   - `GITHUB_PRIVATE_KEY_BASE64`
     - base64 encoded private key from GitHub Apps
 - `MYSQL_URL`
+  - required
   - DataSource Name, ex) `username:password@tcp(localhost:3306)/myshoes`
   - set if you use MySQL as a `datastore`.
 - `PLUGIN`
+  - required
   - set path of myshoes-provider.
   - example) `./shoes-mock` `https://example.com/shoes-mock`
+- `DEBUG`
+  - default: false
+  - show debugging log
 
 and more a some values from [shoes provider](https://github.com/whywaita/myshoes-providers).
 
