@@ -18,7 +18,8 @@ import (
 
 var (
 	// GoalCheckerInterval is interval time of check deleting runner
-	GoalCheckerInterval = 1 * time.Minute
+	//GoalCheckerInterval = 1 * time.Minute
+	GoalCheckerInterval = 10 * time.Second
 	// MustRunningTime is set time of instance create + download binaries + etc
 	MustRunningTime = 10 * time.Minute
 )
@@ -37,7 +38,7 @@ func New(ds datastore.Datastore) *Manager {
 
 // Loop check
 func (m *Manager) Loop(ctx context.Context) error {
-	logger.Logf("start runner loop")
+	logger.Logf(false, "start runner loop")
 
 	ticker := time.NewTicker(GoalCheckerInterval)
 	defer ticker.Stop()
@@ -46,13 +47,15 @@ func (m *Manager) Loop(ctx context.Context) error {
 		select {
 		case <-ticker.C:
 			if err := m.do(ctx); err != nil {
-				logger.Logf("failed to starter: %+v", err)
+				logger.Logf(false, "failed to starter: %+v", err)
 			}
 		}
 	}
 }
 
 func (m *Manager) do(ctx context.Context) error {
+	logger.Logf(true, "start runner manager")
+
 	runners, err := m.ds.ListRunners(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get runners: %w", err)
@@ -105,16 +108,18 @@ func (m *Manager) removeOfflineRunner(ctx context.Context, t *datastore.Target) 
 	if err != nil {
 		return fmt.Errorf("failed to get offline runner: %w", err)
 	}
+	logger.Logf(true, "found all offline runners is %d in %s", len(offlineRunners), t.RepoURL())
 
 	sanitizedRunners, err := m.sanitizeOfflineRunner(ctx, offlineRunners)
 	if err != nil {
 		return fmt.Errorf("failed to sanitize offline runner: %w", err)
 	}
+	logger.Logf(true, "will be deleted %d offline runners in %s", len(sanitizedRunners), t.RepoURL())
 
 	for _, offlineRunner := range sanitizedRunners {
 		// delete runner from GitHub
 		if err := m.deleteRunner(ctx, client, offlineRunner.ds, *offlineRunner.github.ID, owner, repo); err != nil {
-			logger.Logf("failed to delete runner: %+v\n", err)
+			logger.Logf(false, "failed to delete runner: %+v\n", err)
 			continue
 		}
 	}
@@ -133,15 +138,15 @@ func (m *Manager) sanitizeOfflineRunner(ctx context.Context, offlineRunners []*g
 	for _, r := range offlineRunners {
 		runnerUUID, err := ToUUID(*r.Name)
 		if err != nil {
-			//logger.Logf("not uuid in offline runner (runner name: %s), will ignore: %+v", *r.Name, err)
+			logger.Logf(true, "not uuid in offline runner (runner name: %s), will ignore: %+v", *r.Name, err)
 			continue
 		}
 		dsRunner, err := m.ds.GetRunner(ctx, runnerUUID)
 		if err != nil {
 			if err == datastore.ErrNotFound {
-				// not managed in myshoes (maybe first runner)
+				logger.Logf(true, "runner name %s is the suitable format in myshoes, but not found in datastore", *r.Name)
 			} else {
-				logger.Logf("failed to retrieve repository runner (runner uuid: %s): %+v", runnerUUID, err)
+				logger.Logf(false, "failed to retrieve repository runner (runner uuid: %s): %+v", runnerUUID, err)
 			}
 
 			continue
@@ -150,7 +155,9 @@ func (m *Manager) sanitizeOfflineRunner(ctx context.Context, offlineRunners []*g
 		// not delete recently within MustRunningTime
 		// this check protect to delete not running instance yet
 		spent := dsRunner.CreatedAt.Add(MustRunningTime)
-		if !spent.Before(time.Now()) {
+		now := time.Now().UTC()
+		if !spent.Before(now) {
+			logger.Logf(false, "%s is not running %s, so not will delete (created_at: %s, now: %s)", *r.Name, MustRunningTime, dsRunner.CreatedAt, now)
 			continue
 		}
 
@@ -214,7 +221,7 @@ func getOfflineRunner(ctx context.Context, githubClient *github.Client, owner, r
 // deleteRunner delete runner in github, shoes, datastore.
 // runnerUUID is uuid in datastore, runnerID is id from GitHub.
 func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client, runner *datastore.Runner, runnerID int64, owner, repo string) error {
-	logger.Logf("will delete runner: %s", runner.UUID.String())
+	logger.Logf(false, "will delete runner: %s", runner.UUID.String())
 
 	isOrg := false
 	if repo == "" {
@@ -242,7 +249,8 @@ func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client,
 		return fmt.Errorf("failed to delete instance: %w", err)
 	}
 
-	if err := m.ds.DeleteRunner(ctx, runner.UUID, time.Now()); err != nil {
+	now := time.Now().UTC()
+	if err := m.ds.DeleteRunner(ctx, runner.UUID, now); err != nil {
 		return fmt.Errorf("failed to remove runner from datastore (runner uuid: %s): %+v", runner.UUID.String(), err)
 	}
 

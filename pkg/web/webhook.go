@@ -22,13 +22,13 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 
 	payload, err := github.ValidatePayload(r, config.Config.GitHub.AppSecret)
 	if err != nil {
-		logger.Logf("failed to validate webhook payload: %+v\n", err)
+		logger.Logf(false, "failed to validate webhook payload: %+v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	webhookEvent, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
-		logger.Logf("failed to parse webhook payload: %+v\n", err)
+		logger.Logf(false, "failed to parse webhook payload: %+v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -36,7 +36,7 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 	switch event := webhookEvent.(type) {
 	case *github.PingEvent:
 		if err := receivePingWebhook(ctx, event); err != nil {
-			logger.Logf("failed to process ping event: %+v\n", err)
+			logger.Logf(false, "failed to process ping event: %+v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -45,7 +45,7 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 		return
 	case *github.CheckRunEvent:
 		if err := receiveCheckRunWebhook(ctx, event, ds); err != nil {
-			logger.Logf("failed to process check_run event: %+v\n", err)
+			logger.Logf(false, "failed to process check_run event: %+v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -53,7 +53,7 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 		w.WriteHeader(http.StatusOK)
 		return
 	default:
-		logger.Logf("receive not register event(%+v), return NotFound", event)
+		logger.Logf(false, "receive not register event(%+v), return NotFound", event)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -103,7 +103,7 @@ func processCheckRun(ctx context.Context, ds datastore.Datastore, checkAction, r
 		domain = "https://github.com"
 	}
 
-	logger.Logf("receive webhook repository: %s/%s", domain, repoName)
+	logger.Logf(false, "receive webhook repository: %s/%s", domain, repoName)
 	target, err := searchRepo(ctx, ds, gheDomain, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to search registered target: %w", err)

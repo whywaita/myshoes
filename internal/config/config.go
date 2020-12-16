@@ -15,6 +15,7 @@ type conf struct {
 	ShoesPluginPath string
 
 	RunnerUser string
+	Debug      bool
 }
 
 // Config Environment keys
@@ -25,4 +26,5 @@ const (
 	EnvMySQLURL                  = "MYSQL_URL"
 	EnvPort                      = "PORT"
 	EnvShoesPluginPath           = "PLUGIN"
+	EnvDebug                     = "DEBUG"
 )

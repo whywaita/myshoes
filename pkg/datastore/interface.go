@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"path"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -41,6 +42,16 @@ type Target struct {
 	RunnerUser          sql.NullString `db:"runner_user" json:"runner_user"`
 	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt           time.Time      `db:"updated_at" json:"updated_at"`
+}
+
+// RepoURL return repository URL.
+func (t *Target) RepoURL() string {
+	serverURL := "https://github.com"
+	if t.GHEDomain.Valid {
+		serverURL = t.GHEDomain.String
+	}
+
+	return path.Join(serverURL, t.Scope)
 }
 
 // ResourceType is runner machine spec
