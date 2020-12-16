@@ -25,11 +25,16 @@ func SetLogger(l *log.Logger) {
 
 // Logf is interface for logger
 func Logf(isDebug bool, format string, v ...interface{}) {
-	if isDebug && !config.Config.Debug {
-		return
-	}
-
 	logMu.Lock()
-	logger.Printf(format, v...)
-	logMu.Unlock()
+	defer logMu.Unlock()
+
+	switch {
+	case !isDebug:
+		// normal logging
+		logger.Printf(format, v...)
+	case isDebug && config.Config.Debug:
+		// debug logging
+		format = "[DEBUG] " + format
+		logger.Printf(format, v...)
+	}
 }

@@ -205,7 +205,7 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := testDatastore.DeleteRunner(context.Background(), test.input, time.Now())
+		err := testDatastore.DeleteRunner(context.Background(), test.input, time.Now().UTC())
 		if !test.err && err != nil {
 			t.Fatalf("failed to create target: %+v", err)
 		}

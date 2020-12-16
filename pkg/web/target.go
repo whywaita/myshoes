@@ -74,7 +74,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	}
 
 	t.UUID = uuid.NewV4()
-	now := time.Now()
+	now := time.Now().UTC()
 	t.CreatedAt = now
 	t.UpdatedAt = now
 	if err := ds.CreateTarget(ctx, t); err != nil {

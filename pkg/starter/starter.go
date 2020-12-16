@@ -52,11 +52,13 @@ func (s *Starter) Loop(ctx context.Context) error {
 }
 
 func (s *Starter) do(ctx context.Context) error {
+	logger.Logf(true, "start to check starter")
 	jobs, err := s.ds.ListJobs(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get jobs: %w", err)
 	}
 
+	logger.Logf(true, "found %d jobs", len(jobs))
 	wg := &sync.WaitGroup{}
 	for _, j := range jobs {
 		wg.Add(1)

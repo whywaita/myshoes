@@ -66,7 +66,7 @@ func Serve(ds datastore.Datastore) error {
 }
 
 func apacheLogging(r *http.Request) {
-	t := time.Now()
+	t := time.Now().UTC()
 	logger.Logf(false, "HTTP - %s - - %s \"%s %s %s\"\n",
 		r.RemoteAddr,
 		t.Format("02/Jan/2006:15:04:05 -0700"),
