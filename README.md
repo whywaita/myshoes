@@ -18,7 +18,7 @@ please prepare a something in first.
     - curl(1)
     - jq(1)
       - optional. will be to install boot runner if not installed. 
-- Create and install GitHub Apps
+- Create GitHub Apps
   - set values
     - GitHub App Name: any text
     - Homepage URL: any text
@@ -31,6 +31,7 @@ please prepare a something in first.
     - Subscribe to events
       - check `Check run`
   - download from GitHub or upload private key from your machine.
+- Install GitHub Apps to target repository to organization.
   
 ### Running
 
