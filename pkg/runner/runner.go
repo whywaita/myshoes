@@ -253,7 +253,7 @@ func ToName(uuid string) string {
 	return fmt.Sprintf("myshoes-%s", uuid)
 }
 
-// ToUUID convert runner name  to uuid
+// ToUUID convert runner name to uuid
 func ToUUID(name string) (uuid.UUID, error) {
 	u := strings.TrimPrefix(name, "myshoes-")
 	return uuid.FromString(u)
