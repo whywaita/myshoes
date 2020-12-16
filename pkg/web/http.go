@@ -57,7 +57,7 @@ func Serve(ds datastore.Datastore) error {
 	})
 
 	listenAddress := fmt.Sprintf(":%d", config.Config.Port)
-	logger.Logf("start webhook receiver, listen %s", listenAddress)
+	logger.Logf(false, "start webhook receiver, listen %s", listenAddress)
 	if err := http.ListenAndServe(listenAddress, mux); err != nil {
 		return fmt.Errorf("failed to listen and serve: %w", err)
 	}
@@ -67,7 +67,7 @@ func Serve(ds datastore.Datastore) error {
 
 func apacheLogging(r *http.Request) {
 	t := time.Now()
-	logger.Logf("HTTP - %s - - %s \"%s %s %s\"\n",
+	logger.Logf(false, "HTTP - %s - - %s \"%s %s %s\"\n",
 		r.RemoteAddr,
 		t.Format("02/Jan/2006:15:04:05 -0700"),
 		r.Method,

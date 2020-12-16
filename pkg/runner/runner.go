@@ -37,7 +37,7 @@ func New(ds datastore.Datastore) *Manager {
 
 // Loop check
 func (m *Manager) Loop(ctx context.Context) error {
-	logger.Logf("start runner loop")
+	logger.Logf(false, "start runner loop")
 
 	ticker := time.NewTicker(GoalCheckerInterval)
 	defer ticker.Stop()
@@ -46,7 +46,7 @@ func (m *Manager) Loop(ctx context.Context) error {
 		select {
 		case <-ticker.C:
 			if err := m.do(ctx); err != nil {
-				logger.Logf("failed to starter: %+v", err)
+				logger.Logf(false, "failed to starter: %+v", err)
 			}
 		}
 	}
@@ -114,7 +114,7 @@ func (m *Manager) removeOfflineRunner(ctx context.Context, t *datastore.Target) 
 	for _, offlineRunner := range sanitizedRunners {
 		// delete runner from GitHub
 		if err := m.deleteRunner(ctx, client, offlineRunner.ds, *offlineRunner.github.ID, owner, repo); err != nil {
-			logger.Logf("failed to delete runner: %+v\n", err)
+			logger.Logf(false, "failed to delete runner: %+v\n", err)
 			continue
 		}
 	}
@@ -141,7 +141,7 @@ func (m *Manager) sanitizeOfflineRunner(ctx context.Context, offlineRunners []*g
 			if err == datastore.ErrNotFound {
 				// not managed in myshoes (maybe first runner)
 			} else {
-				logger.Logf("failed to retrieve repository runner (runner uuid: %s): %+v", runnerUUID, err)
+				logger.Logf(false, "failed to retrieve repository runner (runner uuid: %s): %+v", runnerUUID, err)
 			}
 
 			continue
@@ -214,7 +214,7 @@ func getOfflineRunner(ctx context.Context, githubClient *github.Client, owner, r
 // deleteRunner delete runner in github, shoes, datastore.
 // runnerUUID is uuid in datastore, runnerID is id from GitHub.
 func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client, runner *datastore.Runner, runnerID int64, owner, repo string) error {
-	logger.Logf("will delete runner: %s", runner.UUID.String())
+	logger.Logf(false, "will delete runner: %s", runner.UUID.String())
 
 	isOrg := false
 	if repo == "" {

@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/whywaita/myshoes/pkg/logger"
 )
 
 // Load load config from environment
@@ -63,9 +61,15 @@ func Load() {
 	if err != nil {
 		log.Panicf("failed to fetch plugin binary: %+v", err)
 	}
-
 	Config.ShoesPluginPath = fp
-	logger.Logf("use plugin path is %s", pluginPath)
+	log.Printf("use plugin path is %s", pluginPath)
+
+	debug := os.Getenv(EnvDebug)
+	if debug == "true" {
+		Config.Debug = true
+	} else {
+		Config.Debug = false
+	}
 }
 
 // fetch retrieve plugin binaries.

@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"sync"
+
+	"github.com/whywaita/myshoes/internal/config"
 )
 
 var (
@@ -22,7 +24,11 @@ func SetLogger(l *log.Logger) {
 }
 
 // Logf is interface for logger
-func Logf(format string, v ...interface{}) {
+func Logf(isDebug bool, format string, v ...interface{}) {
+	if isDebug && !config.Config.Debug {
+		return
+	}
+
 	logMu.Lock()
 	logger.Printf(format, v...)
 	logMu.Unlock()

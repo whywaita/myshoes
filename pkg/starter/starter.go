@@ -36,7 +36,7 @@ func New(ds datastore.Datastore, s safety.Safety) *Starter {
 
 // Loop is main loop for starter
 func (s *Starter) Loop(ctx context.Context) error {
-	logger.Logf("start starter loop")
+	logger.Logf(false, "start starter loop")
 
 	ticker := time.NewTicker(PistolInterval)
 	defer ticker.Stop()
@@ -45,7 +45,7 @@ func (s *Starter) Loop(ctx context.Context) error {
 		select {
 		case <-ticker.C:
 			if err := s.do(ctx); err != nil {
-				logger.Logf("failed to start do: %+v", err)
+				logger.Logf(false, "failed to starter: %+v", err)
 			}
 		}
 	}
@@ -64,11 +64,11 @@ func (s *Starter) do(ctx context.Context) error {
 
 		go func() {
 			defer wg.Done()
-			logger.Logf("start job (job id: %s)\n", job.UUID.String())
+			logger.Logf(false, "start job (job id: %s)\n", job.UUID.String())
 
 			isOK, err := s.safety.Check(&job)
 			if err != nil {
-				logger.Logf("failed to check safety: %+v\n", err)
+				logger.Logf(false, "failed to check safety: %+v\n", err)
 				return
 			}
 			if !isOK {
@@ -77,11 +77,11 @@ func (s *Starter) do(ctx context.Context) error {
 			}
 
 			if err := s.bung(ctx, job); err != nil {
-				logger.Logf("failed to bung: %+v\n", err)
+				logger.Logf(false, "failed to bung: %+v\n", err)
 				return
 			}
 			if err := s.ds.DeleteJob(ctx, job.UUID); err != nil {
-				logger.Logf("failed to delete job: %+v\n", err)
+				logger.Logf(false, "failed to delete job: %+v\n", err)
 				return
 			}
 		}()
@@ -94,7 +94,7 @@ func (s *Starter) do(ctx context.Context) error {
 
 // bung is start runner, like a pistol! :)
 func (s *Starter) bung(ctx context.Context, job datastore.Job) error {
-	logger.Logf("start create instance (job: %s)", job.UUID)
+	logger.Logf(false, "start create instance (job: %s)", job.UUID)
 	client, teardown, err := shoes.GetClient()
 	if err != nil {
 		return fmt.Errorf("failed to get plugin client: %w", err)
@@ -113,7 +113,7 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to add instance: %w", err)
 	}
 
-	logger.Logf("instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
+	logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
 
 	r := datastore.Runner{
 		UUID:      job.UUID,
