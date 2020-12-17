@@ -18,8 +18,9 @@ import (
 
 var (
 	// GoalCheckerInterval is interval time of check deleting runner
-	//GoalCheckerInterval = 1 * time.Minute
-	GoalCheckerInterval = 10 * time.Second
+	GoalCheckerInterval = 1 * time.Minute
+	// MustGoalTime is hard limit for idle runner
+	MustGoalTime = 1 * time.Hour
 	// MustRunningTime is set time of instance create + download binaries + etc
 	MustRunningTime = 10 * time.Minute
 )
@@ -67,18 +68,13 @@ func (m *Manager) do(ctx context.Context) error {
 			return fmt.Errorf("failed to retrieve target: %w", err)
 		}
 
-		if err := m.removeOfflineRunner(ctx, t); err != nil {
-			return fmt.Errorf("failed to retrieve runners: %w", err)
+		if err := m.removeRunner(ctx, t); err != nil {
+			return fmt.Errorf("failed to delete runners: %w", err)
 		}
 	}
 
 	return nil
 }
-
-var (
-	// StatusWillDelete is deleted target in GitHub runners
-	StatusWillDelete = "offline"
-)
 
 // Runner is a runner implement
 type Runner struct {
@@ -86,7 +82,7 @@ type Runner struct {
 	ds     *datastore.Runner
 }
 
-func (m *Manager) removeOfflineRunner(ctx context.Context, t *datastore.Target) error {
+func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 	var owner, repo string
 
 	switch gh.DetectScope(t.Scope) {
@@ -104,13 +100,13 @@ func (m *Manager) removeOfflineRunner(ctx context.Context, t *datastore.Target) 
 		return fmt.Errorf("failed to create github client: %w", err)
 	}
 
-	offlineRunners, err := getOfflineRunner(ctx, client, owner, repo)
+	targetRunners, err := getDeleteTargetRunner(ctx, client, owner, repo)
 	if err != nil {
 		return fmt.Errorf("failed to get offline runner: %w", err)
 	}
-	logger.Logf(true, "found all offline runners is %d in %s", len(offlineRunners), t.RepoURL())
+	logger.Logf(true, "found all delete target runners is %d in %s", len(targetRunners), t.RepoURL())
 
-	sanitizedRunners, err := m.sanitizeOfflineRunner(ctx, offlineRunners)
+	sanitizedRunners, err := m.sanitizeRunner(ctx, targetRunners)
 	if err != nil {
 		return fmt.Errorf("failed to sanitize offline runner: %w", err)
 	}
@@ -127,18 +123,19 @@ func (m *Manager) removeOfflineRunner(ctx context.Context, t *datastore.Target) 
 	return nil
 }
 
-func (m *Manager) sanitizeOfflineRunner(ctx context.Context, offlineRunners []*github.Runner) ([]Runner, error) {
+func (m *Manager) sanitizeRunner(ctx context.Context, targetRunners []*github.Runner) ([]Runner, error) {
 	var sanitized []Runner
 
-	if len(offlineRunners) == 1 {
+	if len(targetRunners) == 1 {
 		// only one runner for queuing, not remove.
+		logger.Logf(true, "found only one delete target runner. maybe this runner set for queueing. not will delete.")
 		return nil, nil
 	}
 
-	for _, r := range offlineRunners {
+	for _, r := range targetRunners {
 		runnerUUID, err := ToUUID(*r.Name)
 		if err != nil {
-			logger.Logf(true, "not uuid in offline runner (runner name: %s), will ignore: %+v", *r.Name, err)
+			logger.Logf(true, "not uuid in target runner (runner name: %s), will ignore: %+v", *r.Name, err)
 			continue
 		}
 		dsRunner, err := m.ds.GetRunner(ctx, runnerUUID)
@@ -152,13 +149,15 @@ func (m *Manager) sanitizeOfflineRunner(ctx context.Context, offlineRunners []*g
 			continue
 		}
 
-		// not delete recently within MustRunningTime
-		// this check protect to delete not running instance yet
-		spent := dsRunner.CreatedAt.Add(MustRunningTime)
-		now := time.Now().UTC()
-		if !spent.Before(now) {
-			logger.Logf(false, "%s is not running %s, so not will delete (created_at: %s, now: %s)", *r.Name, MustRunningTime, dsRunner.CreatedAt, now)
-			continue
+		switch r.GetStatus() {
+		case StatusWillDelete:
+			if err := sanitizeOfflineRunner(dsRunner); err != nil {
+				continue
+			}
+		case StatusSleep:
+			if err := sanitizeIdleRunner(dsRunner); err != nil {
+				continue
+			}
 		}
 
 		runner := Runner{
@@ -171,10 +170,49 @@ func (m *Manager) sanitizeOfflineRunner(ctx context.Context, offlineRunners []*g
 	return sanitized, nil
 }
 
-// getOfflineRunner retrieve runner that status is offline from GitHub.
-func getOfflineRunner(ctx context.Context, githubClient *github.Client, owner, repo string) ([]*github.Runner, error) {
+// Error values
+var (
+	ErrNotWillDeleteRunner = fmt.Errorf("not will delete runner")
+)
+
+// sanitizeOfflineRunner check runner running MustRunningTime.
+func sanitizeOfflineRunner(r *datastore.Runner) error {
+	// not delete recently within MustRunningTime
+	// this check protect to delete not running instance yet
+	spent := r.CreatedAt.Add(MustRunningTime)
+	now := time.Now().UTC()
+	if !spent.Before(now) {
+		logger.Logf(false, "%s is not running %s, so not will delete (created_at: %s, now: %s)", r.UUID, MustRunningTime, r.CreatedAt, now)
+		return ErrNotWillDeleteRunner
+	}
+
+	return nil
+}
+
+// sanitizeIdleRunner check no job runner between MustGoalTime.
+func sanitizeIdleRunner(r *datastore.Runner) error {
+	spent := r.CreatedAt.Add(MustGoalTime)
+	now := time.Now().UTC()
+	if !spent.Before(now) {
+		logger.Logf(true, "%s is idle runner but not running in %s. so not wil delete (created_at: %s, now: %s)", r.UUID, MustGoalTime, r.CreatedAt, now)
+		return ErrNotWillDeleteRunner
+	}
+
+	logger.Logf(false, "found %s is running between %s, will delete (created_at: %s, now: %s", r.UUID, MustGoalTime, r.CreatedAt, now)
+	return nil
+}
+
+var (
+	// StatusWillDelete will delete target in GitHub runners
+	StatusWillDelete = "offline"
+	// StatusSleep is sleeping runners
+	StatusSleep = "online"
+)
+
+// getDeleteTargetRunner retrieve runner that status is offline or idle from GitHub.
+func getDeleteTargetRunner(ctx context.Context, githubClient *github.Client, owner, repo string) ([]*github.Runner, error) {
 	var rs []*github.Runner
-	var offlineRunners []*github.Runner
+	var targetRunners []*github.Runner
 
 	isOrg := false
 	if repo == "" {
@@ -203,8 +241,8 @@ func getOfflineRunner(ctx context.Context, githubClient *github.Client, owner, r
 		}
 
 		for _, r := range runners.Runners {
-			if r.GetStatus() == StatusWillDelete {
-				offlineRunners = append(offlineRunners, r)
+			if r.GetStatus() == StatusWillDelete || r.GetStatus() == StatusSleep {
+				targetRunners = append(targetRunners, r)
 			}
 		}
 
@@ -215,7 +253,7 @@ func getOfflineRunner(ctx context.Context, githubClient *github.Client, owner, r
 		opts.Page = opts.Page + 1
 	}
 
-	return offlineRunners, nil
+	return targetRunners, nil
 }
 
 // deleteRunner delete runner in github, shoes, datastore.
