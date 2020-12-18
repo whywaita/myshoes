@@ -184,6 +184,9 @@ runner_file="actions-runner-${runner_plat}-x64-${latest_version}.tar.gz"
 
 if [ -f "${runner_file}" ]; then
     echo "${runner_file} exists. skipping download."
+elif [ -f "/usr/local/etc/${runner_file}" ]; then
+    echo "${runner_file} cache is found. skipping download."
+    mv /usr/local/etc/${runner_file} ./
 else
     runner_url="https://github.com/actions/runner/releases/download/${latest_version_label}/${runner_file}"
 
