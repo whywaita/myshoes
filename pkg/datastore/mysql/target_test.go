@@ -168,6 +168,56 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 	}
 }
 
+func TestMySQL_ListTargets(t *testing.T) {
+	testDatastore, teardown := testutils.GetTestDatastore()
+	defer teardown()
+
+	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+		UUID:                testTargetID,
+		Scope:               testScopeRepo,
+		GitHubPersonalToken: testGitHubPersonalToken,
+		ResourceType:        "nano",
+	}); err != nil {
+		t.Fatalf("failed to create target: %+v", err)
+	}
+
+	tests := []struct {
+		input interface{}
+		want  []datastore.Target
+		err   bool
+	}{
+		{
+			input: nil,
+			want: []datastore.Target{
+				{
+					UUID:                testTargetID,
+					Scope:               testScopeRepo,
+					GitHubPersonalToken: testGitHubPersonalToken,
+					ResourceType:        "nano",
+				},
+			},
+			err: false,
+		},
+	}
+
+	for _, test := range tests {
+		got, err := testDatastore.ListTargets(context.Background())
+		if !test.err && err != nil {
+			t.Fatalf("failed to list targets: %+v", err)
+		}
+		if got != nil {
+			for i := range got {
+				got[i].CreatedAt = time.Time{}
+				got[i].UpdatedAt = time.Time{}
+			}
+		}
+
+		if diff := cmp.Diff(test.want, got); diff != "" {
+			t.Errorf("mismatch (-want +got):\n%s", diff)
+		}
+	}
+}
+
 func TestMySQL_DeleteTarget(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
 	defer teardown()
@@ -197,7 +247,7 @@ func TestMySQL_DeleteTarget(t *testing.T) {
 	for _, test := range tests {
 		err := testDatastore.DeleteTarget(context.Background(), test.input)
 		if !test.err && err != nil {
-			t.Fatalf("failed to create target: %+v", err)
+			t.Fatalf("failed to delete target: %+v", err)
 		}
 		got, err := getTargetFromSQL(testDB, test.input)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
