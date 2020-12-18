@@ -1,19 +1,54 @@
+//go:generate statik -src=./scripts
+
 package starter
 
 import (
 	"fmt"
+	"io/ioutil"
+
+	"github.com/rakyll/statik/fs"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
+	_ "github.com/whywaita/myshoes/pkg/starter/statik" // TODO:
 )
 
-func (s *Starter) getSetupScript(target datastore.Target) string {
+func getPatchedFiles() (string, error) {
+	statikFs, err := fs.New()
+	if err != nil {
+		return "", fmt.Errorf("failed to New statik filesystem: %w", err)
+	}
+	r, err := statikFs.Open("/RunnerService.js")
+	if err != nil {
+		return "", fmt.Errorf("failed to open RunnerService.js: %w", err)
+	}
+	defer r.Close()
+	rsjs, err := ioutil.ReadAll(r)
+	if err != nil {
+		return "", fmt.Errorf("failed to read RunnerService.js: %w", err)
+	}
+
+	return fmt.Sprintf("%s", rsjs), nil
+}
+
+func (s *Starter) getSetupScript(target datastore.Target) (string, error) {
 	runnerUser := ""
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
 	}
 
-	script := fmt.Sprintf(templateCreateLatestRunnerOnce, target.Scope, target.GHEDomain.String, target.GitHubPersonalToken, runnerUser)
-	return script
+	runnerServiceJs, err := getPatchedFiles()
+	if err != nil {
+		return "", fmt.Errorf("failed to get patched files: %w", err)
+	}
+
+	script := fmt.Sprintf(templateCreateLatestRunnerOnce,
+		target.Scope,
+		target.GHEDomain.String,
+		target.GitHubPersonalToken,
+		runnerUser,
+		runnerServiceJs)
+
+	return script, nil
 }
 
 // templateCreateLatestRunnerOnce is script template of setup runner.
@@ -86,7 +121,7 @@ function install_jq()
 
 function install_docker()
 {
-    echo "docker is not installed, will be install jq."
+    echo "docker is not installed, will be install docker."
     if [ -e /etc/debian_version ] || [ -e /etc/debian_release ]; then
         sudo apt-get update -y -qq
         sudo apt-get install -y docker.io
@@ -187,6 +222,40 @@ echo
 echo "Configuring ${runner_name} @ $runner_url"
 echo "./config.sh --unattended --url $runner_url --token *** --name $runner_name"
 ${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name
-echo "./run.sh --once"
-${sudo_prefix}./run.sh --once
-`
+
+#---------------------------------------
+# patch once commands
+#---------------------------------------
+echo "apply patch file"
+cat << EOF > ./bin/runsvc.sh
+#!/bin/bash
+
+# convert SIGTERM signal to SIGINT
+# for more info on how to propagate SIGTERM to a child process see: http://veithen.github.io/2014/11/16/sigterm-propagation.html
+trap 'kill -INT \$PID' TERM INT
+
+if [ -f ".path" ]; then
+    # configure
+    export PATH=\$(cat .path)
+    echo ".path=\${PATH}"
+fi
+
+# insert anything to setup env when running as a service
+
+# run the host process which keep the listener alive
+./externals/node12/bin/node ./bin/RunnerService.js \$* &
+PID=\$!
+wait \$PID
+trap - TERM INT
+wait \$PID
+EOF
+
+cat << EOF > ./bin/RunnerService.js
+%s
+EOF
+
+#---------------------------------------
+# run!
+#---------------------------------------
+echo "./bin/runsvc.sh --once"
+${sudo_prefix}./bin/runsvc.sh --once`

@@ -22,7 +22,7 @@ var (
 	// MustGoalTime is hard limit for idle runner
 	MustGoalTime = 1 * time.Hour
 	// MustRunningTime is set time of instance create + download binaries + etc
-	MustRunningTime = 10 * time.Minute
+	MustRunningTime = 5 * time.Minute
 )
 
 // Manager is runner management
