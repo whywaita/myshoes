@@ -62,6 +62,7 @@ func (m *Manager) do(ctx context.Context) error {
 		return fmt.Errorf("failed to get runners: %w", err)
 	}
 
+	logger.Logf(true, "found %d runners in datastore", len(runners))
 	for _, runner := range runners {
 		t, err := m.ds.GetTarget(ctx, runner.TargetID)
 		if err != nil {

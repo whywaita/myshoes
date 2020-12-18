@@ -145,7 +145,7 @@ if [ -d ./runner ]; then
     fatal "Runner already exists.  Use a different directory or delete ./runner"
 fi
 
-${sudo_prefix}mkdir runner
+${sudo_prefix}mkdir -p runner
 
 # TODO: validate not in a container
 # TODO: validate systemd or osx svc installer
