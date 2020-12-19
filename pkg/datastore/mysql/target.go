@@ -53,6 +53,17 @@ func (m *MySQL) GetTargetByScope(ctx context.Context, gheDomain, scope string) (
 	return &t, nil
 }
 
+// ListTargets get a all target
+func (m *MySQL) ListTargets(ctx context.Context) ([]datastore.Target, error) {
+	var ts []datastore.Target
+	query := `SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, created_at, updated_at FROM targets`
+	if err := m.Conn.SelectContext(ctx, &ts, query); err != nil {
+		return nil, fmt.Errorf("failed to SELECT query: %w", err)
+	}
+
+	return ts, nil
+}
+
 // DeleteTarget delete a target
 func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM targets WHERE uuid = ?`

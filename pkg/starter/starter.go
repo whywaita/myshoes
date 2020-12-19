@@ -108,7 +108,11 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to retrieve relational target (job: %s, target: %s): %w", job.UUID, job.TargetID, err)
 	}
 
-	script := s.getSetupScript(*target)
+	script, err := s.getSetupScript(*target)
+	if err != nil {
+		return fmt.Errorf("failed to get setup scripts: %w", err)
+	}
+
 	runnerName := runner.ToName(job.UUID.String())
 	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script)
 	if err != nil {

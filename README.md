@@ -1,6 +1,10 @@
 # myshoes
 
-Auto scaling self-hosted runner :runner: for GitHub Actions
+Auto scaling self-hosted runner :runner: (like GitHub-hosted) for GitHub Actions
+
+# features
+
+- Auto scaling and runner with your cloud-provider 
 
 ## Setup (only once)
 
@@ -15,9 +19,13 @@ please prepare a something in first.
 
 - Virtual Machine Image on your cloud provider.
   - installed a some commands.
-    - curl(1)
-    - jq(1)
-      - optional. will be to install boot runner if not installed. 
+    - curl (1)
+    - jq (1)
+      - optional, but **STRONG RECOMMEND INSTALLING BEFORE** (please read known issue)
+    - docker (1)
+      - optional, but **STRONG RECOMMEND INSTALLING BEFORE** (please read known issue)
+  - put latest runner tar.gz to `/usr/local/etc`
+    - optional, but **STRONG RECOMMEND INSTALLING BEFORE** (please read known issue)
 - Create GitHub Apps
   - set values
     - GitHub App Name: any text
@@ -36,6 +44,7 @@ please prepare a something in first.
 ### Running
 
 ```bash
+$ make build
 $ ./myshoes
 ```
 

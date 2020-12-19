@@ -22,7 +22,7 @@ var (
 	// MustGoalTime is hard limit for idle runner
 	MustGoalTime = 1 * time.Hour
 	// MustRunningTime is set time of instance create + download binaries + etc
-	MustRunningTime = 10 * time.Minute
+	MustRunningTime = 5 * time.Minute
 )
 
 // Manager is runner management
@@ -57,18 +57,14 @@ func (m *Manager) Loop(ctx context.Context) error {
 func (m *Manager) do(ctx context.Context) error {
 	logger.Logf(true, "start runner manager")
 
-	runners, err := m.ds.ListRunners(ctx)
+	targets, err := m.ds.ListTargets(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get runners: %w", err)
+		return fmt.Errorf("failed to get targets: %w", err)
 	}
 
-	for _, runner := range runners {
-		t, err := m.ds.GetTarget(ctx, runner.TargetID)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve target: %w", err)
-		}
-
-		if err := m.removeRunner(ctx, t); err != nil {
+	logger.Logf(true, "found %d targets in datastore", len(targets))
+	for _, target := range targets {
+		if err := m.removeRunner(ctx, &target); err != nil {
 			return fmt.Errorf("failed to delete runners: %w", err)
 		}
 	}
@@ -83,6 +79,7 @@ type Runner struct {
 }
 
 func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
+	logger.Logf(true, "start to search runner in %s", t.RepoURL())
 	var owner, repo string
 
 	switch gh.DetectScope(t.Scope) {
@@ -225,6 +222,7 @@ func getDeleteTargetRunner(ctx context.Context, githubClient *github.Client, own
 	}
 
 	for {
+		logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d", opts.Page, len(rs))
 		var runners *github.Runners
 		var err error
 
@@ -247,7 +245,7 @@ func getDeleteTargetRunner(ctx context.Context, githubClient *github.Client, own
 		}
 
 		rs = append(rs, runners.Runners...)
-		if len(rs) == runners.TotalCount {
+		if len(rs) >= runners.TotalCount {
 			break
 		}
 		opts.Page = opts.Page + 1

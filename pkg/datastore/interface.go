@@ -20,6 +20,7 @@ type Datastore interface {
 	CreateTarget(ctx context.Context, target Target) error
 	GetTarget(ctx context.Context, id uuid.UUID) (*Target, error)
 	GetTargetByScope(ctx context.Context, gheDomain, scope string) (*Target, error)
+	ListTargets(ctx context.Context) ([]Target, error)
 	DeleteTarget(ctx context.Context, id uuid.UUID) error
 
 	EnqueueJob(ctx context.Context, job Job) error

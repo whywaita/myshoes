@@ -11,6 +11,7 @@ require (
 	github.com/hashicorp/go-plugin v1.4.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/ory/dockertest/v3 v3.6.2
+	github.com/rakyll/statik v0.1.7
 	github.com/satori/go.uuid v1.2.0
 	goji.io v2.0.2+incompatible
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be

@@ -78,6 +78,20 @@ func (m *Memory) GetTargetByScope(ctx context.Context, gheDomain, scope string) 
 	return nil, datastore.ErrNotFound
 }
 
+// ListTargets get a all targets
+func (m *Memory) ListTargets(ctx context.Context) ([]datastore.Target, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var targets []datastore.Target
+
+	for _, t := range m.targets {
+		targets = append(targets, t)
+	}
+
+	return targets, nil
+}
+
 // DeleteTarget delete a target
 func (m *Memory) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 	m.mu.Lock()
@@ -155,7 +169,7 @@ func (m *Memory) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner
 }
 
 // DeleteRunner delete a runner
-func (m *Memory) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Ticker) error {
+func (m *Memory) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
