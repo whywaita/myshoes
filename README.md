@@ -1,6 +1,10 @@
 # myshoes
 
-Auto scaling self-hosted runner :runner: for GitHub Actions
+Auto scaling self-hosted runner :runner: (like GitHub-hosted) for GitHub Actions
+
+# features
+
+- Auto scaling and runner with your cloud-provider 
 
 ## Setup (only once)
 
@@ -40,6 +44,7 @@ please prepare a something in first.
 ### Running
 
 ```bash
+$ make build
 $ ./myshoes
 ```
 
