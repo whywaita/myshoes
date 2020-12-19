@@ -1,2 +1,7 @@
 builds:
-  main: ./cmd/server/cmd.go
+  - main: ./cmd/server/cmd.go
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
