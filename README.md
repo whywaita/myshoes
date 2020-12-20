@@ -4,7 +4,7 @@ Auto scaling self-hosted runner :runner: (like GitHub-hosted) for GitHub Actions
 
 # features
 
-- Auto scaling and runner with your cloud-provider 
+- Auto-scaling and runner with your cloud-provider 
 
 ## Setup (only once)
 
@@ -15,7 +15,7 @@ Auto scaling self-hosted runner :runner: (like GitHub-hosted) for GitHub Actions
 
 ### Prepare
 
-please prepare a something in first.
+please prepare a few things first.
 
 - Virtual Machine Image on your cloud provider.
   - installed a some commands.
@@ -69,7 +69,7 @@ $ ./myshoes
   - default: false
   - show debugging log
 
-and more a some values from [shoes provider](https://github.com/whywaita/myshoes-providers).
+and more some env values from [shoes provider](https://github.com/whywaita/myshoes-providers).
 
 ## Repository setup
 
@@ -77,19 +77,19 @@ and more a some values from [shoes provider](https://github.com/whywaita/myshoes
 
 you need to register a target that repository or organization.
 
-- scope: set target scope for auto-scaling runner.
+- scope: set target scope for an auto-scaling runner.
   - repository example: `octocat/hello-worlds`
   - organization example: `octocat`
 - ghe_domain: set domain of your GitHub Enterprise Server.
   - example: `https://github.example.com`
   - please contain schema.
-- runner_user: set linux username that execute runner. you need to set exist user.
+- runner_user: set linux username that executes runner. you need to set exist user.
   - DO NOT set `root`. It can't run GitHub Actions runner in root permission.
   - example: `ubuntu`
 - resource_type: set instance size for a runner.
-  - please check a documents of shoes-providers.
+  - please check a document of shoes-providers.
 - github_personal_token: set token of GitHub Personal.
-  - please check a documents of [GPT](https://docs.github.com/en/free-pro-team@latest/github/authenticating-to-github/creating-a-personal-access-token).
+  - please check a document of [GPT](https://docs.github.com/en/free-pro-team@latest/github/authenticating-to-github/creating-a-personal-access-token).
 
 create target example:
 
@@ -100,7 +100,7 @@ $ curl -XPOST -d '{"scope": "octocat/hello-world", "ghe_domain": "https://github
 ### Create an offline runner (only one)
 
 GitHub Actions need offline runner if queueing job.
-please create an offline runner in target repository.
+please create an offline runner in the target repository.
 
 https://docs.github.com/en/free-pro-team@latest/actions/hosting-your-own-runners/adding-self-hosted-runners
 
@@ -108,7 +108,7 @@ please delete a runner after registered.
 
 ### Let's go using your shoes!
 
-:runner::runner::runner:
+Let's execute your jobs! :runner::runner::runner:
 
 ## Known issue
 
