@@ -23,6 +23,8 @@ type Datastore interface {
 	ListTargets(ctx context.Context) ([]Target, error)
 	DeleteTarget(ctx context.Context, id uuid.UUID) error
 
+	UpdateStatus(ctx context.Context, targetID uuid.UUID, newStatus Status, description string) error
+
 	EnqueueJob(ctx context.Context, job Job) error
 	ListJobs(ctx context.Context) ([]Job, error)
 	DeleteJob(ctx context.Context, id uuid.UUID) error
@@ -41,6 +43,8 @@ type Target struct {
 	GHEDomain           sql.NullString `db:"ghe_domain" json:"ghe_domain"`
 	ResourceType        ResourceType   `db:"resource_type" json:"resource_type"`
 	RunnerUser          sql.NullString `db:"runner_user" json:"runner_user"`
+	Status              Status         `db:"status" json:"status"`
+	StatusDescription   sql.NullString `db:"status_description" json:"status_description"`
 	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt           time.Time      `db:"updated_at" json:"updated_at"`
 }
@@ -58,7 +62,7 @@ func (t *Target) RepoURL() string {
 // ResourceType is runner machine spec
 type ResourceType string
 
-// ResourceTypes
+// ResourceTypes variables
 const (
 	Nano    ResourceType = "nano"
 	Micro                = "micro"
@@ -69,6 +73,16 @@ const (
 	XLarge2              = "2xlarge"
 	XLarge3              = "3xlarge"
 	XLarge4              = "4xlarge"
+)
+
+// Status is status for target
+type Status string
+
+// Status variables
+const (
+	TargetStatusActive  Status = "active"
+	TargetStatusRunning        = "running"
+	TargetStatusErr            = "error"
 )
 
 func (r *ResourceType) String() string {

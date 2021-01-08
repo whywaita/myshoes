@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -98,6 +99,29 @@ func (m *Memory) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 	defer m.mu.Unlock()
 
 	delete(m.targets, id)
+	return nil
+}
+
+// UpdateStatus update status in target
+func (m *Memory) UpdateStatus(ctx context.Context, targetID uuid.UUID, newStatus datastore.Status, description string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	t, ok := m.targets[targetID]
+	if !ok {
+		return fmt.Errorf("not found")
+	}
+
+	t.Status = newStatus
+	if description != "" {
+		t.StatusDescription.Valid = true
+	} else {
+		t.StatusDescription.Valid = false
+	}
+	t.StatusDescription.String = description
+
+	m.targets[targetID] = t
+
 	return nil
 }
 
