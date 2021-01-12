@@ -113,6 +113,11 @@ func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 		// delete runner from GitHub
 		if err := m.deleteRunner(ctx, client, offlineRunner.ds, *offlineRunner.github.ID, owner, repo); err != nil {
 			logger.Logf(false, "failed to delete runner: %+v\n", err)
+
+			if err := m.ds.UpdateStatus(ctx, t.UUID, datastore.TargetStatusErr, ""); err != nil {
+				logger.Logf(false, "failed to update target status (target ID: %s,): %+v\n", t.UUID, err)
+			}
+
 			continue
 		}
 	}
@@ -272,7 +277,6 @@ func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client,
 	if isOrg {
 		if _, err := githubClient.Actions.RemoveOrganizationRunner(ctx, owner, runnerID); err != nil {
 			return fmt.Errorf("failed to remove organization runner (runner uuid: %s): %+v", runner.UUID.String(), err)
-
 		}
 	} else {
 		if _, err := githubClient.Actions.RemoveRunner(ctx, owner, repo, runnerID); err != nil {

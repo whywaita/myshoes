@@ -84,10 +84,22 @@ func (s *Starter) do(ctx context.Context) error {
 
 			if err := s.bung(ctx, job); err != nil {
 				logger.Logf(false, "failed to bung: %+v\n", err)
+
+				if err := s.ds.UpdateStatus(ctx, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+					logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
+					return
+				}
+
 				return
 			}
 			if err := s.ds.DeleteJob(ctx, job.UUID); err != nil {
 				logger.Logf(false, "failed to delete job: %+v\n", err)
+
+				if err := s.ds.UpdateStatus(ctx, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+					logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
+					return
+				}
+
 				return
 			}
 		}()
