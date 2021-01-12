@@ -77,6 +77,10 @@ func (s *Starter) do(ctx context.Context) error {
 				// is not ok, save job
 				return
 			}
+			if err := s.ds.UpdateStatus(ctx, job.TargetID, datastore.TargetStatusRunning, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+				logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
+				return
+			}
 
 			if err := s.bung(ctx, job); err != nil {
 				logger.Logf(false, "failed to bung: %+v\n", err)

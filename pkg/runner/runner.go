@@ -117,6 +117,11 @@ func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 		}
 	}
 
+	if err := m.ds.UpdateStatus(ctx, t.UUID, datastore.TargetStatusActive, ""); err != nil {
+		logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
+		return fmt.Errorf("failed to update target status: %w", err)
+	}
+
 	return nil
 }
 
