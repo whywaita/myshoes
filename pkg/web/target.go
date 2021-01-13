@@ -104,18 +104,10 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 		return
 	}
 
-	target = sanitizeTarget(target)
-
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(target)
 	return
-}
-
-func sanitizeTarget(t *datastore.Target) *datastore.Target {
-	t.GitHubPersonalToken = ""
-
-	return t
 }
 
 func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {}

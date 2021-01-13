@@ -38,8 +38,8 @@ type Datastore interface {
 // Target is a target repository that will add auto-scaling runner.
 type Target struct {
 	UUID                uuid.UUID      `db:"uuid" json:"id"`
-	Scope               string         `db:"scope" json:"scope"`                                 // repo (:owner/:repo) or org (:organization)
-	GitHubPersonalToken string         `db:"github_personal_token" json:"github_personal_token"` // TODO: encrypt
+	Scope               string         `db:"scope" json:"scope"`             // repo (:owner/:repo) or org (:organization)
+	GitHubPersonalToken string         `db:"github_personal_token" json:"-"` // TODO: encrypt
 	GHEDomain           sql.NullString `db:"ghe_domain" json:"ghe_domain"`
 	ResourceType        ResourceType   `db:"resource_type" json:"resource_type"`
 	RunnerUser          sql.NullString `db:"runner_user" json:"runner_user"`
