@@ -23,7 +23,7 @@ func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error
 // GetTarget get a target
 func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, created_at, updated_at FROM targets WHERE uuid = ?`)
+	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`)
 	if err := m.Conn.GetContext(ctx, &t, query, id.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
@@ -38,7 +38,7 @@ func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target,
 // GetTargetByScope get a target from scope
 func (m *MySQL) GetTargetByScope(ctx context.Context, gheDomain, scope string) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, created_at, updated_at FROM targets WHERE scope = "%s"`, scope)
+	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, status, status_description, created_at, updated_at FROM targets WHERE scope = "%s"`, scope)
 	if gheDomain != "" {
 		query = fmt.Sprintf(`%s AND ghe_domain = "%s"`, query, gheDomain)
 	}
@@ -56,7 +56,7 @@ func (m *MySQL) GetTargetByScope(ctx context.Context, gheDomain, scope string) (
 // ListTargets get a all target
 func (m *MySQL) ListTargets(ctx context.Context) ([]datastore.Target, error) {
 	var ts []datastore.Target
-	query := `SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, created_at, updated_at FROM targets`
+	query := `SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, status, status_description, created_at, updated_at FROM targets`
 	if err := m.Conn.SelectContext(ctx, &ts, query); err != nil {
 		return nil, fmt.Errorf("failed to SELECT query: %w", err)
 	}
@@ -69,6 +69,16 @@ func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM targets WHERE uuid = ?`
 	if _, err := m.Conn.ExecContext(ctx, query, id.String()); err != nil {
 		return fmt.Errorf("failed to execute DELETE query: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateStatus update status in target
+func (m *MySQL) UpdateStatus(ctx context.Context, targetID uuid.UUID, newStatus datastore.Status, description string) error {
+	query := `UPDATE targets SET status = ?, status_description = ? WHERE uuid = ?`
+	if _, err := m.Conn.ExecContext(ctx, query, newStatus, description, targetID.String()); err != nil {
+		return fmt.Errorf("failed to execute UPDATE query: %w", err)
 	}
 
 	return nil
