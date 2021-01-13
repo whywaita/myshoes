@@ -23,6 +23,8 @@ var (
 	MustGoalTime = 1 * time.Hour
 	// MustRunningTime is set time of instance create + download binaries + etc
 	MustRunningTime = 5 * time.Minute
+	// CheckPermissionInterval is interval time of check permission
+	CheckPermissionInterval = 10 * time.Second
 )
 
 // Manager is runner management
@@ -44,11 +46,18 @@ func (m *Manager) Loop(ctx context.Context) error {
 	ticker := time.NewTicker(GoalCheckerInterval)
 	defer ticker.Stop()
 
+	permissionChecker := time.NewTicker(CheckPermissionInterval)
+	defer permissionChecker.Stop()
+
 	for {
 		select {
 		case <-ticker.C:
 			if err := m.do(ctx); err != nil {
 				logger.Logf(false, "failed to starter: %+v", err)
+			}
+		case <-permissionChecker.C:
+			if err := m.permissionCheck(ctx); err != nil {
+				logger.Logf(false, "failed to check permission: %+v", err)
 			}
 		}
 	}
@@ -72,6 +81,50 @@ func (m *Manager) do(ctx context.Context) error {
 	return nil
 }
 
+// permissionCheck check permission in target when datastore.TargetStatusInitialize.
+// update target status after this function.
+func (m *Manager) permissionCheck(ctx context.Context) error {
+	logger.Logf(true, "start permission check")
+
+	targets, err := m.ds.ListTargets(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get targets: %w", err)
+	}
+
+	for _, target := range targets {
+		if target.Status != datastore.TargetStatusInitialize {
+			// check only initialize status
+			continue
+		}
+
+		logger.Logf(true, "found target that status is initialize (URL: %s)", target.RepoURL())
+
+		client, err := gh.NewClient(ctx, target.GitHubPersonalToken, target.GHEDomain.String)
+		if err != nil {
+			return fmt.Errorf("failed to create github client: %w", err)
+		}
+		owner, repo := target.OwnerRepo()
+
+		if _, err := getTargetRunner(ctx, client, owner, repo); err != nil {
+			logger.Logf(false, "failed to retrieve runner from GitHub (URL: %s): %+v", target.RepoURL(), err)
+
+			if err := m.ds.UpdateStatus(ctx, target.UUID, datastore.TargetStatusErr, "failed to fetch runner from GitHub"); err != nil {
+				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", target.UUID, err)
+				continue
+			}
+			continue
+		} else {
+			logger.Logf(true, "successfully get runners from GitHub (URL: %s)", target.RepoURL())
+			if err := m.ds.UpdateStatus(ctx, target.UUID, datastore.TargetStatusActive, ""); err != nil {
+				logger.Logf(false, "failed to update target status (target ID: %s,): %+v\n", target.UUID, err)
+				continue
+			}
+		}
+	}
+
+	return nil
+}
+
 // Runner is a runner implement
 type Runner struct {
 	github *github.Runner
@@ -80,18 +133,8 @@ type Runner struct {
 
 func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 	logger.Logf(true, "start to search runner in %s", t.RepoURL())
-	var owner, repo string
 
-	switch gh.DetectScope(t.Scope) {
-	case gh.Organization:
-		owner = t.Scope
-		repo = ""
-	case gh.Repository:
-		s := strings.Split(t.Scope, "/")
-		owner = s[0]
-		repo = s[1]
-	}
-
+	owner, repo := t.OwnerRepo()
 	client, err := gh.NewClient(ctx, t.GitHubPersonalToken, t.GHEDomain.String)
 	if err != nil {
 		return fmt.Errorf("failed to create github client: %w", err)
@@ -218,6 +261,23 @@ var (
 
 // getDeleteTargetRunner retrieve runner that status is offline or idle from GitHub.
 func getDeleteTargetRunner(ctx context.Context, githubClient *github.Client, owner, repo string) ([]*github.Runner, error) {
+	var runners []*github.Runner
+
+	all, err := getTargetRunner(ctx, githubClient, owner, repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get runner from GitHub: %w", err)
+	}
+
+	for _, r := range all {
+		if r.GetStatus() == StatusWillDelete || r.GetStatus() == StatusSleep {
+			runners = append(runners, r)
+		}
+	}
+	return runners, nil
+}
+
+// getTargetRunner retrieve runner from GitHub
+func getTargetRunner(ctx context.Context, githubClient *github.Client, owner, repo string) ([]*github.Runner, error) {
 	var rs []*github.Runner
 	var targetRunners []*github.Runner
 
@@ -245,12 +305,6 @@ func getDeleteTargetRunner(ctx context.Context, githubClient *github.Client, own
 			runners, _, err = githubClient.Actions.ListRunners(ctx, owner, repo, opts)
 			if err != nil {
 				return nil, fmt.Errorf("failed to list repository runners: %w", err)
-			}
-		}
-
-		for _, r := range runners.Runners {
-			if r.GetStatus() == StatusWillDelete || r.GetStatus() == StatusSleep {
-				targetRunners = append(targetRunners, r)
 			}
 		}
 

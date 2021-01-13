@@ -5,9 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"path"
+	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
+
+	"github.com/whywaita/myshoes/pkg/gh"
 )
 
 // Error values
@@ -59,6 +62,23 @@ func (t *Target) RepoURL() string {
 	return path.Join(serverURL, t.Scope)
 }
 
+// OwnerRepo return :owner and :repo
+func (t *Target) OwnerRepo() (string, string) {
+	var owner, repo string
+
+	switch gh.DetectScope(t.Scope) {
+	case gh.Organization:
+		owner = t.Scope
+		repo = ""
+	case gh.Repository:
+		s := strings.Split(t.Scope, "/")
+		owner = s[0]
+		repo = s[1]
+	}
+
+	return owner, repo
+}
+
 // ResourceType is runner machine spec
 type ResourceType string
 
@@ -80,9 +100,10 @@ type Status string
 
 // Status variables
 const (
-	TargetStatusActive  Status = "active"
-	TargetStatusRunning        = "running"
-	TargetStatusErr            = "error"
+	TargetStatusInitialize Status = "initialize"
+	TargetStatusActive            = "active"
+	TargetStatusRunning           = "running"
+	TargetStatusErr               = "error"
 )
 
 func (r *ResourceType) String() string {
