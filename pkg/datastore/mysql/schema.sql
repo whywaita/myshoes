@@ -18,7 +18,7 @@ CREATE TABLE `runners` (
     `ip_address` VARCHAR(255) NOT NULL,
     `target_id` VARCHAR(36) NOT NULL,
     `cloud_id` TEXT NOT NULL,
-    `deleted` bool DEFAULT false,
+    `deleted` bool DEFAULT false NOT NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT current_timestamp,
     `updated_at` TIMESTAMP NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp,
     `deleted_at` TIMESTAMP,

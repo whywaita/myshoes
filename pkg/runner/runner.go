@@ -279,7 +279,6 @@ func getDeleteTargetRunner(ctx context.Context, githubClient *github.Client, own
 // getTargetRunner retrieve runner from GitHub
 func getTargetRunner(ctx context.Context, githubClient *github.Client, owner, repo string) ([]*github.Runner, error) {
 	var rs []*github.Runner
-	var targetRunners []*github.Runner
 
 	isOrg := false
 	if repo == "" {
@@ -315,7 +314,9 @@ func getTargetRunner(ctx context.Context, githubClient *github.Client, owner, re
 		opts.Page = opts.Page + 1
 	}
 
-	return targetRunners, nil
+	logger.Logf(true, "found %d runners", len(rs))
+
+	return rs, nil
 }
 
 // deleteRunner delete runner in github, shoes, datastore.
