@@ -88,6 +88,7 @@ runner_name=${3:-$(hostname)}
 svc_user=${4:-$USER}
 RUNNER_CFG_PAT=%s
 RUNNER_USER=%s
+RUNNER_VERSION=v2.275.1
 
 sudo_prefix=""
 if [ $(id -u) -eq 0 ]; then  # if root
@@ -178,9 +179,10 @@ echo
 echo "Downloading latest runner ..."
 
 # For the GHES Alpha, download the runner from github.com
-latest_version_label=$(curl -s -X GET 'https://api.github.com/repos/actions/runner/releases/latest' | jq -r '.tag_name')
-latest_version=$(echo ${latest_version_label:1})
-runner_file="actions-runner-${runner_plat}-x64-${latest_version}.tar.gz"
+#latest_version_label=$(curl -s -X GET 'https://api.github.com/repos/actions/runner/releases/latest' | jq -r '.tag_name')
+#latest_version=$(echo ${latest_version_label:1})
+version=$(echo ${RUNNER_VERSION:1})
+runner_file="actions-runner-${runner_plat}-x64-${version}.tar.gz"
 
 if [ -f "${runner_file}" ]; then
     echo "${runner_file} exists. skipping download."
@@ -188,9 +190,9 @@ elif [ -f "/usr/local/etc/${runner_file}" ]; then
     echo "${runner_file} cache is found. skipping download."
     mv /usr/local/etc/${runner_file} ./
 else
-    runner_url="https://github.com/actions/runner/releases/download/${latest_version_label}/${runner_file}"
+    runner_url="https://github.com/actions/runner/releases/download/${RUNNER_VERSION}/${runner_file}"
 
-    echo "Downloading ${latest_version_label} for ${runner_plat} ..."
+    echo "Downloading ${version_label} for ${runner_plat} ..."
     echo $runner_url
 
     curl -O -L ${runner_url}
