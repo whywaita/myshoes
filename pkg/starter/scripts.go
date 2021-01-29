@@ -52,10 +52,7 @@ func (s *Starter) getSetupScript(target datastore.Target) (string, error) {
 	}
 	encoded := base64.StdEncoding.EncodeToString(compressedScript.Bytes())
 
-	script := fmt.Sprintf(templateCompressedScript,
-		encoded)
-
-	return script, nil
+	return fmt.Sprintf(templateCompressedScript, encoded), nil
 }
 
 func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
