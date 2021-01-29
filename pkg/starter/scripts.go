@@ -3,6 +3,9 @@
 package starter
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 
@@ -31,6 +34,31 @@ func getPatchedFiles() (string, error) {
 }
 
 func (s *Starter) getSetupScript(target datastore.Target) (string, error) {
+	rawScript, err := s.getSetupRawScript(target)
+	if err != nil {
+		return "", fmt.Errorf("failed to get raw setup scripts: %w", err)
+	}
+
+	var compressedScript bytes.Buffer
+	gz := gzip.NewWriter(&compressedScript)
+	if _, err := gz.Write([]byte(rawScript)); err != nil {
+		return "", fmt.Errorf("failed to compress gzip: %w", err)
+	}
+	if err := gz.Flush(); err != nil {
+		return "", fmt.Errorf("failed to flush gzip: %w", err)
+	}
+	if err := gz.Close(); err != nil {
+		return "", fmt.Errorf("failed to close gzip: %w", err)
+	}
+	encoded := base64.StdEncoding.EncodeToString(compressedScript.Bytes())
+
+	script := fmt.Sprintf(templateCompressedScript,
+		encoded)
+
+	return script, nil
+}
+
+func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
 	runnerUser := ""
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
@@ -50,6 +78,19 @@ func (s *Starter) getSetupScript(target datastore.Target) (string, error) {
 
 	return script, nil
 }
+
+const templateCompressedScript = `#!/bin/bash
+
+set -e
+
+# main script compressed base64 and gzip
+COMPRESSED_SCRIPT=%s
+MAIN_SCRIPT_PATH=/tmp/main.sh
+
+echo ${COMPRESSED_SCRIPT} | base64 -d | gzip -d > ${MAIN_SCRIPT_PATH}
+
+chmod +x ${MAIN_SCRIPT_PATH}
+bash -c ${MAIN_SCRIPT_PATH}`
 
 // templateCreateLatestRunnerOnce is script template of setup runner.
 // need to set runnerUser if execute using root permission. (for example, use cloud-init)
