@@ -16,11 +16,11 @@ jobs:
           - ubuntu-18.04
     steps:
       - name: setup go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v2
         with:
           go-version: 1.x
       - name: checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
         with:
           fetch-depth: 1
       - name: lint
@@ -33,3 +33,12 @@ jobs:
       - name: test
         run: |
           make test
+  docker-build-test:
+    runs-on: ubuntu-latest
+    steps:
+     - name: checkout
+       uses: actions/checkout@v2
+       with:
+         fetch-depth: 1
+     - name: docker build
+       run: docker build .
