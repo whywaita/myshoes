@@ -33,3 +33,8 @@ jobs:
       - name: test
         run: |
           make test
+  docker-build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: docker build
+        run: docker build .
