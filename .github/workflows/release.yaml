@@ -44,6 +44,7 @@ jobs:
       - name: Build container image
         uses: docker/build-push-action@v2
         with:
+          push: true
           tags: |
             whywaita/myshoes:latest
             ghcr.io/whywaita/myshoes:latest
