@@ -61,8 +61,12 @@ func Load() {
 	if err != nil {
 		log.Panicf("failed to fetch plugin binary: %+v", err)
 	}
-	Config.ShoesPluginPath = fp
-	log.Printf("use plugin path is %s", pluginPath)
+	absPath, err := checkBinary(fp)
+	if err != nil {
+		log.Panicf("failed to check plugin binary: %+v", err)
+	}
+	Config.ShoesPluginPath = absPath
+	log.Printf("use plugin path is %s\n", Config.ShoesPluginPath)
 
 	debug := os.Getenv(EnvDebug)
 	if debug == "true" {
@@ -70,6 +74,28 @@ func Load() {
 	} else {
 		Config.Debug = false
 	}
+}
+
+func checkBinary(p string) (string, error) {
+	if _, err := os.Stat(p); err != nil {
+		return "", fmt.Errorf("failed to stat file: %w", err)
+	}
+
+	// need permission of execute
+	if err := os.Chmod(p, 0777); err != nil {
+		return "", fmt.Errorf("failed to chmod: %w", err)
+	}
+
+	if filepath.IsAbs(p) {
+		return p, nil
+	}
+
+	apath, err := filepath.Abs(p)
+	if err != nil {
+		return "", fmt.Errorf("failed to get abs: %w", err)
+	}
+
+	return apath, nil
 }
 
 // fetch retrieve plugin binaries.
@@ -94,8 +120,9 @@ func fetch(p string) (string, error) {
 }
 
 // fetchHTTP fetch plugin binary over HTTP(s).
-// save to
+// save to current directory.
 func fetchHTTP(u *url.URL) (string, error) {
+	log.Printf("fetch plugin binary from %s\n", u.String())
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to working directory: %w", err)
