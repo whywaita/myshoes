@@ -34,7 +34,7 @@ func TestMySQL_CreateRunner(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -79,7 +79,7 @@ func TestMySQL_ListRunners(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -134,7 +134,7 @@ func TestMySQL_GetRunner(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -180,7 +180,7 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}

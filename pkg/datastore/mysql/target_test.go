@@ -38,7 +38,7 @@ func TestMySQL_CreateTarget(t *testing.T) {
 				GHEDomain: sql.NullString{
 					Valid: false,
 				},
-				ResourceType: "nano",
+				ResourceType: datastore.ResourceTypeNano,
 			},
 			want: &datastore.Target{
 				UUID:                testTargetID,
@@ -48,7 +48,7 @@ func TestMySQL_CreateTarget(t *testing.T) {
 					Valid: false,
 				},
 				Status:       datastore.TargetStatusInitialize,
-				ResourceType: "nano",
+				ResourceType: datastore.ResourceTypeNano,
 			},
 			err: false,
 		},
@@ -82,7 +82,7 @@ func TestMySQL_GetTarget(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	})
 	if err != nil {
 		t.Fatalf("failed to create target: %+v", err)
@@ -100,7 +100,7 @@ func TestMySQL_GetTarget(t *testing.T) {
 				Scope:               testScopeRepo,
 				GitHubPersonalToken: testGitHubPersonalToken,
 				Status:              datastore.TargetStatusInitialize,
-				ResourceType:        "nano",
+				ResourceType:        datastore.ResourceTypeNano,
 			},
 			err: false,
 		},
@@ -130,7 +130,7 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	})
 	if err != nil {
 		t.Fatalf("failed to create target: %+v", err)
@@ -148,7 +148,7 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 				Scope:               testScopeRepo,
 				GitHubPersonalToken: testGitHubPersonalToken,
 				Status:              datastore.TargetStatusInitialize,
-				ResourceType:        "nano",
+				ResourceType:        datastore.ResourceTypeNano,
 			},
 			err: false,
 		},
@@ -178,7 +178,7 @@ func TestMySQL_ListTargets(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -196,7 +196,7 @@ func TestMySQL_ListTargets(t *testing.T) {
 					Scope:               testScopeRepo,
 					GitHubPersonalToken: testGitHubPersonalToken,
 					Status:              datastore.TargetStatusInitialize,
-					ResourceType:        "nano",
+					ResourceType:        datastore.ResourceTypeNano,
 				},
 			},
 			err: false,
@@ -230,7 +230,7 @@ func TestMySQL_DeleteTarget(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -291,7 +291,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 				UUID:                testTargetID,
 				Scope:               testScopeRepo,
 				GitHubPersonalToken: testGitHubPersonalToken,
-				ResourceType:        "nano",
+				ResourceType:        datastore.ResourceTypeNano,
 				Status:              datastore.TargetStatusActive,
 				StatusDescription: sql.NullString{
 					String: "",
@@ -309,7 +309,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 				UUID:                testTargetID,
 				Scope:               testScopeRepo,
 				GitHubPersonalToken: testGitHubPersonalToken,
-				ResourceType:        "nano",
+				ResourceType:        datastore.ResourceTypeNano,
 				Status:              datastore.TargetStatusRunning,
 				StatusDescription: sql.NullString{
 					String: "job-id",
@@ -325,7 +325,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 			UUID:                testTargetID,
 			Scope:               testScopeRepo,
 			GitHubPersonalToken: testGitHubPersonalToken,
-			ResourceType:        "nano",
+			ResourceType:        datastore.ResourceTypeNano,
 		}); err != nil {
 			t.Fatalf("failed to create target: %+v", err)
 		}
