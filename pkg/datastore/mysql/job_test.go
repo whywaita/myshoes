@@ -27,7 +27,7 @@ func TestMySQL_EnqueueJob(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -81,7 +81,7 @@ func TestMySQL_ListJobs(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -147,7 +147,7 @@ func TestMySQL_DeleteJob(t *testing.T) {
 		UUID:                testTargetID,
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        "nano",
+		ResourceType:        datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
