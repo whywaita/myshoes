@@ -130,7 +130,7 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job) error {
 	}
 
 	runnerName := runner.ToName(job.UUID.String())
-	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script)
+	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType)
 	if err != nil {
 		return fmt.Errorf("failed to add instance: %w", err)
 	}
