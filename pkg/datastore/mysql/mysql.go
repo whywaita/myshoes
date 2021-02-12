@@ -21,6 +21,10 @@ func New(dsn string) (*MySQL, error) {
 		return nil, fmt.Errorf("failed to create mysql connection: %w", err)
 	}
 
+	if err := conn.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping to mysql instance: %w", err)
+	}
+
 	return &MySQL{
 		Conn: conn,
 	}, nil

@@ -4,23 +4,35 @@ package myshoes.shoes;
 option go_package = ".;myshoes";
 
 service Shoes {
-    rpc AddInstance(AddInstanceRequest) returns (AddInstanceResponse) {}
-    rpc DeleteInstance(DeleteInstanceRequest) returns (DeleteInstanceResponse) {}
+  rpc AddInstance(AddInstanceRequest) returns (AddInstanceResponse) {}
+  rpc DeleteInstance(DeleteInstanceRequest) returns (DeleteInstanceResponse) {}
+}
+
+enum ResourceType {
+  Unknown = 0;
+  Nano = 1;
+  Micro = 2;
+  Small = 3;
+  Medium = 4;
+  Large = 5;
+  XLarge = 6;
+  XLarge2 = 7;
+  XLarge3 = 8;
+  XLarge4 = 9;
 }
 
 message AddInstanceRequest {
-    string runner_name = 1;
-    string setup_script = 2;
+  string runner_name = 1;
+  string setup_script = 2;
+  ResourceType resource_type = 3;
 }
 
 message AddInstanceResponse {
-    string cloud_id = 1;
-    string shoes_type = 2;
-    string ip_address = 3;
+  string cloud_id = 1;
+  string shoes_type = 2;
+  string ip_address = 3;
 }
 
-message DeleteInstanceRequest {
-    string cloud_id = 1;
-}
+message DeleteInstanceRequest { string cloud_id = 1; }
 
 message DeleteInstanceResponse {}

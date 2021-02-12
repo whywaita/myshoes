@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	pb "github.com/whywaita/myshoes/api/proto"
+
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -94,6 +96,32 @@ const (
 	XLarge3              = "3xlarge"
 	XLarge4              = "4xlarge"
 )
+
+// ToPb convert type of protobuf
+func (r ResourceType) ToPb() pb.ResourceType {
+	switch r {
+	case Nano:
+		return pb.ResourceType_Nano
+	case Micro:
+		return pb.ResourceType_Micro
+	case Small:
+		return pb.ResourceType_Small
+	case Medium:
+		return pb.ResourceType_Medium
+	case Large:
+		return pb.ResourceType_Large
+	case XLarge:
+		return pb.ResourceType_XLarge
+	case XLarge2:
+		return pb.ResourceType_XLarge2
+	case XLarge3:
+		return pb.ResourceType_XLarge3
+	case XLarge4:
+		return pb.ResourceType_XLarge4
+	}
+
+	return pb.ResourceType_Unknown
+}
 
 // Status is status for target
 type Status string
