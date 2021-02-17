@@ -50,12 +50,12 @@ func (r ResourceType) String() string {
 	return "unknown"
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the database/sql/driver Valuer interface
 func (r ResourceType) Value() (driver.Value, error) {
 	return driver.Value(r.String()), nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the database/sql Scanner interface
 func (r *ResourceType) Scan(src interface{}) error {
 	var rt *ResourceType
 	switch src := src.(type) {
@@ -112,7 +112,7 @@ func UnmarshalResourceTypeString(in string) ResourceType {
 	return ResourceTypeUnknown
 }
 
-// UnmarshalResourceTypePb cast type from pb.ResourType to ResourceType
+// UnmarshalResourceTypePb cast type from pb.ResourceType to ResourceType
 func UnmarshalResourceTypePb(in pb.ResourceType) ResourceType {
 	switch in {
 	case pb.ResourceType_Nano:
