@@ -84,7 +84,7 @@ func (m *Manager) do(ctx context.Context) error {
 // permissionCheck check permission in target when datastore.TargetStatusInitialize.
 // update target status after this function.
 func (m *Manager) permissionCheck(ctx context.Context) error {
-	logger.Logf(true, "start permission check")
+	logger.Logf(true, "start checking initialize state")
 
 	targets, err := m.ds.ListTargets(ctx)
 	if err != nil {
@@ -146,6 +146,14 @@ func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 	}
 	logger.Logf(true, "found all delete target runners is %d in %s", len(targetRunners), t.RepoURL())
 
+	if len(targetRunners) == 0 {
+		logger.Logf(false, "runner for queueing is not found in %s", t.RepoURL())
+		if err := m.ds.UpdateStatus(ctx, t.UUID, datastore.TargetStatusErr, "runner for queueing is not found"); err != nil {
+			logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
+		}
+		return nil
+	}
+
 	sanitizedRunners, err := m.sanitizeRunner(ctx, targetRunners)
 	if err != nil {
 		return fmt.Errorf("failed to sanitize offline runner: %w", err)
@@ -158,7 +166,7 @@ func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 			logger.Logf(false, "failed to delete runner: %+v\n", err)
 
 			if err := m.ds.UpdateStatus(ctx, t.UUID, datastore.TargetStatusErr, ""); err != nil {
-				logger.Logf(false, "failed to update target status (target ID: %s,): %+v\n", t.UUID, err)
+				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
 			}
 
 			continue
@@ -177,9 +185,12 @@ func (m *Manager) sanitizeRunner(ctx context.Context, targetRunners []*github.Ru
 	var sanitized []Runner
 
 	if len(targetRunners) == 1 {
-		// only one runner for queuing, not remove.
-		logger.Logf(true, "found only one delete target runner. maybe this runner set for queueing. not will delete.")
-		return nil, nil
+		if _, err := ToUUID(*targetRunners[0].Name); err != nil {
+			// targetRunner is not created by myshoes, so it's correct
+			// only one runner for queuing, not remove.
+			logger.Logf(true, "found only one delete target runner. maybe this runner set for queueing. not will delete.")
+			return nil, nil
+		}
 	}
 
 	for _, r := range targetRunners {
