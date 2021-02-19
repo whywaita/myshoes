@@ -273,7 +273,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 	testDB, _ := testutils.GetTestDB()
 
 	type Input struct {
-		status      datastore.Status
+		status      datastore.TargetStatus
 		description string
 	}
 
@@ -330,7 +330,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 			t.Fatalf("failed to create target: %+v", err)
 		}
 
-		err := testDatastore.UpdateStatus(context.Background(), testTargetID, test.input.status, test.input.description)
+		err := testDatastore.UpdateTargetStatus(context.Background(), testTargetID, test.input.status, test.input.description)
 		if !test.err && err != nil {
 			t.Fatalf("failed to update status: %+v", err)
 		}

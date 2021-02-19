@@ -102,8 +102,8 @@ func (m *Memory) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// UpdateStatus update status in target
-func (m *Memory) UpdateStatus(ctx context.Context, targetID uuid.UUID, newStatus datastore.Status, description string) error {
+// UpdateTargetStatus update status in target
+func (m *Memory) UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus datastore.TargetStatus, description string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
