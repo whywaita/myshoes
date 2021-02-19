@@ -24,7 +24,7 @@ func (m *MySQL) CreateRunner(ctx context.Context, runner datastore.Runner) error
 // ListRunners get a not deleted runners
 func (m *MySQL) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 	var runners []datastore.Runner
-	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, created_at, updated_at, deleted_at FROM runners WHERE deleted = false`
+	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, status, created_at, updated_at, deleted_at FROM runners WHERE deleted = false`
 	err := m.Conn.SelectContext(ctx, &runners, query)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -41,7 +41,7 @@ func (m *MySQL) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 func (m *MySQL) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
 
-	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, created_at, updated_at, deleted_at FROM runners WHERE uuid = ? AND deleted = false`
+	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, status, created_at, updated_at, deleted_at FROM runners WHERE uuid = ? AND deleted = false`
 	if err := m.Conn.GetContext(ctx, &r, query, id.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
@@ -54,9 +54,9 @@ func (m *MySQL) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner,
 }
 
 // DeleteRunner delete a runner
-func (m *MySQL) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time) error {
-	query := `UPDATE runners SET deleted=1, deleted_at = ? WHERE uuid = ? `
-	if _, err := m.Conn.ExecContext(ctx, query, deletedAt, id.String()); err != nil {
+func (m *MySQL) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time, reason datastore.RunnerStatus) error {
+	query := `UPDATE runners SET deleted=1, deleted_at = ?, status = ? WHERE uuid = ? `
+	if _, err := m.Conn.ExecContext(ctx, query, deletedAt, reason, id.String()); err != nil {
 		return fmt.Errorf("failed to execute UPDATE query: %w", err)
 	}
 

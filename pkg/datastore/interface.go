@@ -26,7 +26,7 @@ type Datastore interface {
 	ListTargets(ctx context.Context) ([]Target, error)
 	DeleteTarget(ctx context.Context, id uuid.UUID) error
 
-	UpdateStatus(ctx context.Context, targetID uuid.UUID, newStatus Status, description string) error
+	UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus TargetStatus, description string) error
 
 	EnqueueJob(ctx context.Context, job Job) error
 	ListJobs(ctx context.Context) ([]Job, error)
@@ -35,7 +35,7 @@ type Datastore interface {
 	CreateRunner(ctx context.Context, runner Runner) error
 	ListRunners(ctx context.Context) ([]Runner, error)
 	GetRunner(ctx context.Context, id uuid.UUID) (*Runner, error)
-	DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time) error
+	DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time, reason RunnerStatus) error
 }
 
 // Target is a target repository that will add auto-scaling runner.
@@ -46,7 +46,7 @@ type Target struct {
 	GHEDomain           sql.NullString `db:"ghe_domain" json:"ghe_domain"`
 	ResourceType        ResourceType   `db:"resource_type" json:"resource_type"`
 	RunnerUser          sql.NullString `db:"runner_user" json:"runner_user"`
-	Status              Status         `db:"status" json:"status"`
+	Status              TargetStatus   `db:"status" json:"status"`
 	StatusDescription   sql.NullString `db:"status_description" json:"status_description"`
 	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt           time.Time      `db:"updated_at" json:"updated_at"`
@@ -79,15 +79,15 @@ func (t *Target) OwnerRepo() (string, string) {
 	return owner, repo
 }
 
-// Status is status for target
-type Status string
+// TargetStatus is status for target
+type TargetStatus string
 
-// Status variables
+// TargetStatus variables
 const (
-	TargetStatusInitialize Status = "initialize"
-	TargetStatusActive            = "active"
-	TargetStatusRunning           = "running"
-	TargetStatusErr               = "error"
+	TargetStatusInitialize TargetStatus = "initialize"
+	TargetStatusActive                  = "active"
+	TargetStatusRunning                 = "running"
+	TargetStatusErr                     = "error"
 )
 
 // Job is a runner job
@@ -109,7 +109,18 @@ type Runner struct {
 	TargetID  uuid.UUID    `db:"target_id"`
 	CloudID   string       `db:"cloud_id"`
 	Deleted   bool         `db:"deleted"`
+	Status    RunnerStatus `db:"status"`
 	CreatedAt time.Time    `db:"created_at"`
 	UpdatedAt time.Time    `db:"updated_at"`
 	DeletedAt sql.NullTime `db:"deleted_at"`
 }
+
+// RunnerStatus is status for runner
+type RunnerStatus string
+
+// RunnerStatus variables
+const (
+	RunnerStatusCreated        RunnerStatus = "created"
+	RunnerStatusCompleted                   = "completed"
+	RunnerStatusReachHardLimit              = "reach_hard_limit"
+)

@@ -74,8 +74,8 @@ func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// UpdateStatus update status in target
-func (m *MySQL) UpdateStatus(ctx context.Context, targetID uuid.UUID, newStatus datastore.Status, description string) error {
+// UpdateTargetStatus update status in target
+func (m *MySQL) UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus datastore.TargetStatus, description string) error {
 	query := `UPDATE targets SET status = ?, status_description = ? WHERE uuid = ?`
 	if _, err := m.Conn.ExecContext(ctx, query, newStatus, description, targetID.String()); err != nil {
 		return fmt.Errorf("failed to execute UPDATE query: %w", err)
