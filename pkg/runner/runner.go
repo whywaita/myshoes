@@ -127,6 +127,7 @@ func (m *Manager) permissionCheck(ctx context.Context) error {
 
 // Runner is a runner implement
 type Runner struct {
+	status string
 	github *github.Runner
 	ds     *datastore.Runner
 }
@@ -160,9 +161,8 @@ func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 	}
 	logger.Logf(true, "will be deleted %d offline runners in %s", len(sanitizedRunners), t.RepoURL())
 
-	for _, offlineRunner := range sanitizedRunners {
-		// delete runner from GitHub
-		if err := m.deleteRunner(ctx, client, offlineRunner.ds, *offlineRunner.github.ID, owner, repo); err != nil {
+	for _, r := range sanitizedRunners {
+		if err := m.deleteRunner(ctx, client, r.ds, *r.github.ID, owner, repo, r.status); err != nil {
 			logger.Logf(false, "failed to delete runner: %+v\n", err)
 
 			if err := m.ds.UpdateTargetStatus(ctx, t.UUID, datastore.TargetStatusErr, ""); err != nil {
@@ -222,6 +222,7 @@ func (m *Manager) sanitizeRunner(ctx context.Context, targetRunners []*github.Ru
 		}
 
 		runner := Runner{
+			status: r.GetStatus(),
 			github: r,
 			ds:     dsRunner,
 		}
@@ -332,7 +333,7 @@ func getTargetRunner(ctx context.Context, githubClient *github.Client, owner, re
 
 // deleteRunner delete runner in github, shoes, datastore.
 // runnerUUID is uuid in datastore, runnerID is id from GitHub.
-func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client, runner *datastore.Runner, runnerID int64, owner, repo string) error {
+func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client, runner *datastore.Runner, runnerID int64, owner, repo, runnerStatus string) error {
 	logger.Logf(false, "will delete runner: %s", runner.UUID.String())
 
 	isOrg := false
@@ -361,7 +362,7 @@ func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client,
 	}
 
 	now := time.Now().UTC()
-	if err := m.ds.DeleteRunner(ctx, runner.UUID, now); err != nil {
+	if err := m.ds.DeleteRunner(ctx, runner.UUID, now, ToReason(runnerStatus)); err != nil {
 		return fmt.Errorf("failed to remove runner from datastore (runner uuid: %s): %+v", runner.UUID.String(), err)
 	}
 
@@ -377,4 +378,18 @@ func ToName(uuid string) string {
 func ToUUID(name string) (uuid.UUID, error) {
 	u := strings.TrimPrefix(name, "myshoes-")
 	return uuid.FromString(u)
+}
+
+// ToReason convert status from GitHub to datastore.RunnerStatus
+func ToReason(status string) datastore.RunnerStatus {
+	switch status {
+	case StatusWillDelete:
+		// is offline
+		return datastore.RunnerStatusCompleted
+	case StatusSleep:
+		// is idle, reach hard limit
+		return datastore.RunnerStatusReachHardLimit
+	}
+
+	return ""
 }

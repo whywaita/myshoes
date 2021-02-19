@@ -35,7 +35,7 @@ type Datastore interface {
 	CreateRunner(ctx context.Context, runner Runner) error
 	ListRunners(ctx context.Context) ([]Runner, error)
 	GetRunner(ctx context.Context, id uuid.UUID) (*Runner, error)
-	DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time) error
+	DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time, reason RunnerStatus) error
 }
 
 // Target is a target repository that will add auto-scaling runner.
@@ -109,7 +109,7 @@ type Runner struct {
 	TargetID  uuid.UUID    `db:"target_id"`
 	CloudID   string       `db:"cloud_id"`
 	Deleted   bool         `db:"deleted"`
-	Status    string       `db:"status"`
+	Status    RunnerStatus `db:"status"`
 	CreatedAt time.Time    `db:"created_at"`
 	UpdatedAt time.Time    `db:"updated_at"`
 	DeletedAt sql.NullTime `db:"deleted_at"`
@@ -120,5 +120,7 @@ type RunnerStatus string
 
 // RunnerStatus variables
 const (
-	RunnerStatusCreated RunnerStatus = "created"
+	RunnerStatusCreated        RunnerStatus = "created"
+	RunnerStatusCompleted                   = "completed"
+	RunnerStatusReachHardLimit              = "reach_hard_limit"
 )

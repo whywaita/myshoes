@@ -193,7 +193,7 @@ func (m *Memory) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner
 }
 
 // DeleteRunner delete a runner
-func (m *Memory) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time) error {
+func (m *Memory) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time, reason datastore.RunnerStatus) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

@@ -23,6 +23,7 @@ var testRunner = datastore.Runner{
 	TargetID:  testTargetID,
 	CloudID:   "mycloud-uuid",
 	Deleted:   false,
+	Status:    datastore.RunnerStatusCreated,
 }
 
 func TestMySQL_CreateRunner(t *testing.T) {
@@ -191,6 +192,7 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 
 	deleted := testRunner
 	deleted.Deleted = true
+	deleted.Status = datastore.RunnerStatusCompleted
 
 	tests := []struct {
 		input uuid.UUID
@@ -205,7 +207,7 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := testDatastore.DeleteRunner(context.Background(), test.input, time.Now().UTC())
+		err := testDatastore.DeleteRunner(context.Background(), test.input, time.Now().UTC(), datastore.RunnerStatusCompleted)
 		if !test.err && err != nil {
 			t.Fatalf("failed to create target: %+v", err)
 		}
@@ -227,7 +229,7 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 
 func getRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
-	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, created_at, updated_at, deleted_at FROM runners WHERE uuid = ?`
+	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, status, created_at, updated_at, deleted_at FROM runners WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
