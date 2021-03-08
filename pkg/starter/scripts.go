@@ -266,8 +266,8 @@ fi
 
 echo
 echo "Configuring ${runner_name} @ $runner_url"
-echo "./config.sh --unattended --url $runner_url --token *** --name $runner_name"
-${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name
+echo "./config.sh --unattended --url $runner_url --token *** --name $runner_name --labels myshoes"
+${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes
 
 #---------------------------------------
 # patch once commands
