@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package myshoes.shoes;
-option go_package = ".;myshoes";
+option go_package = "./;myshoes";
 
 service Shoes {
   rpc AddInstance(AddInstanceRequest) returns (AddInstanceResponse) {}
