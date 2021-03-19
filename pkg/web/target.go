@@ -1,7 +1,6 @@
 package web
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -55,7 +54,7 @@ func (t *targetCreateParam) toDS() datastore.Target {
 
 func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	// input values: scope, gpt, ghe_domain, resource_type
-	ctx := context.Background()
+	ctx := r.Context()
 	inputTarget := targetCreateParam{}
 
 	if err := json.NewDecoder(r.Body).Decode(&inputTarget); err != nil {
@@ -83,18 +82,42 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
+	target := sanitizeTarget(&t)
+
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(t)
+	json.NewEncoder(w).Encode(target)
+	return
+}
+
+func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+	ctx := r.Context()
+
+	ts, err := ds.ListTargets(ctx)
+	if err != nil {
+		logger.Logf(false, "failed to retrieve list of target: %+v", err)
+		outputErrorMsg(w, http.StatusInternalServerError, "datastore read error")
+	}
+
+	var targets []datastore.Target
+	for _, t := range ts {
+		target := sanitizeTarget(&t)
+		targets = append(targets, *target)
+	}
+
+	w.Header().Set("Content-Type", "application/json;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(targets)
 	return
 }
 
 func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
-	ctx := context.Background()
+	ctx := r.Context()
 	targetID, err := parseReqTargetID(r)
 	if err != nil {
 		logger.Logf(false, "failed to decode request body: %+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, "incorrect target id")
+		return
 	}
 
 	target, err := ds.GetTarget(ctx, targetID)
@@ -121,7 +144,7 @@ func sanitizeTarget(t *datastore.Target) *datastore.Target {
 func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {}
 
 func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
-	ctx := context.Background()
+	ctx := r.Context()
 	targetID, err := parseReqTargetID(r)
 	if err != nil {
 		logger.Logf(false, "failed to decode request body: %+v", err)

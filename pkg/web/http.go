@@ -43,6 +43,10 @@ func Serve(ds datastore.Datastore) error {
 		apacheLogging(r)
 		handleTargetCreate(w, r, ds)
 	})
+	mux.HandleFunc(pat.Get("/target"), func(w http.ResponseWriter, r *http.Request) {
+		apacheLogging(r)
+		handleTargetList(w, r, ds)
+	})
 	mux.HandleFunc(pat.Get("/target/:id"), func(w http.ResponseWriter, r *http.Request) {
 		apacheLogging(r)
 		handleTargetRead(w, r, ds)
