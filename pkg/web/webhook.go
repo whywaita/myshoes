@@ -109,6 +109,12 @@ func processCheckRun(ctx context.Context, ds datastore.Datastore, checkAction, r
 		return fmt.Errorf("failed to search registered target: %w", err)
 	}
 
+	if !target.CanReceiveJob() {
+		// do nothing if status is cannot receive
+		logger.Logf(false, "%s/%s is %s now, do nothing", target.Status, domain, repoName)
+		return nil
+	}
+
 	jobID := uuid.NewV4()
 	var jobDomain sql.NullString
 	if gheDomain == "" {

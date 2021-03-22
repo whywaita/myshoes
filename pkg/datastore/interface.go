@@ -81,6 +81,16 @@ func (t *Target) OwnerRepo() (string, string) {
 	return owner, repo
 }
 
+// CanReceiveJob check status in target
+func (t *Target) CanReceiveJob() bool {
+	switch t.Status {
+	case TargetStatusSuspend:
+		return false
+	}
+
+	return true
+}
+
 // TargetStatus is status for target
 type TargetStatus string
 
@@ -89,6 +99,7 @@ const (
 	TargetStatusInitialize TargetStatus = "initialize"
 	TargetStatusActive                  = "active"
 	TargetStatusRunning                 = "running"
+	TargetStatusSuspend                 = "suspend"
 	TargetStatusErr                     = "error"
 )
 
