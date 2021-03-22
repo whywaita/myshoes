@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -20,27 +22,56 @@ import (
 type targetCreateParam struct {
 	datastore.Target
 
-	RunnerUser string `json:"runner_user"`
-	GHEDomain  string `json:"ghe_domain"`
+	RunnerUser    string `json:"runner_user"`
+	GHEDomain     string `json:"ghe_domain"`
+	RunnerVersion string `json:"runner_version"`
+	ProviderURL   string `json:"provider_url"`
+}
+
+func toNullString(input string) sql.NullString {
+	if input == "" {
+		return sql.NullString{
+			Valid: false,
+		}
+	}
+
+	return sql.NullString{
+		Valid:  true,
+		String: input,
+	}
+}
+
+func isValidTargetCreateParam(input targetCreateParam) (bool, error) {
+	if input.Scope == "" || input.GitHubPersonalToken == "" || input.ResourceType == datastore.ResourceTypeUnknown {
+		return false, fmt.Errorf("scope, github_personal_token, resource_type must be set")
+	}
+
+	if input.GHEDomain != "" {
+		if _, err := url.Parse(input.GHEDomain); err != nil {
+			return false, fmt.Errorf("domain of GitHub Enterprise is not valid URL: %w", err)
+		}
+	}
+
+	if input.RunnerVersion != "" {
+		// valid format: vX.X.X (X is [0-9])
+		if !strings.HasPrefix(input.RunnerVersion, "v") {
+			return false, fmt.Errorf("runner_version must has prefix 'v'")
+		}
+
+		s := strings.Split(input.RunnerVersion, ".")
+		if len(s) != 3 {
+			return false, fmt.Errorf("runner_version must has version of major, sem, patch")
+		}
+	}
+
+	return true, nil
 }
 
 func (t *targetCreateParam) toDS() datastore.Target {
-	var gheDomain sql.NullString
-	var runnerUser sql.NullString
-
-	if t.GHEDomain == "" {
-		gheDomain.Valid = false
-	} else {
-		gheDomain.Valid = true
-	}
-	gheDomain.String = t.GHEDomain
-
-	if t.RunnerUser == "" {
-		runnerUser.Valid = false
-	} else {
-		runnerUser.Valid = true
-	}
-	runnerUser.String = t.RunnerUser
+	gheDomain := toNullString(t.GHEDomain)
+	runnerUser := toNullString(t.RunnerUser)
+	runnerVersion := toNullString(t.RunnerVersion)
+	providerURL := toNullString(t.ProviderURL)
 
 	return datastore.Target{
 		UUID:                t.UUID,
@@ -49,6 +80,8 @@ func (t *targetCreateParam) toDS() datastore.Target {
 		GHEDomain:           gheDomain,
 		ResourceType:        t.ResourceType,
 		RunnerUser:          runnerUser,
+		RunnerVersion:       runnerVersion,
+		ProviderURL:         providerURL,
 	}
 }
 
@@ -63,7 +96,11 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
-	// TODO: input validate
+	if ok, err := isValidTargetCreateParam(inputTarget); !ok {
+		logger.Logf(false, "failed to validate input: %+v", err)
+		outputErrorMsg(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	t := inputTarget.toDS()
 
 	if err := gh.ExistGitHubRepository(t.Scope, t.GHEDomain.String, t.GHEDomain.Valid, t.GitHubPersonalToken); err != nil {

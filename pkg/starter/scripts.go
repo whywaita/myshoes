@@ -60,6 +60,12 @@ func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
 	}
+	targetVersion := ""
+	if target.RunnerVersion.Valid {
+		targetVersion = target.RunnerVersion.String
+	} else {
+		targetVersion = DefaultRunnerVersion
+	}
 
 	runnerServiceJs, err := getPatchedFiles()
 	if err != nil {
@@ -71,6 +77,7 @@ func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
 		target.GHEDomain.String,
 		target.GitHubPersonalToken,
 		runnerUser,
+		targetVersion,
 		runnerServiceJs)
 
 	return script, nil
@@ -126,7 +133,7 @@ runner_name=${3:-$(hostname)}
 svc_user=${4:-$USER}
 RUNNER_CFG_PAT=%s
 RUNNER_USER=%s
-RUNNER_VERSION=v2.275.1
+RUNNER_VERSION=%s
 
 sudo_prefix=""
 if [ $(id -u) -eq 0 ]; then  # if root

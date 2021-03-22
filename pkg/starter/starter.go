@@ -18,6 +18,8 @@ import (
 var (
 	// PistolInterval is interval of bung (a.k.a. create instance)
 	PistolInterval = 10 * time.Second
+	// DefaultRunnerVersion is default value of actions/runner
+	DefaultRunnerVersion = "v2.275.1"
 )
 
 // Starter is dispatcher for running job
