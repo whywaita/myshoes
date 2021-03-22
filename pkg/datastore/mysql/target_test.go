@@ -19,6 +19,8 @@ import (
 var testTargetID = uuid.FromStringOrNil("8a72d42c-372c-4e0d-9c6a-4304d44af137")
 var testScopeRepo = "octocat/hello-world"
 var testGitHubPersonalToken = "this-code-is-github-personal-token"
+var testRunnerVersion = "v999.99.9"
+var testProviderURL = "/shoes-mock"
 
 func TestMySQL_CreateTarget(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
@@ -39,6 +41,14 @@ func TestMySQL_CreateTarget(t *testing.T) {
 					Valid: false,
 				},
 				ResourceType: datastore.ResourceTypeNano,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
 			},
 			want: &datastore.Target{
 				UUID:                testTargetID,
@@ -49,6 +59,14 @@ func TestMySQL_CreateTarget(t *testing.T) {
 				},
 				Status:       datastore.TargetStatusInitialize,
 				ResourceType: datastore.ResourceTypeNano,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
 			},
 			err: false,
 		},
@@ -83,6 +101,14 @@ func TestMySQL_GetTarget(t *testing.T) {
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
 		ResourceType:        datastore.ResourceTypeNano,
+		RunnerVersion: sql.NullString{
+			String: testRunnerVersion,
+			Valid:  true,
+		},
+		ProviderURL: sql.NullString{
+			String: testProviderURL,
+			Valid:  true,
+		},
 	})
 	if err != nil {
 		t.Fatalf("failed to create target: %+v", err)
@@ -101,6 +127,14 @@ func TestMySQL_GetTarget(t *testing.T) {
 				GitHubPersonalToken: testGitHubPersonalToken,
 				Status:              datastore.TargetStatusInitialize,
 				ResourceType:        datastore.ResourceTypeNano,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
 			},
 			err: false,
 		},
@@ -131,6 +165,14 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
 		ResourceType:        datastore.ResourceTypeNano,
+		RunnerVersion: sql.NullString{
+			String: testRunnerVersion,
+			Valid:  true,
+		},
+		ProviderURL: sql.NullString{
+			String: testProviderURL,
+			Valid:  true,
+		},
 	})
 	if err != nil {
 		t.Fatalf("failed to create target: %+v", err)
@@ -149,6 +191,14 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 				GitHubPersonalToken: testGitHubPersonalToken,
 				Status:              datastore.TargetStatusInitialize,
 				ResourceType:        datastore.ResourceTypeNano,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
 			},
 			err: false,
 		},
@@ -179,6 +229,14 @@ func TestMySQL_ListTargets(t *testing.T) {
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
 		ResourceType:        datastore.ResourceTypeNano,
+		RunnerVersion: sql.NullString{
+			String: testRunnerVersion,
+			Valid:  true,
+		},
+		ProviderURL: sql.NullString{
+			String: testProviderURL,
+			Valid:  true,
+		},
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -197,6 +255,14 @@ func TestMySQL_ListTargets(t *testing.T) {
 					GitHubPersonalToken: testGitHubPersonalToken,
 					Status:              datastore.TargetStatusInitialize,
 					ResourceType:        datastore.ResourceTypeNano,
+					RunnerVersion: sql.NullString{
+						String: testRunnerVersion,
+						Valid:  true,
+					},
+					ProviderURL: sql.NullString{
+						String: testProviderURL,
+						Valid:  true,
+					},
 				},
 			},
 			err: false,
@@ -231,6 +297,14 @@ func TestMySQL_DeleteTarget(t *testing.T) {
 		Scope:               testScopeRepo,
 		GitHubPersonalToken: testGitHubPersonalToken,
 		ResourceType:        datastore.ResourceTypeNano,
+		RunnerVersion: sql.NullString{
+			String: testRunnerVersion,
+			Valid:  true,
+		},
+		ProviderURL: sql.NullString{
+			String: testProviderURL,
+			Valid:  true,
+		},
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -292,7 +366,15 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 				Scope:               testScopeRepo,
 				GitHubPersonalToken: testGitHubPersonalToken,
 				ResourceType:        datastore.ResourceTypeNano,
-				Status:              datastore.TargetStatusActive,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+				Status: datastore.TargetStatusActive,
 				StatusDescription: sql.NullString{
 					String: "",
 					Valid:  true,
@@ -310,7 +392,15 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 				Scope:               testScopeRepo,
 				GitHubPersonalToken: testGitHubPersonalToken,
 				ResourceType:        datastore.ResourceTypeNano,
-				Status:              datastore.TargetStatusRunning,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+				Status: datastore.TargetStatusRunning,
 				StatusDescription: sql.NullString{
 					String: "job-id",
 					Valid:  true,
@@ -326,6 +416,14 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 			Scope:               testScopeRepo,
 			GitHubPersonalToken: testGitHubPersonalToken,
 			ResourceType:        datastore.ResourceTypeNano,
+			RunnerVersion: sql.NullString{
+				String: testRunnerVersion,
+				Valid:  true,
+			},
+			ProviderURL: sql.NullString{
+				String: testProviderURL,
+				Valid:  true,
+			},
 		}); err != nil {
 			t.Fatalf("failed to create target: %+v", err)
 		}
@@ -355,7 +453,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 
 func getTargetFromSQL(testDB *sqlx.DB, uuid uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := `SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
+	query := `SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)

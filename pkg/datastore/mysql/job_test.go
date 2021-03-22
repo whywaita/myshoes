@@ -207,17 +207,3 @@ func getJobFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Job, error) {
 	}
 	return &j, nil
 }
-
-func listJobFromSQL(testDB *sqlx.DB) ([]datastore.Job, error) {
-	var j []datastore.Job
-	query := `SELECT uuid, ghe_domain, repository, check_event, target_id FROM jobs`
-	stmt, err := testDB.Preparex(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare: %w", err)
-	}
-	err = stmt.Select(&j)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get job: %w", err)
-	}
-	return j, nil
-}

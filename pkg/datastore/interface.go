@@ -46,6 +46,8 @@ type Target struct {
 	GHEDomain           sql.NullString `db:"ghe_domain" json:"ghe_domain"`
 	ResourceType        ResourceType   `db:"resource_type" json:"resource_type"`
 	RunnerUser          sql.NullString `db:"runner_user" json:"runner_user"`
+	RunnerVersion       sql.NullString `db:"runner_version" json:"runner_version"`
+	ProviderURL         sql.NullString `db:"provider_url" json:"provider_url"`
 	Status              TargetStatus   `db:"status" json:"status"`
 	StatusDescription   sql.NullString `db:"status_description" json:"status_description"`
 	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
