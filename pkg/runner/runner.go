@@ -202,7 +202,7 @@ func (m *Manager) sanitizeRunner(ctx context.Context, targetRunners []*github.Ru
 		dsRunner, err := m.ds.GetRunner(ctx, runnerUUID)
 		if err != nil {
 			if err == datastore.ErrNotFound {
-				logger.Logf(true, "runner name %s is the suitable format in myshoes, but not found in datastore", *r.Name)
+				logger.Logf(false, "runner name %s is the suitable format in myshoes, but not found in datastore", *r.Name)
 			} else {
 				logger.Logf(false, "failed to retrieve repository runner (runner uuid: %s): %+v", runnerUUID, err)
 			}
