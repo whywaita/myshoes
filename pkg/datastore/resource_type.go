@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 
 	pb "github.com/whywaita/myshoes/api/proto"
@@ -162,4 +163,21 @@ func (r ResourceType) ToPb() pb.ResourceType {
 	}
 
 	return pb.ResourceType_Unknown
+}
+
+// MarshalJSON implements the encoding/json Marshaler interface
+func (r ResourceType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.String())
+}
+
+// UnmarshalJSON implements the encoding/json Unmarshaler interface
+func (r *ResourceType) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return fmt.Errorf("data should be a string, but got %s", data)
+	}
+
+	rt := UnmarshalResourceTypeString(s)
+	*r = rt
+	return nil
 }
