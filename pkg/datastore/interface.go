@@ -28,6 +28,7 @@ type Datastore interface {
 	ListTargets(ctx context.Context) ([]Target, error)
 	DeleteTarget(ctx context.Context, id uuid.UUID) error
 
+	// Deprecated: Use datastore.UpdateTargetStatus.
 	UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus TargetStatus, description string) error
 
 	EnqueueJob(ctx context.Context, job Job) error
