@@ -1,0 +1,12 @@
+[Unit]
+Description=myshoes is Auto scaling self-hosted runner :runner: (like GitHub-hosted) for GitHub Actions
+After=network.target
+
+[Service]
+User=root
+EnvironmentFile=/etc/default/myshoes
+ExecStart=/usr/local/bin/myshoes
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
