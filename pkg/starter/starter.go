@@ -79,7 +79,7 @@ func (s *Starter) do(ctx context.Context) error {
 				// is not ok, save job
 				return
 			}
-			if err := s.ds.UpdateTargetStatus(ctx, job.TargetID, datastore.TargetStatusRunning, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+			if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusRunning, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
 				logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 				return
 			}
@@ -87,7 +87,7 @@ func (s *Starter) do(ctx context.Context) error {
 			if err := s.bung(ctx, job); err != nil {
 				logger.Logf(false, "failed to bung: %+v\n", err)
 
-				if err := s.ds.UpdateTargetStatus(ctx, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+				if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
 					logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 					return
 				}
@@ -97,7 +97,7 @@ func (s *Starter) do(ctx context.Context) error {
 			if err := s.ds.DeleteJob(ctx, job.UUID); err != nil {
 				logger.Logf(false, "failed to delete job: %+v\n", err)
 
-				if err := s.ds.UpdateTargetStatus(ctx, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+				if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
 					logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 					return
 				}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"path"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/gh"
+	"github.com/whywaita/myshoes/pkg/logger"
 )
 
 // Error values
@@ -84,11 +86,31 @@ func (t *Target) OwnerRepo() (string, string) {
 // CanReceiveJob check status in target
 func (t *Target) CanReceiveJob() bool {
 	switch t.Status {
-	case TargetStatusSuspend:
+	case TargetStatusSuspend, TargetStatusDeleted:
 		return false
 	}
 
 	return true
+}
+
+// UpdateTargetStatus update datastore
+func UpdateTargetStatus(ctx context.Context, ds Datastore, targetID uuid.UUID, newStatus TargetStatus, description string) error {
+	target, err := ds.GetTarget(ctx, targetID)
+	if err != nil {
+		return fmt.Errorf("failed to get target: %w", err)
+	}
+
+	if !target.CanReceiveJob() {
+		// not change status
+		return nil
+	}
+
+	if err := ds.UpdateTargetStatus(ctx, targetID, newStatus, description); err != nil {
+		logger.Logf(false, "failed to update target status: %+v", err)
+		return err
+	}
+
+	return nil
 }
 
 // TargetStatus is status for target
@@ -100,6 +122,7 @@ const (
 	TargetStatusActive                  = "active"
 	TargetStatusRunning                 = "running"
 	TargetStatusSuspend                 = "suspend"
+	TargetStatusDeleted                 = "deleted"
 	TargetStatusErr                     = "error"
 )
 
