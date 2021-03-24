@@ -83,6 +83,7 @@ func receiveCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 // repoURL is https://github.com/:owenr/:repo (in github.com) or https://github.example.com/:owner/:repo (in GitHub Enterprise)
 func processCheckRun(ctx context.Context, ds datastore.Datastore, checkAction, repoName, repoURL string, installationID int64, requestJSON []byte) error {
 	if checkAction != "created" {
+		logger.Logf(true, "check_action is not created, ignore")
 		return nil
 	}
 

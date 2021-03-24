@@ -108,14 +108,14 @@ func (m *Manager) permissionCheck(ctx context.Context) error {
 		if _, err := getTargetRunner(ctx, client, owner, repo); err != nil {
 			logger.Logf(false, "failed to retrieve runner from GitHub (URL: %s): %+v", target.RepoURL(), err)
 
-			if err := m.ds.UpdateTargetStatus(ctx, target.UUID, datastore.TargetStatusErr, "failed to fetch runner from GitHub"); err != nil {
+			if err := datastore.UpdateTargetStatus(ctx, m.ds, target.UUID, datastore.TargetStatusErr, "failed to fetch runner from GitHub"); err != nil {
 				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", target.UUID, err)
 				continue
 			}
 			continue
 		} else {
 			logger.Logf(true, "successfully get runners from GitHub (URL: %s)", target.RepoURL())
-			if err := m.ds.UpdateTargetStatus(ctx, target.UUID, datastore.TargetStatusActive, ""); err != nil {
+			if err := datastore.UpdateTargetStatus(ctx, m.ds, target.UUID, datastore.TargetStatusActive, ""); err != nil {
 				logger.Logf(false, "failed to update target status (target ID: %s,): %+v\n", target.UUID, err)
 				continue
 			}
@@ -149,7 +149,7 @@ func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 
 	if len(targetRunners) == 0 {
 		logger.Logf(false, "runner for queueing is not found in %s", t.RepoURL())
-		if err := m.ds.UpdateTargetStatus(ctx, t.UUID, datastore.TargetStatusErr, "runner for queueing is not found"); err != nil {
+		if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, "runner for queueing is not found"); err != nil {
 			logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
 		}
 		return nil
@@ -165,7 +165,7 @@ func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 		if err := m.deleteRunner(ctx, client, r.ds, *r.github.ID, owner, repo, r.status); err != nil {
 			logger.Logf(false, "failed to delete runner: %+v\n", err)
 
-			if err := m.ds.UpdateTargetStatus(ctx, t.UUID, datastore.TargetStatusErr, ""); err != nil {
+			if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, ""); err != nil {
 				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
 			}
 
@@ -173,7 +173,7 @@ func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 		}
 	}
 
-	if err := m.ds.UpdateTargetStatus(ctx, t.UUID, datastore.TargetStatusActive, ""); err != nil {
+	if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusActive, ""); err != nil {
 		logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
 		return fmt.Errorf("failed to update target status: %w", err)
 	}

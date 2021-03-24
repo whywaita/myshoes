@@ -15,8 +15,8 @@ import (
 	"goji.io/pat"
 )
 
-// Serve start webhook receiver
-func Serve(ds datastore.Datastore) error {
+// NewMux create routed mux
+func NewMux(ds datastore.Datastore) *goji.Mux {
 	mux := goji.NewMux()
 
 	mux.HandleFunc(pat.Get("/healthz"), func(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +59,13 @@ func Serve(ds datastore.Datastore) error {
 		apacheLogging(r)
 		handleTargetDelete(w, r, ds)
 	})
+
+	return mux
+}
+
+// Serve start webhook receiver
+func Serve(ds datastore.Datastore) error {
+	mux := NewMux(ds)
 
 	listenAddress := fmt.Sprintf(":%d", config.Config.Port)
 	logger.Logf(false, "start webhook receiver, listen %s", listenAddress)

@@ -9,14 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
 
-	"github.com/whywaita/myshoes/pkg/gh"
-
-	"goji.io/pat"
-
 	uuid "github.com/satori/go.uuid"
-	"github.com/whywaita/myshoes/pkg/datastore"
+	"goji.io/pat"
 )
 
 type targetCreateParam struct {
@@ -27,6 +25,9 @@ type targetCreateParam struct {
 	RunnerVersion string `json:"runner_version"`
 	ProviderURL   string `json:"provider_url"`
 }
+
+// GHExistGitHubRepositoryFunc is function pointer of gh.ExistGitHubRepository (for testing)
+var GHExistGitHubRepositoryFunc = gh.ExistGitHubRepository
 
 func toNullString(input string) sql.NullString {
 	if input == "" {
@@ -103,7 +104,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	}
 	t := inputTarget.toDS()
 
-	if err := gh.ExistGitHubRepository(t.Scope, t.GHEDomain.String, t.GHEDomain.Valid, t.GitHubPersonalToken); err != nil {
+	if err := GHExistGitHubRepositoryFunc(t.Scope, t.GHEDomain.String, t.GHEDomain.Valid, t.GitHubPersonalToken); err != nil {
 		logger.Logf(false, "failed to found github repository: %+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, "github scope is invalid (maybe, repository is not found)")
 		return
@@ -118,12 +119,18 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore create error")
 		return
 	}
+	target, err := ds.GetTarget(ctx, t.UUID)
+	if err != nil {
+		logger.Logf(false, "failed to get recently target in datastore: %+v", err)
+		outputErrorMsg(w, http.StatusInternalServerError, "datastore get error")
+		return
+	}
 
-	target := sanitizeTarget(&t)
+	sanitized := sanitizeTarget(target)
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(target)
+	json.NewEncoder(w).Encode(sanitized)
 	return
 }
 

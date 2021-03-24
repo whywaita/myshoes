@@ -3,10 +3,12 @@ package testutils
 import (
 	"fmt"
 	"log"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/datastore/mysql"
+	"github.com/whywaita/myshoes/pkg/web"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/ory/dockertest/v3"
@@ -19,6 +21,8 @@ const (
 var (
 	testDB        *sqlx.DB
 	testDatastore datastore.Datastore
+
+	testURL string
 )
 
 // IntegrationTestRunner is all integration test
@@ -56,8 +60,13 @@ func IntegrationTestRunner(m *testing.M) int {
 	createTablesIfNotExist()
 	//SetupDefaultFixtures()
 
+	mux := web.NewMux(testDatastore)
+	ts := httptest.NewServer(mux)
+	testURL = ts.URL
+
 	code := m.Run()
 
+	ts.Close()
 	truncateTables()
 
 	// You can't defer this because os.Exit doesn't care for defer
