@@ -185,7 +185,10 @@ func sanitizeTarget(t *datastore.Target) *datastore.Target {
 	return t
 }
 
-func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {}
+func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+	outputErrorMsg(w, http.StatusMethodNotAllowed, "not implement")
+	return
+}
 
 func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	ctx := r.Context()

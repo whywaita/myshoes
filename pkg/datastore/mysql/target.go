@@ -77,7 +77,7 @@ func (m *MySQL) ListTargets(ctx context.Context) ([]datastore.Target, error) {
 
 // DeleteTarget delete a target
 func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM targets WHERE uuid = ?`
+	query := `UPDATE targets SET status = "deleted" WHERE uuid = ?`
 	if _, err := m.Conn.ExecContext(ctx, query, id.String()); err != nil {
 		return fmt.Errorf("failed to execute DELETE query: %w", err)
 	}
