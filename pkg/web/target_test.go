@@ -222,12 +222,12 @@ func Test_handleTargetRead(t *testing.T) {
 	targetUUID := respTarget.UUID
 
 	tests := []struct {
-		input interface{}
+		input uuid.UUID
 		want  *datastore.Target
 		err   bool
 	}{
 		{
-			input: nil,
+			input: targetUUID,
 			want: &datastore.Target{
 				UUID:                targetUUID,
 				Scope:               "repo",
@@ -243,7 +243,7 @@ func Test_handleTargetRead(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		resp, err := http.Get(fmt.Sprintf("%s/target/%s", testURL, targetUUID))
+		resp, err := http.Get(fmt.Sprintf("%s/target/%s", testURL, test.input))
 		if !test.err && err != nil {
 			t.Fatalf("failed to POST request: %+v", err)
 		}
@@ -261,6 +261,81 @@ func Test_handleTargetRead(t *testing.T) {
 		got.UpdatedAt = time.Time{}
 
 		if diff := cmp.Diff(test.want, &got); diff != "" {
+			t.Errorf("mismatch (-want +got):\n%s", diff)
+		}
+	}
+}
+
+func Test_handleTargetDelete(t *testing.T) {
+	testURL := testutils.GetTestURL()
+	testDatastore, teardown := testutils.GetTestDatastore()
+	defer teardown()
+
+	setStubFunctions()
+
+	target := `{"scope": "repo", "github_personal_token": "secret", "resource_type": "micro", "runner_user": "ubuntu"}`
+
+	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	content, statusCode := parseResponse(resp)
+	if statusCode != http.StatusCreated {
+		t.Fatalf("must be response statuscode is 201, but got %d", resp.StatusCode)
+	}
+	var respTarget datastore.Target
+	if err := json.Unmarshal(content, &respTarget); err != nil {
+		t.Fatalf("failed to unmarshal response JSON: %+v", err)
+	}
+	targetUUID := respTarget.UUID
+
+	tests := []struct {
+		input uuid.UUID
+		want  *datastore.Target
+		err   bool
+	}{
+		{
+			input: targetUUID,
+			want: &datastore.Target{
+				UUID:                targetUUID,
+				Scope:               "repo",
+				GitHubPersonalToken: "secret",
+				ResourceType:        datastore.ResourceTypeMicro,
+				RunnerUser: sql.NullString{
+					Valid:  true,
+					String: "ubuntu",
+				},
+				Status: datastore.TargetStatusDeleted,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		client := &http.Client{}
+
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/target/%s", testURL, test.input), nil)
+		if err != nil {
+			t.Fatalf("failed to create request: %+v", err)
+		}
+
+		resp, err := client.Do(req)
+		if !test.err && err != nil {
+			t.Fatalf("failed to POST request: %+v", err)
+		}
+		_, code := parseResponse(resp)
+		if code != http.StatusNoContent {
+			t.Fatalf("must be response statuscode is 204, but got %d", code)
+		}
+
+		got, err := testDatastore.GetTarget(context.Background(), test.input)
+		if err != nil {
+			t.Fatalf("failed to get target from datastore: %+v", err)
+		}
+
+		got.CreatedAt = time.Time{}
+		got.UpdatedAt = time.Time{}
+
+		if diff := cmp.Diff(test.want, got); diff != "" {
 			t.Errorf("mismatch (-want +got):\n%s", diff)
 		}
 	}
