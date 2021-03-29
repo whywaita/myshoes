@@ -316,8 +316,22 @@ func TestMySQL_DeleteTarget(t *testing.T) {
 	}{
 		{
 			input: testTargetID,
-			want:  nil,
-			err:   false,
+			want: &datastore.Target{
+				UUID:                testTargetID,
+				Scope:               testScopeRepo,
+				GitHubPersonalToken: testGitHubPersonalToken,
+				ResourceType:        datastore.ResourceTypeNano,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+				Status: datastore.TargetStatusDeleted,
+			},
+			err: false,
 		},
 	}
 
@@ -362,7 +376,6 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 				description: "",
 			},
 			want: &datastore.Target{
-				UUID:                testTargetID,
 				Scope:               testScopeRepo,
 				GitHubPersonalToken: testGitHubPersonalToken,
 				ResourceType:        datastore.ResourceTypeNano,
@@ -388,7 +401,6 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 				description: "job-id",
 			},
 			want: &datastore.Target{
-				UUID:                testTargetID,
 				Scope:               testScopeRepo,
 				GitHubPersonalToken: testGitHubPersonalToken,
 				ResourceType:        datastore.ResourceTypeNano,
@@ -411,8 +423,9 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		tID := uuid.NewV4()
 		if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-			UUID:                testTargetID,
+			UUID:                tID,
 			Scope:               testScopeRepo,
 			GitHubPersonalToken: testGitHubPersonalToken,
 			ResourceType:        datastore.ResourceTypeNano,
@@ -428,15 +441,16 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 			t.Fatalf("failed to create target: %+v", err)
 		}
 
-		err := testDatastore.UpdateTargetStatus(context.Background(), testTargetID, test.input.status, test.input.description)
+		err := testDatastore.UpdateTargetStatus(context.Background(), tID, test.input.status, test.input.description)
 		if !test.err && err != nil {
 			t.Fatalf("failed to update status: %+v", err)
 		}
-		got, err := getTargetFromSQL(testDB, testTargetID)
+		got, err := getTargetFromSQL(testDB, tID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			t.Fatalf("failed to get target from SQL: %+v", err)
 		}
 		if got != nil {
+			got.UUID = uuid.UUID{}
 			got.CreatedAt = time.Time{}
 			got.UpdatedAt = time.Time{}
 		}
@@ -445,7 +459,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 			t.Errorf("mismatch (-want +got):\n%s", diff)
 		}
 
-		if err := testDatastore.DeleteTarget(context.Background(), testTargetID); err != nil {
+		if err := testDatastore.DeleteTarget(context.Background(), tID); err != nil {
 			t.Fatalf("failed to delete target: %+v", err)
 		}
 	}
