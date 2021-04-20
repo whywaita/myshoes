@@ -11,10 +11,10 @@ import (
 )
 
 //go:embed scripts/RunnerService.js
-var RunnerService string
+var runnerService string
 
 func getPatchedFiles() (string, error) {
-	return RunnerService, nil
+	return runnerService, nil
 }
 
 func (s *Starter) getSetupScript(target datastore.Target) (string, error) {
