@@ -2,8 +2,8 @@ package testutils
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"path"
 	"runtime"
 	"strings"
@@ -16,7 +16,7 @@ import (
 const schemaDirRelativePathFormat = "%s/../../pkg/datastore/mysql/%s"
 
 func execSchema(fpath string) {
-	b, err := ioutil.ReadFile(fpath)
+	b, err := os.ReadFile(fpath)
 	if err != nil {
 		log.Fatalf("schema reading error: %v", err)
 	}
