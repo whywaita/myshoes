@@ -3,7 +3,7 @@ package starter
 import (
 	"bytes"
 	"compress/gzip"
-	_ "embed"
+	_ "embed" // TODO:
 	"encoding/base64"
 	"fmt"
 
