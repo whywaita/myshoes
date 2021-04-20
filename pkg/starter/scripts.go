@@ -1,36 +1,20 @@
-//go:generate statik -src=./scripts
-
 package starter
 
 import (
 	"bytes"
 	"compress/gzip"
+	_ "embed"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
-
-	"github.com/rakyll/statik/fs"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
-	_ "github.com/whywaita/myshoes/pkg/starter/statik" // TODO:
 )
 
-func getPatchedFiles() (string, error) {
-	statikFs, err := fs.New()
-	if err != nil {
-		return "", fmt.Errorf("failed to New statik filesystem: %w", err)
-	}
-	r, err := statikFs.Open("/RunnerService.js")
-	if err != nil {
-		return "", fmt.Errorf("failed to open RunnerService.js: %w", err)
-	}
-	defer r.Close()
-	rsjs, err := ioutil.ReadAll(r)
-	if err != nil {
-		return "", fmt.Errorf("failed to read RunnerService.js: %w", err)
-	}
+//go:embed scripts/RunnerService.js
+var RunnerService string
 
-	return fmt.Sprintf("%s", rsjs), nil
+func getPatchedFiles() (string, error) {
+	return RunnerService, nil
 }
 
 func (s *Starter) getSetupScript(target datastore.Target) (string, error) {
