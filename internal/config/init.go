@@ -136,6 +136,7 @@ func fetchHTTP(u *url.URL) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create os file: %w", err)
 	}
+	defer f.Close()
 
 	resp, err := http.Get(u.String())
 	if err != nil {
