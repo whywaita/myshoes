@@ -288,11 +288,6 @@ func getDeleteTargetRunner(ctx context.Context, githubClient *github.Client, own
 	return runners, nil
 }
 
-//// getTargetRunner retrieve runner from GitHub
-//func getTargetRunner(ctx context.Context, githubClient *github.Client, owner, repo string) ([]*github.Runner, error) {
-//
-//}
-
 // deleteRunner delete runner in github, shoes, datastore.
 // runnerUUID is uuid in datastore, runnerID is id from GitHub.
 func (m *Manager) deleteRunner(ctx context.Context, githubClient *github.Client, runner *datastore.Runner, runnerID int64, owner, repo, runnerStatus string) error {

@@ -53,7 +53,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 
 	case target.Status != datastore.TargetStatusDeleted:
 		// already registered
-		errMsg := fmt.Sprintf("%s is already registered, status is %s now.", t.Scope, target.Status)
+		errMsg := fmt.Sprintf("%s is already registered, current status is %s.", t.Scope, target.Status)
 		outputErrorMsg(w, http.StatusBadRequest, errMsg)
 		return
 	case target.Status == datastore.TargetStatusDeleted:

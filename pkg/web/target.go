@@ -153,6 +153,21 @@ func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
+	target, err := ds.GetTarget(ctx, targetID)
+	if err != nil {
+		logger.Logf(false, "failed to get target: %+v", err)
+		outputErrorMsg(w, http.StatusBadRequest, "incorrect target id (not found)")
+		return
+	}
+	switch target.Status {
+	case datastore.TargetStatusRunning:
+		outputErrorMsg(w, http.StatusBadRequest, "target has running runner now, please stop all runner")
+		return
+	case datastore.TargetStatusDeleted:
+		outputErrorMsg(w, http.StatusBadRequest, "target is already deleted")
+		return
+	}
+
 	if err := ds.DeleteTarget(ctx, targetID); err != nil {
 		logger.Logf(false, "failed to delete target in datastore: %+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore delete error")
