@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-github/v32/github"
+
 	"github.com/google/go-cmp/cmp"
 	uuid "github.com/satori/go.uuid"
 
@@ -33,6 +35,10 @@ func parseResponse(resp *http.Response) ([]byte, int) {
 func setStubFunctions() {
 	web.GHExistGitHubRepositoryFunc = func(scope, gheDomain string, gheDomainValid bool, githubPersonalToken string) error {
 		return nil
+	}
+
+	web.GHListRunnersFunc = func(ctx context.Context, client *github.Client, owner, repo string) ([]*github.Runner, error) {
+		return nil, nil
 	}
 }
 
@@ -120,8 +126,99 @@ func Test_handleTargetCreate(t *testing.T) {
 	}
 }
 
+func Test_handleTargetCreate_alreadyRegistered(t *testing.T) {
+	testURL := testutils.GetTestURL()
+	_, teardown := testutils.GetTestDatastore()
+	defer teardown()
+
+	setStubFunctions()
+
+	input := `{"scope": "octocat", "ghe_domain": "", "github_personal_token": "secret", "resource_type": "micro", "runner_user": "ubuntu"}`
+
+	// first create
+	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	_, code := parseResponse(resp)
+	if code != http.StatusCreated {
+		t.Fatalf("must be response statuscode is 201, but got %d", code)
+	}
+
+	// second create
+	resp, err = http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	_, code = parseResponse(resp)
+	if code != http.StatusBadRequest {
+		t.Fatalf("must be response statuscode is 400, but got %d", code)
+	}
+}
+
+func Test_handleTargetCreate_recreated(t *testing.T) {
+	testURL := testutils.GetTestURL()
+	testDatastore, teardown := testutils.GetTestDatastore()
+	defer teardown()
+
+	setStubFunctions()
+
+	input := `{"scope": "octocat", "ghe_domain": "", "github_personal_token": "secret", "resource_type": "micro", "runner_user": "ubuntu"}`
+
+	// first create
+	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	content, code := parseResponse(resp)
+	if code != http.StatusCreated {
+		t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
+	}
+	var gotContent datastore.Target
+	if err := json.Unmarshal(content, &gotContent); err != nil {
+		t.Fatalf("failed to unmarshal resoponse content: %+v", err)
+	}
+
+	u := gotContent.UUID
+
+	// first delete
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/target/%s", testURL, u.String()), nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %+v", err)
+	}
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	_, code = parseResponse(resp)
+	if code != http.StatusNoContent {
+		t.Fatalf("must be response statuscode is 204, but got %d: %+v", code, string(content))
+	}
+
+	// second create
+	resp, err = http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	content, code = parseResponse(resp)
+	if code != http.StatusCreated {
+		t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
+	}
+
+	got, err := testDatastore.GetTarget(context.Background(), u)
+	if err != nil {
+		t.Fatalf("failed to get created target: %+v", err)
+	}
+	if got.Status != datastore.TargetStatusInitialize {
+		t.Fatalf("must be status is initialize when recreated")
+	}
+}
+
 func Test_handleTargetList(t *testing.T) {
 	testURL := testutils.GetTestURL()
+	_, teardown := testutils.GetTestDatastore()
+	defer teardown()
 
 	setStubFunctions()
 
@@ -176,7 +273,7 @@ func Test_handleTargetList(t *testing.T) {
 		}
 		content, code := parseResponse(resp)
 		if code != http.StatusOK {
-			t.Fatalf("must be response statuscode is 201, but got %d", code)
+			t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
 		}
 
 		var gotContents []datastore.Target
@@ -202,6 +299,8 @@ func Test_handleTargetList(t *testing.T) {
 
 func Test_handleTargetRead(t *testing.T) {
 	testURL := testutils.GetTestURL()
+	_, teardown := testutils.GetTestDatastore()
+	defer teardown()
 
 	setStubFunctions()
 
@@ -213,7 +312,7 @@ func Test_handleTargetRead(t *testing.T) {
 	}
 	content, statusCode := parseResponse(resp)
 	if statusCode != http.StatusCreated {
-		t.Fatalf("must be response statuscode is 201, but got %d", resp.StatusCode)
+		t.Fatalf("must be response statuscode is 201, but got %d: %+v", resp.StatusCode, string(content))
 	}
 	var respTarget datastore.Target
 	if err := json.Unmarshal(content, &respTarget); err != nil {
@@ -249,7 +348,7 @@ func Test_handleTargetRead(t *testing.T) {
 		}
 		content, code := parseResponse(resp)
 		if code != http.StatusOK {
-			t.Fatalf("must be response statuscode is 201, but got %d", code)
+			t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
 		}
 
 		var got datastore.Target
@@ -281,7 +380,7 @@ func Test_handleTargetDelete(t *testing.T) {
 	}
 	content, statusCode := parseResponse(resp)
 	if statusCode != http.StatusCreated {
-		t.Fatalf("must be response statuscode is 201, but got %d", resp.StatusCode)
+		t.Fatalf("must be response statuscode is 201, but got %d: %+v", resp.StatusCode, string(content))
 	}
 	var respTarget datastore.Target
 	if err := json.Unmarshal(content, &respTarget); err != nil {
@@ -322,9 +421,9 @@ func Test_handleTargetDelete(t *testing.T) {
 		if !test.err && err != nil {
 			t.Fatalf("failed to POST request: %+v", err)
 		}
-		_, code := parseResponse(resp)
+		content, code := parseResponse(resp)
 		if code != http.StatusNoContent {
-			t.Fatalf("must be response statuscode is 204, but got %d", code)
+			t.Fatalf("must be response statuscode is 204, but got %d: %+v", code, string(content))
 		}
 
 		got, err := testDatastore.GetTarget(context.Background(), test.input)

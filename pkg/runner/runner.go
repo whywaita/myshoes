@@ -105,7 +105,7 @@ func (m *Manager) permissionCheck(ctx context.Context) error {
 		}
 		owner, repo := target.OwnerRepo()
 
-		if _, err := getTargetRunner(ctx, client, owner, repo); err != nil {
+		if _, err := gh.ListRunners(ctx, client, owner, repo); err != nil {
 			logger.Logf(false, "failed to retrieve runner from GitHub (URL: %s): %+v", target.RepoURL(), err)
 
 			if err := datastore.UpdateTargetStatus(ctx, m.ds, target.UUID, datastore.TargetStatusErr, "failed to fetch runner from GitHub"); err != nil {
@@ -275,7 +275,7 @@ var (
 func getDeleteTargetRunner(ctx context.Context, githubClient *github.Client, owner, repo string) ([]*github.Runner, error) {
 	var runners []*github.Runner
 
-	all, err := getTargetRunner(ctx, githubClient, owner, repo)
+	all, err := gh.ListRunners(ctx, githubClient, owner, repo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get runner from GitHub: %w", err)
 	}
@@ -286,49 +286,6 @@ func getDeleteTargetRunner(ctx context.Context, githubClient *github.Client, own
 		}
 	}
 	return runners, nil
-}
-
-// getTargetRunner retrieve runner from GitHub
-func getTargetRunner(ctx context.Context, githubClient *github.Client, owner, repo string) ([]*github.Runner, error) {
-	var rs []*github.Runner
-
-	isOrg := false
-	if repo == "" {
-		isOrg = true
-	}
-
-	var opts = &github.ListOptions{
-		Page:    0,
-		PerPage: 10,
-	}
-
-	for {
-		logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d", opts.Page, len(rs))
-		var runners *github.Runners
-		var err error
-
-		if isOrg {
-			runners, _, err = githubClient.Actions.ListOrganizationRunners(ctx, owner, opts)
-			if err != nil {
-				return nil, fmt.Errorf("failed to list organization runners: %w", err)
-			}
-		} else {
-			runners, _, err = githubClient.Actions.ListRunners(ctx, owner, repo, opts)
-			if err != nil {
-				return nil, fmt.Errorf("failed to list repository runners: %w", err)
-			}
-		}
-
-		rs = append(rs, runners.Runners...)
-		if len(rs) >= runners.TotalCount {
-			break
-		}
-		opts.Page = opts.Page + 1
-	}
-
-	logger.Logf(true, "found %d runners", len(rs))
-
-	return rs, nil
 }
 
 // deleteRunner delete runner in github, shoes, datastore.
