@@ -140,7 +140,7 @@ type Job struct {
 
 // Runner is a runner
 type Runner struct {
-	UUID      uuid.UUID    `db:"uuid"`
+	UUID      uuid.UUID    `db:"runner_id"`
 	ShoesType string       `db:"shoes_type"`
 	IPAddress string       `db:"ip_address"`
 	TargetID  uuid.UUID    `db:"target_id"`
