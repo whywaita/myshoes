@@ -29,6 +29,9 @@ type targetCreateParam struct {
 // GHExistGitHubRepositoryFunc is function pointer of gh.ExistGitHubRepository (for testing)
 var GHExistGitHubRepositoryFunc = gh.ExistGitHubRepository
 
+// GHListRunnersFunc is function pointer of gh.ListRunners (for testing)
+var GHListRunnersFunc = gh.ListRunners
+
 func toNullString(input string) sql.NullString {
 	if input == "" {
 		return sql.NullString{
@@ -107,6 +110,19 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	if err := GHExistGitHubRepositoryFunc(t.Scope, t.GHEDomain.String, t.GHEDomain.Valid, t.GitHubPersonalToken); err != nil {
 		logger.Logf(false, "failed to found github repository: %+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, "github scope is invalid (maybe, repository is not found)")
+		return
+	}
+
+	client, err := gh.NewClient(ctx, t.GitHubPersonalToken, t.GHEDomain.String)
+	if err != nil {
+		logger.Logf(false, "failed to create GitHub client: %+v", err)
+		outputErrorMsg(w, http.StatusBadRequest, "invalid github token in input scope")
+		return
+	}
+	owner, repo := gh.DivideScope(t.Scope)
+	if _, err := GHListRunnersFunc(ctx, client, owner, repo); err != nil {
+		logger.Logf(false, "failed to get list of registered runners: %+v", err)
+		outputErrorMsg(w, http.StatusBadRequest, "failed to get list of registered runners (maybe, invalid scope or token?)")
 		return
 	}
 

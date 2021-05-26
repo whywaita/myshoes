@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -69,19 +68,7 @@ func (t *Target) RepoURL() string {
 
 // OwnerRepo return :owner and :repo
 func (t *Target) OwnerRepo() (string, string) {
-	var owner, repo string
-
-	switch gh.DetectScope(t.Scope) {
-	case gh.Organization:
-		owner = t.Scope
-		repo = ""
-	case gh.Repository:
-		s := strings.Split(t.Scope, "/")
-		owner = s[0]
-		repo = s[1]
-	}
-
-	return owner, repo
+	return gh.DivideScope(t.Scope)
 }
 
 // CanReceiveJob check status in target

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-github/v32/github"
+
 	"github.com/google/go-cmp/cmp"
 	uuid "github.com/satori/go.uuid"
 
@@ -33,6 +35,10 @@ func parseResponse(resp *http.Response) ([]byte, int) {
 func setStubFunctions() {
 	web.GHExistGitHubRepositoryFunc = func(scope, gheDomain string, gheDomainValid bool, githubPersonalToken string) error {
 		return nil
+	}
+
+	web.GHListRunnersFunc = func(ctx context.Context, client *github.Client, owner, repo string) ([]*github.Runner, error) {
+		return nil, nil
 	}
 }
 

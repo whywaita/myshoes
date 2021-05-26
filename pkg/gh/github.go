@@ -9,6 +9,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/whywaita/myshoes/pkg/logger"
+
 	"golang.org/x/oauth2"
 
 	"github.com/bradleyfalzon/ghinstallation"
@@ -72,6 +74,49 @@ func ExistGitHubRepository(scope, gheDomain string, gheDomainValid bool, githubP
 	}
 
 	return fmt.Errorf("invalid response code (%d)", resp.StatusCode)
+}
+
+// ListRunners get runners that registered repository or org
+func ListRunners(ctx context.Context, client *github.Client, owner, repo string) ([]*github.Runner, error) {
+	var rs []*github.Runner
+
+	isOrg := false
+	if repo == "" {
+		isOrg = true
+	}
+
+	var opts = &github.ListOptions{
+		Page:    0,
+		PerPage: 10,
+	}
+
+	for {
+		logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d", opts.Page, len(rs))
+		var runners *github.Runners
+		var err error
+
+		if isOrg {
+			runners, _, err = client.Actions.ListOrganizationRunners(ctx, owner, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list organization runners: %w", err)
+			}
+		} else {
+			runners, _, err = client.Actions.ListRunners(ctx, owner, repo, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list repository runners: %w", err)
+			}
+		}
+
+		rs = append(rs, runners.Runners...)
+		if len(rs) >= runners.TotalCount {
+			break
+		}
+		opts.Page = opts.Page + 1
+	}
+
+	logger.Logf(true, "found %d runners", len(rs))
+
+	return rs, nil
 }
 
 func getRepositoryURL(scope, gheDomain string, gheDomainValid bool) (string, error) {
@@ -143,4 +188,21 @@ func DetectScope(scope string) Scope {
 	default:
 		return Unknown
 	}
+}
+
+// DivideScope divide scope to owner and repo
+func DivideScope(scope string) (string, string) {
+	var owner, repo string
+
+	switch DetectScope(scope) {
+	case Organization:
+		owner = scope
+		repo = ""
+	case Repository:
+		s := strings.Split(scope, "/")
+		owner = s[0]
+		repo = s[1]
+	}
+
+	return owner, repo
 }
