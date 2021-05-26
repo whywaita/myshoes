@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -87,67 +86,6 @@ func (t *targetCreateParam) toDS() datastore.Target {
 		RunnerVersion:       runnerVersion,
 		ProviderURL:         providerURL,
 	}
-}
-
-func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
-	// input values: scope, gpt, ghe_domain, resource_type
-	ctx := r.Context()
-	inputTarget := targetCreateParam{}
-
-	if err := json.NewDecoder(r.Body).Decode(&inputTarget); err != nil {
-		logger.Logf(false, "failed to decode request body: %+v", err)
-		outputErrorMsg(w, http.StatusBadRequest, "json decode error")
-		return
-	}
-
-	if ok, err := isValidTargetCreateParam(inputTarget); !ok {
-		logger.Logf(false, "failed to validate input: %+v", err)
-		outputErrorMsg(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	t := inputTarget.toDS()
-
-	if err := GHExistGitHubRepositoryFunc(t.Scope, t.GHEDomain.String, t.GHEDomain.Valid, t.GitHubPersonalToken); err != nil {
-		logger.Logf(false, "failed to found github repository: %+v", err)
-		outputErrorMsg(w, http.StatusBadRequest, "github scope is invalid (maybe, repository is not found)")
-		return
-	}
-
-	client, err := gh.NewClient(ctx, t.GitHubPersonalToken, t.GHEDomain.String)
-	if err != nil {
-		logger.Logf(false, "failed to create GitHub client: %+v", err)
-		outputErrorMsg(w, http.StatusBadRequest, "invalid github token in input scope")
-		return
-	}
-	owner, repo := gh.DivideScope(t.Scope)
-	if _, err := GHListRunnersFunc(ctx, client, owner, repo); err != nil {
-		logger.Logf(false, "failed to get list of registered runners: %+v", err)
-		outputErrorMsg(w, http.StatusBadRequest, "failed to get list of registered runners (maybe, invalid scope or token?)")
-		return
-	}
-
-	t.UUID = uuid.NewV4()
-	now := time.Now().UTC()
-	t.CreatedAt = now
-	t.UpdatedAt = now
-	if err := ds.CreateTarget(ctx, t); err != nil {
-		logger.Logf(false, "failed to create target in datastore: %+v", err)
-		outputErrorMsg(w, http.StatusInternalServerError, "datastore create error")
-		return
-	}
-	target, err := ds.GetTarget(ctx, t.UUID)
-	if err != nil {
-		logger.Logf(false, "failed to get recently target in datastore: %+v", err)
-		outputErrorMsg(w, http.StatusInternalServerError, "datastore get error")
-		return
-	}
-
-	sanitized := sanitizeTarget(target)
-
-	w.Header().Set("Content-Type", "application/json;charset=utf-8")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(sanitized)
-	return
 }
 
 func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {

@@ -126,6 +126,93 @@ func Test_handleTargetCreate(t *testing.T) {
 	}
 }
 
+func Test_handleTargetCreate_alreadyRegistered(t *testing.T) {
+	testURL := testutils.GetTestURL()
+
+	setStubFunctions()
+
+	input := `{"scope": "octocat", "ghe_domain": "", "github_personal_token": "secret", "resource_type": "micro", "runner_user": "ubuntu"}`
+
+	// first create
+	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	_, code := parseResponse(resp)
+	if code != http.StatusCreated {
+		t.Fatalf("must be response statuscode is 201, but got %d", code)
+	}
+
+	// second create
+	resp, err = http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	_, code = parseResponse(resp)
+	if code != http.StatusBadRequest {
+		t.Fatalf("must be response statuscode is 400, but got %d", code)
+	}
+}
+
+func Test_handleTargetCreate_recreated(t *testing.T) {
+	testURL := testutils.GetTestURL()
+	testDatastore, teardown := testutils.GetTestDatastore()
+	defer teardown()
+
+	setStubFunctions()
+
+	input := `{"scope": "octocat", "ghe_domain": "", "github_personal_token": "secret", "resource_type": "micro", "runner_user": "ubuntu"}`
+
+	// first create
+	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	content, code := parseResponse(resp)
+	if code != http.StatusCreated {
+		t.Fatalf("must be response statuscode is 201, but got %d", code)
+	}
+	var gotContent datastore.Target
+	if err := json.Unmarshal(content, &gotContent); err != nil {
+		t.Fatalf("failed to unmarshal resoponse content: %+v", err)
+	}
+
+	u := gotContent.UUID
+
+	// first delete
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/target/%s", testURL, u.String()), nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %+v", err)
+	}
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	_, code = parseResponse(resp)
+	if code != http.StatusNoContent {
+		t.Fatalf("must be response statuscode is 204, but got %d", code)
+	}
+
+	// second create
+	resp, err = http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	content, code = parseResponse(resp)
+	if code != http.StatusCreated {
+		t.Fatalf("must be response statuscode is 201, but got %d", code)
+	}
+
+	got, err := testDatastore.GetTarget(context.Background(), u)
+	if err != nil {
+		t.Fatalf("failed to get created target: %+v", err)
+	}
+	if got.Status != datastore.TargetStatusInitialize {
+		t.Fatalf("must be status is initialize when recreated")
+	}
+}
+
 func Test_handleTargetList(t *testing.T) {
 	testURL := testutils.GetTestURL()
 
