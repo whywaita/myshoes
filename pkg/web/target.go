@@ -161,6 +161,7 @@ func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	}
 	switch target.Status {
 	case datastore.TargetStatusRunning:
+		logger.Logf(true, "%s is running now", targetID)
 		outputErrorMsg(w, http.StatusBadRequest, "target has running runner now, please stop all runner")
 		return
 	case datastore.TargetStatusDeleted:
