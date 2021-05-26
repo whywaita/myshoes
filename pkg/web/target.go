@@ -91,7 +91,7 @@ func (t *targetCreateParam) toDS() datastore.Target {
 func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	ctx := r.Context()
 
-	ts, err := ds.ListTargets(ctx)
+	ts, err := datastore.ListTargets(ctx, ds)
 	if err != nil {
 		logger.Logf(false, "failed to retrieve list of target: %+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore read error")

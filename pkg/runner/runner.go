@@ -66,7 +66,7 @@ func (m *Manager) Loop(ctx context.Context) error {
 func (m *Manager) do(ctx context.Context) error {
 	logger.Logf(true, "start runner manager")
 
-	targets, err := m.ds.ListTargets(ctx)
+	targets, err := datastore.ListTargets(ctx, m.ds)
 	if err != nil {
 		return fmt.Errorf("failed to get targets: %w", err)
 	}
@@ -86,7 +86,7 @@ func (m *Manager) do(ctx context.Context) error {
 func (m *Manager) permissionCheck(ctx context.Context) error {
 	logger.Logf(true, "start checking initialize state")
 
-	targets, err := m.ds.ListTargets(ctx)
+	targets, err := datastore.ListTargets(ctx, m.ds)
 	if err != nil {
 		return fmt.Errorf("failed to get targets: %w", err)
 	}

@@ -81,6 +81,24 @@ func (t *Target) CanReceiveJob() bool {
 	return true
 }
 
+// ListTargets get list of target that can receive job
+func ListTargets(ctx context.Context, ds Datastore) ([]Target, error) {
+	targets, err := ds.ListTargets(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get targets from datastore: %w", err)
+	}
+
+	var result []Target
+
+	for _, t := range targets {
+		if t.CanReceiveJob() {
+			result = append(result, t)
+		}
+	}
+
+	return result, nil
+}
+
 // UpdateTargetStatus update datastore
 func UpdateTargetStatus(ctx context.Context, ds Datastore, targetID uuid.UUID, newStatus TargetStatus, description string) error {
 	target, err := ds.GetTarget(ctx, targetID)
