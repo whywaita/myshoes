@@ -3,6 +3,7 @@ package mysql_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -22,8 +23,6 @@ var testRunner = datastore.Runner{
 	IPAddress: "",
 	TargetID:  testTargetID,
 	CloudID:   "mycloud-uuid",
-	Deleted:   false,
-	Status:    datastore.RunnerStatusCreated,
 }
 
 func TestMySQL_CreateRunner(t *testing.T) {
@@ -127,6 +126,57 @@ func TestMySQL_ListRunners(t *testing.T) {
 	}
 }
 
+func TestMySQL_ListRunnersNotReturnDeleted(t *testing.T) {
+	testDatastore, teardown := testutils.GetTestDatastore()
+	defer teardown()
+
+	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+		UUID:                testTargetID,
+		Scope:               testScopeRepo,
+		GitHubPersonalToken: testGitHubPersonalToken,
+		ResourceType:        datastore.ResourceTypeNano,
+	}); err != nil {
+		t.Fatalf("failed to create target: %+v", err)
+	}
+
+	u := "00000000-0000-0000-0000-00000000000%d"
+
+	for i := 0; i < 3; i++ {
+		input := testRunner
+		input.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		err := testDatastore.CreateRunner(context.Background(), input)
+		if err != nil {
+			t.Fatalf("failed to create runner: %+v", err)
+		}
+	}
+
+	err := testDatastore.DeleteRunner(context.Background(), uuid.FromStringOrNil(fmt.Sprintf(u, 0)), time.Now(), "deleted")
+	if err != nil {
+		t.Fatalf("failed to delete runner: %+v", err)
+	}
+
+	got, err := testDatastore.ListRunners(context.Background())
+	if err != nil {
+		t.Fatalf("failed to get runners: %+v", err)
+	}
+	for i := range got {
+		got[i].CreatedAt = time.Time{}
+		got[i].UpdatedAt = time.Time{}
+	}
+
+	var want []datastore.Runner
+	for i := 1; i < 3; i++ {
+		r := testRunner
+		r.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		want = append(want, r)
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("mismatch (-want +got):\n%s", diff)
+	}
+
+}
+
 func TestMySQL_GetRunner(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
 	defer teardown()
@@ -191,8 +241,6 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 	}
 
 	deleted := testRunner
-	deleted.Deleted = true
-	deleted.Status = datastore.RunnerStatusCompleted
 
 	tests := []struct {
 		input uuid.UUID
@@ -224,12 +272,49 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 		if diff := cmp.Diff(test.want, got); diff != "" {
 			t.Errorf("mismatch (-want +got):\n%s", diff)
 		}
+
+		if _, err := getRunningRunnerFromSQL(testDB, test.input); err == nil || errors.Is(err, sql.ErrNoRows) {
+			t.Errorf("%s is deleted, but exist in runner_running: %+v", test.input, err)
+		}
+		if _, err := getDeletedRunnerFromSQL(testDB, test.input); err != nil {
+			t.Fatalf("%s is not exist in runners_deleted: %+v", test.input, err)
+		}
 	}
 }
 
 func getRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
-	query := `SELECT uuid, shoes_type, ip_address, target_id, cloud_id, deleted, status, created_at, updated_at, deleted_at FROM runners WHERE uuid = ?`
+	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at FROM runner_detail WHERE runner_id = ?`
+	stmt, err := testDB.Preparex(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare: %w", err)
+	}
+	err = stmt.Get(&r, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get runner: %w", err)
+	}
+	return &r, nil
+}
+
+func getRunningRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
+	var r datastore.Runner
+	query := `SELECT detail.runner_id, shoes_type, ip_address, target_id, cloud_id, detail.created_at, updated_at
+FROM runner_detail AS detail JOIN runnesr_running AS running ON detail.runner_id = running.runner_id WHERE detail.runner_id = ?`
+	stmt, err := testDB.Preparex(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare: %w", err)
+	}
+	err = stmt.Get(&r, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get runner: %w", err)
+	}
+	return &r, nil
+}
+
+func getDeletedRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
+	var r datastore.Runner
+	query := `SELECT detail.runner_id, shoes_type, ip_address, target_id, cloud_id, detail.created_at, updated_at
+FROM runner_detail AS detail JOIN runners_deleted AS deleted ON detail.runner_id = deleted.runner_id WHERE detail.runner_id = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)

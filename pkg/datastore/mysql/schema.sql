@@ -16,17 +16,36 @@ CREATE TABLE `targets` (
 
 CREATE TABLE `runners` (
     `uuid` VARCHAR(36) NOT NULL PRIMARY KEY,
+    `created_at` TIMESTAMP NOT NULL DEFAULT current_timestamp
+);
+
+CREATE TABLE `runner_detail` (
+    `runner_id` VARCHAR(36) NOT NULL,
     `shoes_type` VARCHAR(255) NOT NULL,
     `ip_address` VARCHAR(255) NOT NULL,
     `target_id` VARCHAR(36) NOT NULL,
     `cloud_id` TEXT NOT NULL,
-    `deleted` bool DEFAULT false NOT NULL,
-    `status` VARCHAR(255) NOT NULL DEFAULT 'created',
     `created_at` TIMESTAMP NOT NULL DEFAULT current_timestamp,
     `updated_at` TIMESTAMP NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp,
-    `deleted_at` TIMESTAMP,
     KEY `fk_runner_target_id` (`target_id`),
-    CONSTRAINT `runners_ibfk_1` FOREIGN KEY fk_runner_target_id(`target_id`) REFERENCES targets(`uuid`) ON DELETE RESTRICT
+    CONSTRAINT `runners_ibfk_1` FOREIGN KEY fk_runner_target_id(`target_id`) REFERENCES targets(`uuid`) ON DELETE RESTRICT,
+    KEY `fk_runner_detail_id` (`runner_id`),
+    CONSTRAINT `runners_ibfk_2` FOREIGN KEY fk_runner_detail_id(`runner_id`) REFERENCES runners(`uuid`) ON DELETE RESTRICT
+);
+
+CREATE TABLE `runners_running` (
+    `runner_id` VARCHAR(36) NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT current_timestamp,
+    KEY `fk_runner_deleted_id` (`runner_id`),
+    CONSTRAINT `runners_running_ibfk_1` FOREIGN KEY fk_runner_deleted_id(`runner_id`) REFERENCES runners(`uuid`) ON DELETE CASCADE
+);
+
+CREATE TABLE `runners_deleted` (
+    `runner_id` VARCHAR(36) NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT current_timestamp,
+    `reason` VARCHAR(255) NOT NULL,
+    KEY `fk_runner_deleted_id` (`runner_id`),
+    CONSTRAINT `runners_deleted_ibfk_1` FOREIGN KEY fk_runner_deleted_id(`runner_id`) REFERENCES runners(`uuid`) ON DELETE CASCADE
 );
 
 CREATE TABLE `jobs` (
