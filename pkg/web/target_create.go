@@ -50,6 +50,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	case err != nil:
 		logger.Logf(false, "failed to get target by scope [ghe_domain: %s scope: %s]: %+v", t.GHEDomain.String, t.Scope, err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore error")
+		return
 
 	case target.Status != datastore.TargetStatusDeleted:
 		// already registered
