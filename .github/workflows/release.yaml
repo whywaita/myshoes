@@ -46,7 +46,7 @@ jobs:
       - uses: docker/metadata-action@v3
         id: meta
         with:
-          images: ghcr.io/whywaita/gigani
+          images: ghcr.io/whywaita/myshoes
           tags: |
             type=raw,value=latest
             type=semver,pattern={{raw}}
