@@ -153,7 +153,7 @@ func searchRepo(ctx context.Context, ds datastore.Datastore, gheDomain, repo str
 
 	// use repo scope if set repo
 	repoTarget, err := ds.GetTargetByScope(ctx, gheDomain, repo)
-	if err == nil {
+	if err == nil && repoTarget.CanReceiveJob() {
 		return repoTarget, nil
 	} else if err != datastore.ErrNotFound {
 		return nil, fmt.Errorf("failed to get target from repo: %w", err)
@@ -162,7 +162,7 @@ func searchRepo(ctx context.Context, ds datastore.Datastore, gheDomain, repo str
 	// repo is not found, so search org target
 	org := sep[0]
 	orgTarget, err := ds.GetTargetByScope(ctx, gheDomain, org)
-	if err != nil {
+	if err != nil || !orgTarget.CanReceiveJob() {
 		return nil, fmt.Errorf("failed to get target from organization: %w", err)
 	}
 
