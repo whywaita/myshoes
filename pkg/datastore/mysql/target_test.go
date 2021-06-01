@@ -57,7 +57,7 @@ func TestMySQL_CreateTarget(t *testing.T) {
 				GHEDomain: sql.NullString{
 					Valid: false,
 				},
-				Status:       datastore.TargetStatusInitialize,
+				Status:       datastore.TargetStatusActive,
 				ResourceType: datastore.ResourceTypeNano,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
@@ -125,7 +125,7 @@ func TestMySQL_GetTarget(t *testing.T) {
 				UUID:                testTargetID,
 				Scope:               testScopeRepo,
 				GitHubPersonalToken: testGitHubPersonalToken,
-				Status:              datastore.TargetStatusInitialize,
+				Status:              datastore.TargetStatusActive,
 				ResourceType:        datastore.ResourceTypeNano,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
@@ -189,7 +189,7 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 				UUID:                testTargetID,
 				Scope:               testScopeRepo,
 				GitHubPersonalToken: testGitHubPersonalToken,
-				Status:              datastore.TargetStatusInitialize,
+				Status:              datastore.TargetStatusActive,
 				ResourceType:        datastore.ResourceTypeNano,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
@@ -253,7 +253,7 @@ func TestMySQL_ListTargets(t *testing.T) {
 					UUID:                testTargetID,
 					Scope:               testScopeRepo,
 					GitHubPersonalToken: testGitHubPersonalToken,
-					Status:              datastore.TargetStatusInitialize,
+					Status:              datastore.TargetStatusActive,
 					ResourceType:        datastore.ResourceTypeNano,
 					RunnerVersion: sql.NullString{
 						String: testRunnerVersion,
