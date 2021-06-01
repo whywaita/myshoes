@@ -59,7 +59,7 @@ func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
 	script := fmt.Sprintf(templateCreateLatestRunnerOnce,
 		target.Scope,
 		target.GHEDomain.String,
-		target.GitHubPersonalToken,
+		target.GitHubToken,
 		runnerUser,
 		targetVersion,
 		runnerServiceJs)

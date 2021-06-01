@@ -12,15 +12,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v32/github"
-
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-github/v35/github"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/internal/testutils"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/web"
 )
+
+var testInstallationID = int64(100000000)
+var testGitHubAppToken = "secret-app-token"
+var testTime = time.Date(2037, 9, 3, 0, 0, 0, 0, time.Local)
 
 func parseResponse(resp *http.Response) ([]byte, int) {
 	defer resp.Body.Close()
@@ -33,12 +36,20 @@ func parseResponse(resp *http.Response) ([]byte, int) {
 }
 
 func setStubFunctions() {
-	web.GHExistGitHubRepositoryFunc = func(scope, gheDomain string, gheDomainValid bool, githubPersonalToken string) error {
+	web.GHExistGitHubRepositoryFunc = func(scope, gheDomain string, githubPersonalToken string) error {
 		return nil
 	}
 
 	web.GHListRunnersFunc = func(ctx context.Context, client *github.Client, owner, repo string) ([]*github.Runner, error) {
 		return nil, nil
+	}
+
+	web.GHIsInstalledGitHubApp = func(ctx context.Context, gheDomain, inputScope string) (int64, error) {
+		return testInstallationID, nil
+	}
+
+	web.GHGenerateGitHubAppsToken = func(gheDomain string, installationID int64) (string, *time.Time, error) {
+		return testGitHubAppToken, &testTime, nil
 	}
 }
 
@@ -55,11 +66,12 @@ func Test_handleTargetCreate(t *testing.T) {
 		err   bool
 	}{
 		{
-			input: `{"scope": "octocat", "ghe_domain": "", "github_personal_token": "secret", "resource_type": "micro", "runner_user": "ubuntu"}`,
+			input: `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`,
 			want: &datastore.Target{
-				Scope:               "octocat",
-				GitHubPersonalToken: "secret",
-				ResourceType:        datastore.ResourceTypeMicro,
+				Scope:          "octocat",
+				GitHubToken:    testGitHubAppToken,
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeMicro,
 				RunnerUser: sql.NullString{
 					Valid:  true,
 					String: "ubuntu",
@@ -69,10 +81,11 @@ func Test_handleTargetCreate(t *testing.T) {
 			err: false,
 		},
 		{
-			input: `{"scope": "whywaita/whywaita", "ghe_domain": "github.example.com", "github_personal_token": "secret", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			input: `{"scope": "whywaita/whywaita", "ghe_domain": "github.example.com", "resource_type": "nano", "runner_user": "ubuntu"}`,
 			want: &datastore.Target{
-				Scope:               "whywaita/whywaita",
-				GitHubPersonalToken: "secret",
+				Scope:          "whywaita/whywaita",
+				GitHubToken:    testGitHubAppToken,
+				TokenExpiredAt: testTime,
 				GHEDomain: sql.NullString{
 					Valid:  true,
 					String: "github.example.com",
@@ -104,7 +117,7 @@ func Test_handleTargetCreate(t *testing.T) {
 
 		u := gotContent.UUID
 		gotContent.UUID = uuid.UUID{}
-		gotContent.GitHubPersonalToken = "secret" // http response hasn't a token
+		gotContent.GitHubToken = testGitHubAppToken // http response hasn't a token
 		gotContent.CreatedAt = time.Time{}
 		gotContent.UpdatedAt = time.Time{}
 
@@ -133,7 +146,7 @@ func Test_handleTargetCreate_alreadyRegistered(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "ghe_domain": "", "github_personal_token": "secret", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -163,7 +176,7 @@ func Test_handleTargetCreate_recreated(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "ghe_domain": "", "github_personal_token": "secret", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -223,7 +236,7 @@ func Test_handleTargetList(t *testing.T) {
 	setStubFunctions()
 
 	for _, rt := range []string{"nano", "micro"} {
-		target := fmt.Sprintf(`{"scope": "repo%s", "github_personal_token": "secret", "resource_type": "%s", "runner_user": "ubuntu"}`,
+		target := fmt.Sprintf(`{"scope": "repo%s", "resource_type": "%s", "runner_user": "ubuntu"}`,
 			rt, rt)
 		resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 		if err != nil {
@@ -243,9 +256,9 @@ func Test_handleTargetList(t *testing.T) {
 			input: nil,
 			want: &[]datastore.Target{
 				{
-					Scope:               "reponano",
-					GitHubPersonalToken: "",
-					ResourceType:        datastore.ResourceTypeNano,
+					Scope:          "reponano",
+					TokenExpiredAt: testTime,
+					ResourceType:   datastore.ResourceTypeNano,
 					RunnerUser: sql.NullString{
 						Valid:  true,
 						String: "ubuntu",
@@ -253,9 +266,9 @@ func Test_handleTargetList(t *testing.T) {
 					Status: datastore.TargetStatusActive,
 				},
 				{
-					Scope:               "repomicro",
-					GitHubPersonalToken: "",
-					ResourceType:        datastore.ResourceTypeMicro,
+					Scope:          "repomicro",
+					TokenExpiredAt: testTime,
+					ResourceType:   datastore.ResourceTypeMicro,
 					RunnerUser: sql.NullString{
 						Valid:  true,
 						String: "ubuntu",
@@ -304,7 +317,7 @@ func Test_handleTargetRead(t *testing.T) {
 
 	setStubFunctions()
 
-	target := `{"scope": "repo", "github_personal_token": "secret", "resource_type": "micro", "runner_user": "ubuntu"}`
+	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu"}`
 
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 	if err != nil {
@@ -328,10 +341,10 @@ func Test_handleTargetRead(t *testing.T) {
 		{
 			input: targetUUID,
 			want: &datastore.Target{
-				UUID:                targetUUID,
-				Scope:               "repo",
-				GitHubPersonalToken: "",
-				ResourceType:        datastore.ResourceTypeMicro,
+				UUID:           targetUUID,
+				Scope:          "repo",
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeMicro,
 				RunnerUser: sql.NullString{
 					Valid:  true,
 					String: "ubuntu",
@@ -372,7 +385,7 @@ func Test_handleTargetDelete(t *testing.T) {
 
 	setStubFunctions()
 
-	target := `{"scope": "repo", "github_personal_token": "secret", "resource_type": "micro", "runner_user": "ubuntu"}`
+	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu"}`
 
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 	if err != nil {
@@ -396,10 +409,11 @@ func Test_handleTargetDelete(t *testing.T) {
 		{
 			input: targetUUID,
 			want: &datastore.Target{
-				UUID:                targetUUID,
-				Scope:               "repo",
-				GitHubPersonalToken: "secret",
-				ResourceType:        datastore.ResourceTypeMicro,
+				UUID:           targetUUID,
+				Scope:          "repo",
+				GitHubToken:    testGitHubAppToken,
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeMicro,
 				RunnerUser: sql.NullString{
 					Valid:  true,
 					String: "ubuntu",

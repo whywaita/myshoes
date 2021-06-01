@@ -88,13 +88,11 @@ you need to register a target that repository or organization.
   - example: `ubuntu`
 - resource_type: set instance size for a runner.
   - please check a document of shoes-providers.
-- github_personal_token: set token of GitHub Personal.
-  - please check a document of [GPT](https://docs.github.com/en/free-pro-team@latest/github/authenticating-to-github/creating-a-personal-access-token).
 
 create target example:
 
 ```bash
-$ curl -XPOST -d '{"scope": "octocat/hello-world", "ghe_domain": "https://github.example.com", "github_personal_token": "xxx", "resource_type": "micro", "runner_user": "ubuntu"}' ${your_shoes_host}/target
+$ curl -XPOST -d '{"scope": "octocat/hello-world", "ghe_domain": "https://github.example.com", "resource_type": "micro", "runner_user": "ubuntu"}' ${your_shoes_host}/target
 ```
 
 ### Create an offline runner (only one)

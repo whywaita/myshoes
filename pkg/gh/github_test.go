@@ -70,7 +70,7 @@ func TestGetRepositoryURL(t *testing.T) {
 				gheDomain:      "github-enterprise.example.com",
 				gheDomainValid: true,
 			},
-			want: "github-enterprise.example.com/api/repos/org/repo",
+			want: "github-enterprise.example.com/api/v3/repos/org/repo",
 			err:  nil,
 		},
 		{
@@ -79,7 +79,7 @@ func TestGetRepositoryURL(t *testing.T) {
 				gheDomain:      "github-enterprise.example.com",
 				gheDomainValid: true,
 			},
-			want: "github-enterprise.example.com/api/orgs/org",
+			want: "github-enterprise.example.com/api/v3/orgs/org",
 			err:  nil,
 		},
 		{
@@ -88,13 +88,13 @@ func TestGetRepositoryURL(t *testing.T) {
 				gheDomain:      "https://github-enterprise.example.com/",
 				gheDomainValid: true,
 			},
-			want: "https://github-enterprise.example.com/api/repos/org/repo",
+			want: "https://github-enterprise.example.com/api/v3/repos/org/repo",
 			err:  nil,
 		},
 	}
 
 	for _, test := range tests {
-		got, err := getRepositoryURL(test.input.scope, test.input.gheDomain, test.input.gheDomainValid)
+		got, err := getRepositoryURL(test.input.scope, test.input.gheDomain)
 		if err != test.err {
 			t.Fatalf("getRepositoryURL want err %+v, but return err %+v", test.err, err)
 		}

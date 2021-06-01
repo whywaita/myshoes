@@ -24,10 +24,11 @@ func TestMySQL_EnqueueJob(t *testing.T) {
 	testDB, _ := testutils.GetTestDB()
 
 	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:                testTargetID,
-		Scope:               testScopeRepo,
-		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        datastore.ResourceTypeNano,
+		UUID:           testTargetID,
+		Scope:          testScopeRepo,
+		GitHubToken:    testGitHubToken,
+		TokenExpiredAt: testTime,
+		ResourceType:   datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -78,10 +79,11 @@ func TestMySQL_ListJobs(t *testing.T) {
 	defer teardown()
 
 	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:                testTargetID,
-		Scope:               testScopeRepo,
-		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        datastore.ResourceTypeNano,
+		UUID:           testTargetID,
+		Scope:          testScopeRepo,
+		GitHubToken:    testGitHubToken,
+		TokenExpiredAt: testTime,
+		ResourceType:   datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}
@@ -144,10 +146,11 @@ func TestMySQL_DeleteJob(t *testing.T) {
 	testDB, _ := testutils.GetTestDB()
 
 	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:                testTargetID,
-		Scope:               testScopeRepo,
-		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        datastore.ResourceTypeNano,
+		UUID:           testTargetID,
+		Scope:          testScopeRepo,
+		GitHubToken:    testGitHubToken,
+		TokenExpiredAt: testTime,
+		ResourceType:   datastore.ResourceTypeNano,
 	}); err != nil {
 		t.Fatalf("failed to create target: %+v", err)
 	}

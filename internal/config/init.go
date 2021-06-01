@@ -1,7 +1,9 @@
 package config
 
 import (
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"log"
@@ -25,11 +27,20 @@ func Load() {
 	if pemBase64ed == "" {
 		log.Panicf("%s must be set", EnvGitHubAppPrivateKeyBase64)
 	}
-	pem, err := base64.StdEncoding.DecodeString(pemBase64ed)
+	pemByte, err := base64.StdEncoding.DecodeString(pemBase64ed)
 	if err != nil {
 		log.Panicf("failed to decode base64 %s: %+v", EnvGitHubAppPrivateKeyBase64, err)
 	}
-	Config.GitHub.PEM = pem
+	Config.GitHub.PEMByte = pemByte
+	block, _ := pem.Decode(pemByte)
+	if block == nil {
+		log.Panicf("%s is invalid format, please input private key ", EnvGitHubAppPrivateKeyBase64)
+	}
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		log.Panicf("%s is invalid format, failed to parse private key: %+v", EnvGitHubAppPrivateKeyBase64, err)
+	}
+	Config.GitHub.PEM = key
 
 	appSecret := os.Getenv(EnvGitHubAppSecret)
 	if appSecret == "" {

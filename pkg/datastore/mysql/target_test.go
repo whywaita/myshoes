@@ -18,9 +18,10 @@ import (
 
 var testTargetID = uuid.FromStringOrNil("8a72d42c-372c-4e0d-9c6a-4304d44af137")
 var testScopeRepo = "octocat/hello-world"
-var testGitHubPersonalToken = "this-code-is-github-personal-token"
+var testGitHubToken = "this-code-is-github-token"
 var testRunnerVersion = "v999.99.9"
 var testProviderURL = "/shoes-mock"
+var testTime = time.Date(2037, 9, 3, 0, 0, 0, 0, time.Local)
 
 func TestMySQL_CreateTarget(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
@@ -34,9 +35,10 @@ func TestMySQL_CreateTarget(t *testing.T) {
 	}{
 		{
 			input: datastore.Target{
-				UUID:                testTargetID,
-				Scope:               testScopeRepo,
-				GitHubPersonalToken: testGitHubPersonalToken,
+				UUID:           testTargetID,
+				Scope:          testScopeRepo,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
 				GHEDomain: sql.NullString{
 					Valid: false,
 				},
@@ -51,9 +53,10 @@ func TestMySQL_CreateTarget(t *testing.T) {
 				},
 			},
 			want: &datastore.Target{
-				UUID:                testTargetID,
-				Scope:               testScopeRepo,
-				GitHubPersonalToken: testGitHubPersonalToken,
+				UUID:           testTargetID,
+				Scope:          testScopeRepo,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
 				GHEDomain: sql.NullString{
 					Valid: false,
 				},
@@ -97,10 +100,11 @@ func TestMySQL_GetTarget(t *testing.T) {
 	defer teardown()
 
 	err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:                testTargetID,
-		Scope:               testScopeRepo,
-		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        datastore.ResourceTypeNano,
+		UUID:           testTargetID,
+		Scope:          testScopeRepo,
+		GitHubToken:    testGitHubToken,
+		TokenExpiredAt: testTime,
+		ResourceType:   datastore.ResourceTypeNano,
 		RunnerVersion: sql.NullString{
 			String: testRunnerVersion,
 			Valid:  true,
@@ -122,11 +126,12 @@ func TestMySQL_GetTarget(t *testing.T) {
 		{
 			input: testTargetID,
 			want: &datastore.Target{
-				UUID:                testTargetID,
-				Scope:               testScopeRepo,
-				GitHubPersonalToken: testGitHubPersonalToken,
-				Status:              datastore.TargetStatusActive,
-				ResourceType:        datastore.ResourceTypeNano,
+				UUID:           testTargetID,
+				Scope:          testScopeRepo,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
+				Status:         datastore.TargetStatusActive,
+				ResourceType:   datastore.ResourceTypeNano,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
 					Valid:  true,
@@ -161,10 +166,11 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 	defer teardown()
 
 	err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:                testTargetID,
-		Scope:               testScopeRepo,
-		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        datastore.ResourceTypeNano,
+		UUID:           testTargetID,
+		Scope:          testScopeRepo,
+		GitHubToken:    testGitHubToken,
+		TokenExpiredAt: testTime,
+		ResourceType:   datastore.ResourceTypeNano,
 		RunnerVersion: sql.NullString{
 			String: testRunnerVersion,
 			Valid:  true,
@@ -186,11 +192,12 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 		{
 			input: testScopeRepo,
 			want: &datastore.Target{
-				UUID:                testTargetID,
-				Scope:               testScopeRepo,
-				GitHubPersonalToken: testGitHubPersonalToken,
-				Status:              datastore.TargetStatusActive,
-				ResourceType:        datastore.ResourceTypeNano,
+				UUID:           testTargetID,
+				Scope:          testScopeRepo,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
+				Status:         datastore.TargetStatusActive,
+				ResourceType:   datastore.ResourceTypeNano,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
 					Valid:  true,
@@ -225,10 +232,11 @@ func TestMySQL_ListTargets(t *testing.T) {
 	defer teardown()
 
 	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:                testTargetID,
-		Scope:               testScopeRepo,
-		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        datastore.ResourceTypeNano,
+		UUID:           testTargetID,
+		Scope:          testScopeRepo,
+		GitHubToken:    testGitHubToken,
+		TokenExpiredAt: testTime,
+		ResourceType:   datastore.ResourceTypeNano,
 		RunnerVersion: sql.NullString{
 			String: testRunnerVersion,
 			Valid:  true,
@@ -250,11 +258,12 @@ func TestMySQL_ListTargets(t *testing.T) {
 			input: nil,
 			want: []datastore.Target{
 				{
-					UUID:                testTargetID,
-					Scope:               testScopeRepo,
-					GitHubPersonalToken: testGitHubPersonalToken,
-					Status:              datastore.TargetStatusActive,
-					ResourceType:        datastore.ResourceTypeNano,
+					UUID:           testTargetID,
+					Scope:          testScopeRepo,
+					GitHubToken:    testGitHubToken,
+					TokenExpiredAt: testTime,
+					Status:         datastore.TargetStatusActive,
+					ResourceType:   datastore.ResourceTypeNano,
 					RunnerVersion: sql.NullString{
 						String: testRunnerVersion,
 						Valid:  true,
@@ -293,10 +302,11 @@ func TestMySQL_DeleteTarget(t *testing.T) {
 	testDB, _ := testutils.GetTestDB()
 
 	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:                testTargetID,
-		Scope:               testScopeRepo,
-		GitHubPersonalToken: testGitHubPersonalToken,
-		ResourceType:        datastore.ResourceTypeNano,
+		UUID:           testTargetID,
+		Scope:          testScopeRepo,
+		GitHubToken:    testGitHubToken,
+		TokenExpiredAt: testTime,
+		ResourceType:   datastore.ResourceTypeNano,
 		RunnerVersion: sql.NullString{
 			String: testRunnerVersion,
 			Valid:  true,
@@ -317,10 +327,11 @@ func TestMySQL_DeleteTarget(t *testing.T) {
 		{
 			input: testTargetID,
 			want: &datastore.Target{
-				UUID:                testTargetID,
-				Scope:               testScopeRepo,
-				GitHubPersonalToken: testGitHubPersonalToken,
-				ResourceType:        datastore.ResourceTypeNano,
+				UUID:           testTargetID,
+				Scope:          testScopeRepo,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
 					Valid:  true,
@@ -376,9 +387,10 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 				description: "",
 			},
 			want: &datastore.Target{
-				Scope:               testScopeRepo,
-				GitHubPersonalToken: testGitHubPersonalToken,
-				ResourceType:        datastore.ResourceTypeNano,
+				Scope:          testScopeRepo,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
 					Valid:  true,
@@ -401,9 +413,10 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 				description: "job-id",
 			},
 			want: &datastore.Target{
-				Scope:               testScopeRepo,
-				GitHubPersonalToken: testGitHubPersonalToken,
-				ResourceType:        datastore.ResourceTypeNano,
+				Scope:          testScopeRepo,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
 					Valid:  true,
@@ -425,10 +438,11 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 	for _, test := range tests {
 		tID := uuid.NewV4()
 		if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-			UUID:                tID,
-			Scope:               testScopeRepo,
-			GitHubPersonalToken: testGitHubPersonalToken,
-			ResourceType:        datastore.ResourceTypeNano,
+			UUID:           tID,
+			Scope:          testScopeRepo,
+			GitHubToken:    testGitHubToken,
+			TokenExpiredAt: testTime,
+			ResourceType:   datastore.ResourceTypeNano,
 			RunnerVersion: sql.NullString{
 				String: testRunnerVersion,
 				Valid:  true,
@@ -467,7 +481,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 
 func getTargetFromSQL(testDB *sqlx.DB, uuid uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := `SELECT uuid, scope, ghe_domain, github_personal_token, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
+	query := `SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)

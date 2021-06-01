@@ -6,14 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whywaita/myshoes/pkg/shoes"
-
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v35/github"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
+	"github.com/whywaita/myshoes/pkg/shoes"
 )
 
 var (
@@ -83,7 +82,7 @@ func (m *Manager) removeRunner(ctx context.Context, t *datastore.Target) error {
 	logger.Logf(true, "start to search runner in %s", t.RepoURL())
 
 	owner, repo := t.OwnerRepo()
-	client, err := gh.NewClient(ctx, t.GitHubPersonalToken, t.GHEDomain.String)
+	client, err := gh.NewClient(ctx, t.GitHubToken, t.GHEDomain.String)
 	if err != nil {
 		return fmt.Errorf("failed to create github client: %w", err)
 	}

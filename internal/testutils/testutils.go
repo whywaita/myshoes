@@ -48,7 +48,7 @@ func IntegrationTestRunner(m *testing.M) int {
 			log.Fatalf("failed to create datastore instance: %s", err)
 		}
 
-		testDB, err = sqlx.Open("mysql", fmt.Sprintf("root:%s@(localhost:%s)/mysql?parseTime=true", mysqlRootPassword, resource.GetPort("3306/tcp")))
+		testDB, err = sqlx.Open("mysql", fmt.Sprintf("root:%s@(localhost:%s)/mysql?parseTime=true&loc=Local", mysqlRootPassword, resource.GetPort("3306/tcp")))
 		if err != nil {
 			return err
 		}
