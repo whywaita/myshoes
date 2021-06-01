@@ -147,7 +147,9 @@ func getAPIEndpoint(gheDomain string) (*url.URL, error) {
 			return nil, fmt.Errorf("failed to parse GHE url: %w", err)
 		}
 
-		u.Path = path.Join(u.Path, "api", "v3")
+		p := u.Path
+		p = path.Join(p, "api", "v3")
+		u.Path = p
 		apiEndpoint = u
 	} else {
 		u, err := url.Parse("https://api.github.com")

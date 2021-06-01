@@ -22,6 +22,10 @@ var (
 	MustGoalTime = 1 * time.Hour
 	// MustRunningTime is set time of instance create + download binaries + etc
 	MustRunningTime = 5 * time.Minute
+	// TargetTokenInterval is interval time of checking target token
+	TargetTokenInterval = 5 * time.Minute
+	//NeedRefreshToken is time of token expired
+	NeedRefreshToken = 10 * time.Minute
 )
 
 // Manager is runner management
@@ -42,9 +46,16 @@ func (m *Manager) Loop(ctx context.Context) error {
 
 	ticker := time.NewTicker(GoalCheckerInterval)
 	defer ticker.Stop()
+	tokenRefreshTicker := time.NewTicker(TargetTokenInterval)
+	defer tokenRefreshTicker.Stop()
 
 	for {
 		select {
+		case <-tokenRefreshTicker.C:
+			if err := m.doTargetToken(ctx); err != nil {
+				logger.Logf(false, "failed to refresh token: %+v", err)
+			}
+
 		case <-ticker.C:
 			if err := m.do(ctx); err != nil {
 				logger.Logf(false, "failed to starter: %+v", err)
@@ -65,6 +76,46 @@ func (m *Manager) do(ctx context.Context) error {
 	for _, target := range targets {
 		if err := m.removeRunner(ctx, &target); err != nil {
 			return fmt.Errorf("failed to delete runners: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (m *Manager) doTargetToken(ctx context.Context) error {
+	logger.Logf(true, "start refresh token")
+
+	targets, err := datastore.ListTargets(ctx, m.ds)
+	if err != nil {
+		return fmt.Errorf("failed to get targets: %w", err)
+	}
+
+	for _, target := range targets {
+		needRefreshTime := target.TokenExpiredAt.Add(-1 * NeedRefreshToken)
+		if time.Now().Before(needRefreshTime) {
+			// no need refresh
+			continue
+		}
+
+		// do refresh
+		logger.Logf(true, "%s need to update GitHub token, will be update", target.UUID)
+		installationID, err := gh.IsInstalledGitHubApp(ctx, target.GHEDomain.String, target.Scope)
+		if err != nil {
+			logger.Logf(false, "failed to get installationID: %+v", err)
+			continue
+		}
+		token, expiredAt, err := gh.GenerateGitHubAppsToken(target.GHEDomain.String, installationID)
+		if err != nil {
+			logger.Logf(false, "failed to get Apps Token: %+v", err)
+			continue
+		}
+
+		if err := m.ds.UpdateToken(ctx, target.UUID, token, *expiredAt); err != nil {
+			logger.Logf(false, "failed to update token (target: %s): %+v", target.UUID, err)
+			if err := datastore.UpdateTargetStatus(ctx, m.ds, target.UUID, datastore.TargetStatusErr, "can not update token"); err != nil {
+				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", target.UUID, err)
+			}
+			continue
 		}
 	}
 

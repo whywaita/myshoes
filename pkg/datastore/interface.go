@@ -29,6 +29,7 @@ type Datastore interface {
 
 	// Deprecated: Use datastore.UpdateTargetStatus.
 	UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus TargetStatus, description string) error
+	UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error
 
 	EnqueueJob(ctx context.Context, job Job) error
 	ListJobs(ctx context.Context) ([]Job, error)

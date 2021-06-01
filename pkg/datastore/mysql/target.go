@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -92,6 +93,16 @@ func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 func (m *MySQL) UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus datastore.TargetStatus, description string) error {
 	query := `UPDATE targets SET status = ?, status_description = ? WHERE uuid = ?`
 	if _, err := m.Conn.ExecContext(ctx, query, newStatus, description, targetID.String()); err != nil {
+		return fmt.Errorf("failed to execute UPDATE query: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateToken update token in target
+func (m *MySQL) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error {
+	query := `UPDATE targets SET github_token = ?, token_expired_at = ? WHERE uuid = ?`
+	if _, err := m.Conn.ExecContext(ctx, query, newToken, newExpiredAt, targetID.String()); err != nil {
 		return fmt.Errorf("failed to execute UPDATE query: %w", err)
 	}
 

@@ -479,6 +479,93 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 	}
 }
 
+func TestMySQL_UpdateToken(t *testing.T) {
+	testDatastore, teardown := testutils.GetTestDatastore()
+	defer teardown()
+	testDB, _ := testutils.GetTestDB()
+
+	type Input struct {
+		token   string
+		expired time.Time
+	}
+
+	tests := []struct {
+		input Input
+		want  *datastore.Target
+		err   bool
+	}{
+		{
+			input: Input{
+				token:   "new-token",
+				expired: testTime.Add(1 * time.Hour),
+			},
+			want: &datastore.Target{
+				Scope:          testScopeRepo,
+				GitHubToken:    "new-token",
+				TokenExpiredAt: testTime.Add(1 * time.Hour),
+				ResourceType:   datastore.ResourceTypeNano,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+				Status: datastore.TargetStatusActive,
+				StatusDescription: sql.NullString{
+					String: "",
+					Valid:  false,
+				},
+			},
+			err: false,
+		},
+	}
+
+	for _, test := range tests {
+		tID := uuid.NewV4()
+		if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+			UUID:           tID,
+			Scope:          testScopeRepo,
+			GitHubToken:    testGitHubToken,
+			TokenExpiredAt: testTime,
+			ResourceType:   datastore.ResourceTypeNano,
+			RunnerVersion: sql.NullString{
+				String: testRunnerVersion,
+				Valid:  true,
+			},
+			ProviderURL: sql.NullString{
+				String: testProviderURL,
+				Valid:  true,
+			},
+		}); err != nil {
+			t.Fatalf("failed to create target: %+v", err)
+		}
+
+		err := testDatastore.UpdateToken(context.Background(), tID, test.input.token, test.input.expired)
+		if !test.err && err != nil {
+			t.Fatalf("failed to update status: %+v", err)
+		}
+		got, err := getTargetFromSQL(testDB, tID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			t.Fatalf("failed to get target from SQL: %+v", err)
+		}
+		if got != nil {
+			got.UUID = uuid.UUID{}
+			got.CreatedAt = time.Time{}
+			got.UpdatedAt = time.Time{}
+		}
+
+		if diff := cmp.Diff(test.want, got); diff != "" {
+			t.Errorf("mismatch (-want +got):\n%s", diff)
+		}
+
+		if err := testDatastore.DeleteTarget(context.Background(), tID); err != nil {
+			t.Fatalf("failed to delete target: %+v", err)
+		}
+	}
+}
+
 func getTargetFromSQL(testDB *sqlx.DB, uuid uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
 	query := `SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`

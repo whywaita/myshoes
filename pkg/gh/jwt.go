@@ -30,7 +30,7 @@ func GenerateGitHubAppsToken(gheDomain string, installationID int64) (string, *t
 		"installations",
 		strconv.FormatInt(installationID, 10),
 		"access_tokens")
-	jb, err := callAPIPrivateKey(p, gheDomain)
+	jb, err := callAPIPrivateKey(http.MethodPost, p, gheDomain)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to call API: %w", err)
 	}
@@ -128,7 +128,7 @@ func listInstallations(gheDomain string) ([]*github.Installation, error) {
 	p := path.Join(
 		"app",
 		"installations")
-	jb, err := callAPIPrivateKey(p, gheDomain)
+	jb, err := callAPIPrivateKey(http.MethodGet, p, gheDomain)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call API: %w", err)
 	}
@@ -141,7 +141,7 @@ func listInstallations(gheDomain string) ([]*github.Installation, error) {
 	return *is, nil
 }
 
-func callAPIPrivateKey(apiPath, gheDomain string) ([]byte, error) {
+func callAPIPrivateKey(method, apiPath, gheDomain string) ([]byte, error) {
 	jwtToken, err := generateJWT(time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT token: %w", err)
@@ -151,8 +151,9 @@ func callAPIPrivateKey(apiPath, gheDomain string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to get API endpoint: %w", err)
 	}
 
-	endpoint := path.Join(apiEndpoint.String(), apiPath)
-	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
+	p := path.Join(apiEndpoint.Path, apiPath)
+	apiEndpoint.Path = p
+	req, err := http.NewRequest(method, apiEndpoint.String(), nil)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
 	req.Header.Add("Accept", "application/vnd.github.v3+json")
 
@@ -163,6 +164,10 @@ func callAPIPrivateKey(apiPath, gheDomain string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to POST request: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode > 400 {
+		return nil, fmt.Errorf("invalid status code (%d)", resp.StatusCode)
+	}
+
 	jb, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
