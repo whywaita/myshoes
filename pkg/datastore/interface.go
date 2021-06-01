@@ -124,12 +124,11 @@ type TargetStatus string
 
 // TargetStatus variables
 const (
-	TargetStatusInitialize TargetStatus = "initialize"
-	TargetStatusActive                  = "active"
-	TargetStatusRunning                 = "running"
-	TargetStatusSuspend                 = "suspend"
-	TargetStatusDeleted                 = "deleted"
-	TargetStatusErr                     = "error"
+	TargetStatusActive  TargetStatus = "active"
+	TargetStatusRunning              = "running"
+	TargetStatusSuspend              = "suspend"
+	TargetStatusDeleted              = "deleted"
+	TargetStatusErr                  = "error"
 )
 
 // Job is a runner job

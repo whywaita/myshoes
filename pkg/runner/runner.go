@@ -23,8 +23,8 @@ var (
 	MustGoalTime = 1 * time.Hour
 	// MustRunningTime is set time of instance create + download binaries + etc
 	MustRunningTime = 5 * time.Minute
-	// CheckPermissionInterval is interval time of check permission
-	CheckPermissionInterval = 10 * time.Second
+	//// CheckPermissionInterval is interval time of check permission
+	//CheckPermissionInterval = 10 * time.Second
 )
 
 // Manager is runner management
@@ -46,8 +46,8 @@ func (m *Manager) Loop(ctx context.Context) error {
 	ticker := time.NewTicker(GoalCheckerInterval)
 	defer ticker.Stop()
 
-	permissionChecker := time.NewTicker(CheckPermissionInterval)
-	defer permissionChecker.Stop()
+	//permissionChecker := time.NewTicker(CheckPermissionInterval)
+	//defer permissionChecker.Stop()
 
 	for {
 		select {
@@ -55,10 +55,10 @@ func (m *Manager) Loop(ctx context.Context) error {
 			if err := m.do(ctx); err != nil {
 				logger.Logf(false, "failed to starter: %+v", err)
 			}
-		case <-permissionChecker.C:
-			if err := m.permissionCheck(ctx); err != nil {
-				logger.Logf(false, "failed to check permission: %+v", err)
-			}
+			//case <-permissionChecker.C:
+			//	if err := m.permissionCheck(ctx); err != nil {
+			//		logger.Logf(false, "failed to check permission: %+v", err)
+			//	}
 		}
 	}
 }
@@ -83,47 +83,47 @@ func (m *Manager) do(ctx context.Context) error {
 
 // permissionCheck check permission in target when datastore.TargetStatusInitialize.
 // update target status after this function.
-func (m *Manager) permissionCheck(ctx context.Context) error {
-	logger.Logf(true, "start checking initialize state")
-
-	targets, err := datastore.ListTargets(ctx, m.ds)
-	if err != nil {
-		return fmt.Errorf("failed to get targets: %w", err)
-	}
-
-	for _, target := range targets {
-		if target.Status != datastore.TargetStatusInitialize {
-			// check only initialize status
-			continue
-		}
-
-		logger.Logf(true, "found target that status is initialize (URL: %s)", target.RepoURL())
-
-		client, err := gh.NewClient(ctx, target.GitHubPersonalToken, target.GHEDomain.String)
-		if err != nil {
-			return fmt.Errorf("failed to create github client: %w", err)
-		}
-		owner, repo := target.OwnerRepo()
-
-		if _, err := gh.ListRunners(ctx, client, owner, repo); err != nil {
-			logger.Logf(false, "failed to retrieve runner from GitHub (URL: %s): %+v", target.RepoURL(), err)
-
-			if err := datastore.UpdateTargetStatus(ctx, m.ds, target.UUID, datastore.TargetStatusErr, "failed to fetch runner from GitHub"); err != nil {
-				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", target.UUID, err)
-				continue
-			}
-			continue
-		} else {
-			logger.Logf(true, "successfully get runners from GitHub (URL: %s)", target.RepoURL())
-			if err := datastore.UpdateTargetStatus(ctx, m.ds, target.UUID, datastore.TargetStatusActive, ""); err != nil {
-				logger.Logf(false, "failed to update target status (target ID: %s,): %+v\n", target.UUID, err)
-				continue
-			}
-		}
-	}
-
-	return nil
-}
+//func (m *Manager) permissionCheck(ctx context.Context) error {
+//	logger.Logf(true, "start checking initialize state")
+//
+//	targets, err := datastore.ListTargets(ctx, m.ds)
+//	if err != nil {
+//		return fmt.Errorf("failed to get targets: %w", err)
+//	}
+//
+//	for _, target := range targets {
+//		if target.Status != datastore.TargetStatusInitialize {
+//			// check only initialize status
+//			continue
+//		}
+//
+//		logger.Logf(true, "found target that status is initialize (URL: %s)", target.RepoURL())
+//
+//		client, err := gh.NewClient(ctx, target.GitHubPersonalToken, target.GHEDomain.String)
+//		if err != nil {
+//			return fmt.Errorf("failed to create github client: %w", err)
+//		}
+//		owner, repo := target.OwnerRepo()
+//
+//		if _, err := gh.ListRunners(ctx, client, owner, repo); err != nil {
+//			logger.Logf(false, "failed to retrieve runner from GitHub (URL: %s): %+v", target.RepoURL(), err)
+//
+//			if err := datastore.UpdateTargetStatus(ctx, m.ds, target.UUID, datastore.TargetStatusErr, "failed to fetch runner from GitHub"); err != nil {
+//				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", target.UUID, err)
+//				continue
+//			}
+//			continue
+//		} else {
+//			logger.Logf(true, "successfully get runners from GitHub (URL: %s)", target.RepoURL())
+//			if err := datastore.UpdateTargetStatus(ctx, m.ds, target.UUID, datastore.TargetStatusActive, ""); err != nil {
+//				logger.Logf(false, "failed to update target status (target ID: %s,): %+v\n", target.UUID, err)
+//				continue
+//			}
+//		}
+//	}
+//
+//	return nil
+//}
 
 // Runner is a runner implement
 type Runner struct {

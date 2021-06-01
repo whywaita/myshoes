@@ -7,7 +7,7 @@ CREATE TABLE `targets` (
     `runner_user` VARCHAR(255),
     `runner_version` VARCHAR(255),
     `provider_url` VARCHAR(255),
-    `status` VARCHAR(255) NOT NULL DEFAULT 'initialize',
+    `status` VARCHAR(255) NOT NULL DEFAULT 'active',
     `status_description` VARCHAR(255),
     `created_at` TIMESTAMP NOT NULL DEFAULT current_timestamp,
     `updated_at` TIMESTAMP NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp,

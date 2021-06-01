@@ -64,7 +64,7 @@ func Test_handleTargetCreate(t *testing.T) {
 					Valid:  true,
 					String: "ubuntu",
 				},
-				Status: datastore.TargetStatusInitialize,
+				Status: datastore.TargetStatusActive,
 			},
 			err: false,
 		},
@@ -82,7 +82,7 @@ func Test_handleTargetCreate(t *testing.T) {
 					Valid:  true,
 					String: "ubuntu",
 				},
-				Status: datastore.TargetStatusInitialize,
+				Status: datastore.TargetStatusActive,
 			},
 		},
 	}
@@ -210,8 +210,8 @@ func Test_handleTargetCreate_recreated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get created target: %+v", err)
 	}
-	if got.Status != datastore.TargetStatusInitialize {
-		t.Fatalf("must be status is initialize when recreated")
+	if got.Status != datastore.TargetStatusActive {
+		t.Fatalf("must be status is active when recreated")
 	}
 }
 
@@ -250,7 +250,7 @@ func Test_handleTargetList(t *testing.T) {
 						Valid:  true,
 						String: "ubuntu",
 					},
-					Status: datastore.TargetStatusInitialize,
+					Status: datastore.TargetStatusActive,
 				},
 				{
 					Scope:               "repomicro",
@@ -260,7 +260,7 @@ func Test_handleTargetList(t *testing.T) {
 						Valid:  true,
 						String: "ubuntu",
 					},
-					Status: datastore.TargetStatusInitialize,
+					Status: datastore.TargetStatusActive,
 				},
 			},
 		},
@@ -336,7 +336,7 @@ func Test_handleTargetRead(t *testing.T) {
 					Valid:  true,
 					String: "ubuntu",
 				},
-				Status: datastore.TargetStatusInitialize,
+				Status: datastore.TargetStatusActive,
 			},
 		},
 	}
