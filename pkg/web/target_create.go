@@ -41,7 +41,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	}
 
 	t := inputTarget.toDS(token, *expiredAt)
-	if err := isValidScopeAndToken(ctx, t.Scope, t.GHEDomain.String, token, t.GHEDomain.Valid); err != nil {
+	if err := isValidScopeAndToken(ctx, t.Scope, t.GHEDomain.String, token); err != nil {
 		outputErrorMsg(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -93,7 +93,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	return
 }
 
-func isValidScopeAndToken(ctx context.Context, scope, gheDomain, githubPersonalToken string, gheDomainValid bool) error {
+func isValidScopeAndToken(ctx context.Context, scope, gheDomain, githubPersonalToken string) error {
 	if err := GHExistGitHubRepositoryFunc(scope, gheDomain, githubPersonalToken); err != nil {
 		logger.Logf(false, "failed to found github repository: %+v", err)
 		return fmt.Errorf("github scope is invalid (maybe, repository is not found)")
