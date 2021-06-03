@@ -79,7 +79,7 @@ func (m *Manager) do(ctx context.Context) error {
 	logger.Logf(true, "found %d targets in datastore", len(targets))
 	for _, target := range targets {
 		if err := m.removeRunner(ctx, &target); err != nil {
-			return fmt.Errorf("failed to delete runners: %w", err)
+			logger.Logf(true, "failed to delete runners (target: %s): %+v", target.RepoURL(), err)
 		}
 	}
 
