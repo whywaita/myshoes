@@ -59,11 +59,13 @@ func (m *Manager) Loop(ctx context.Context) error {
 			if err := m.doTargetToken(ctx); err != nil {
 				logger.Logf(false, "failed to refresh token: %+v", err)
 			}
-
 		case <-ticker.C:
 			if err := m.do(ctx); err != nil {
 				logger.Logf(false, "failed to starter: %+v", err)
 			}
+
+		case <-ctx.Done():
+			return nil
 		}
 	}
 }
