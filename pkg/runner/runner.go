@@ -49,6 +49,10 @@ func (m *Manager) Loop(ctx context.Context) error {
 	tokenRefreshTicker := time.NewTicker(TargetTokenInterval)
 	defer tokenRefreshTicker.Stop()
 
+	if err := m.doTargetToken(ctx); err != nil {
+		logger.Logf(false, "failed to refresh token in initialize: %+v", err)
+	}
+
 	for {
 		select {
 		case <-tokenRefreshTicker.C:
