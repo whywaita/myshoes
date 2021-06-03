@@ -29,6 +29,7 @@ type Datastore interface {
 
 	// Deprecated: Use datastore.UpdateTargetStatus.
 	UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus TargetStatus, description string) error
+	UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error
 
 	EnqueueJob(ctx context.Context, job Job) error
 	ListJobs(ctx context.Context) ([]Job, error)
@@ -42,18 +43,19 @@ type Datastore interface {
 
 // Target is a target repository that will add auto-scaling runner.
 type Target struct {
-	UUID                uuid.UUID      `db:"uuid" json:"id"`
-	Scope               string         `db:"scope" json:"scope"`                                 // repo (:owner/:repo) or org (:organization)
-	GitHubPersonalToken string         `db:"github_personal_token" json:"github_personal_token"` // TODO: encrypt
-	GHEDomain           sql.NullString `db:"ghe_domain" json:"ghe_domain"`
-	ResourceType        ResourceType   `db:"resource_type" json:"resource_type"`
-	RunnerUser          sql.NullString `db:"runner_user" json:"runner_user"`
-	RunnerVersion       sql.NullString `db:"runner_version" json:"runner_version"`
-	ProviderURL         sql.NullString `db:"provider_url" json:"provider_url"`
-	Status              TargetStatus   `db:"status" json:"status"`
-	StatusDescription   sql.NullString `db:"status_description" json:"status_description"`
-	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt           time.Time      `db:"updated_at" json:"updated_at"`
+	UUID              uuid.UUID      `db:"uuid" json:"id"`
+	Scope             string         `db:"scope" json:"scope"` // repo (:owner/:repo) or org (:organization)
+	GitHubToken       string         `db:"github_token" json:"github_token"`
+	TokenExpiredAt    time.Time      `db:"token_expired_at" json:"token_expired_at"`
+	GHEDomain         sql.NullString `db:"ghe_domain" json:"ghe_domain"`
+	ResourceType      ResourceType   `db:"resource_type" json:"resource_type"`
+	RunnerUser        sql.NullString `db:"runner_user" json:"runner_user"`
+	RunnerVersion     sql.NullString `db:"runner_version" json:"runner_version"`
+	ProviderURL       sql.NullString `db:"provider_url" json:"provider_url"`
+	Status            TargetStatus   `db:"status" json:"status"`
+	StatusDescription sql.NullString `db:"status_description" json:"status_description"`
+	CreatedAt         time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt         time.Time      `db:"updated_at" json:"updated_at"`
 }
 
 // RepoURL return repository URL.

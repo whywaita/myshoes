@@ -29,8 +29,19 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		outputErrorMsg(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	t := inputTarget.toDS()
-	if err := isValidScopeAndToken(ctx, t.Scope, t.GHEDomain.String, t.GitHubPersonalToken, t.GHEDomain.Valid); err != nil {
+	installationID, err := GHIsInstalledGitHubApp(ctx, inputTarget.GHEDomain, inputTarget.Scope)
+	if err != nil {
+		logger.Logf(false, "failed to check installed GitHub App: %+v", err)
+		outputErrorMsg(w, http.StatusBadRequest, "invalid GitHub Apps")
+		return
+	}
+	token, expiredAt, err := GHGenerateGitHubAppsToken(inputTarget.GHEDomain, installationID)
+	if err != nil {
+		logger.Logf(false, "failed to generate")
+	}
+
+	t := inputTarget.toDS(token, *expiredAt)
+	if err := isValidScopeAndToken(ctx, t.Scope, t.GHEDomain.String, token); err != nil {
 		outputErrorMsg(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -82,8 +93,8 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	return
 }
 
-func isValidScopeAndToken(ctx context.Context, scope, gheDomain, githubPersonalToken string, gheDomainValid bool) error {
-	if err := GHExistGitHubRepositoryFunc(scope, gheDomain, gheDomainValid, githubPersonalToken); err != nil {
+func isValidScopeAndToken(ctx context.Context, scope, gheDomain, githubPersonalToken string) error {
+	if err := GHExistGitHubRepositoryFunc(scope, gheDomain, githubPersonalToken); err != nil {
 		logger.Logf(false, "failed to found github repository: %+v", err)
 		return fmt.Errorf("github scope is invalid (maybe, repository is not found)")
 	}

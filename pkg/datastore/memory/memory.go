@@ -125,6 +125,22 @@ func (m *Memory) UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, new
 	return nil
 }
 
+// UpdateToken update token in target
+func (m *Memory) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	t, ok := m.targets[targetID]
+	if !ok {
+		return fmt.Errorf("not found")
+	}
+	t.GitHubToken = newToken
+	t.TokenExpiredAt = newExpiredAt
+
+	m.targets[targetID] = t
+	return nil
+}
+
 // EnqueueJob add a job
 func (m *Memory) EnqueueJob(ctx context.Context, job datastore.Job) error {
 	m.mu.Lock()

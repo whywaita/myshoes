@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -25,11 +26,13 @@ type targetCreateParam struct {
 	ProviderURL   string `json:"provider_url"`
 }
 
-// GHExistGitHubRepositoryFunc is function pointer of gh.ExistGitHubRepository (for testing)
-var GHExistGitHubRepositoryFunc = gh.ExistGitHubRepository
-
-// GHListRunnersFunc is function pointer of gh.ListRunners (for testing)
-var GHListRunnersFunc = gh.ListRunners
+// function pointer (for testing)
+var (
+	GHExistGitHubRepositoryFunc = gh.ExistGitHubRepository
+	GHListRunnersFunc           = gh.ListRunners
+	GHIsInstalledGitHubApp      = gh.IsInstalledGitHubApp
+	GHGenerateGitHubAppsToken   = gh.GenerateGitHubAppsToken
+)
 
 func toNullString(input string) sql.NullString {
 	if input == "" {
@@ -45,8 +48,8 @@ func toNullString(input string) sql.NullString {
 }
 
 func isValidTargetCreateParam(input targetCreateParam) (bool, error) {
-	if input.Scope == "" || input.GitHubPersonalToken == "" || input.ResourceType == datastore.ResourceTypeUnknown {
-		return false, fmt.Errorf("scope, github_personal_token, resource_type must be set")
+	if input.Scope == "" || input.ResourceType == datastore.ResourceTypeUnknown {
+		return false, fmt.Errorf("scope, resource_type must be set")
 	}
 
 	if input.GHEDomain != "" {
@@ -70,21 +73,22 @@ func isValidTargetCreateParam(input targetCreateParam) (bool, error) {
 	return true, nil
 }
 
-func (t *targetCreateParam) toDS() datastore.Target {
+func (t *targetCreateParam) toDS(appToken string, tokenExpired time.Time) datastore.Target {
 	gheDomain := toNullString(t.GHEDomain)
 	runnerUser := toNullString(t.RunnerUser)
 	runnerVersion := toNullString(t.RunnerVersion)
 	providerURL := toNullString(t.ProviderURL)
 
 	return datastore.Target{
-		UUID:                t.UUID,
-		Scope:               t.Scope,
-		GitHubPersonalToken: t.GitHubPersonalToken,
-		GHEDomain:           gheDomain,
-		ResourceType:        t.ResourceType,
-		RunnerUser:          runnerUser,
-		RunnerVersion:       runnerVersion,
-		ProviderURL:         providerURL,
+		UUID:           t.UUID,
+		Scope:          t.Scope,
+		GitHubToken:    appToken,
+		TokenExpiredAt: tokenExpired,
+		GHEDomain:      gheDomain,
+		ResourceType:   t.ResourceType,
+		RunnerUser:     runnerUser,
+		RunnerVersion:  runnerVersion,
+		ProviderURL:    providerURL,
 	}
 }
 
@@ -134,7 +138,7 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 }
 
 func sanitizeTarget(t *datastore.Target) *datastore.Target {
-	t.GitHubPersonalToken = ""
+	t.GitHubToken = ""
 
 	return t
 }

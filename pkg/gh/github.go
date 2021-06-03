@@ -7,15 +7,12 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strings"
-
-	"github.com/whywaita/myshoes/pkg/logger"
-
-	"golang.org/x/oauth2"
 
 	"github.com/bradleyfalzon/ghinstallation"
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v35/github"
 	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/logger"
+	"golang.org/x/oauth2"
 )
 
 // NewClient create a client of GitHub
@@ -31,13 +28,12 @@ func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Cl
 	}
 
 	return github.NewEnterpriseClient(gheDomain, gheDomain, tc)
-
 }
 
 // CheckSignature check trust installation id from event.
 func CheckSignature(installationID int64) error {
 	appID := config.Config.GitHub.AppID
-	pem := config.Config.GitHub.PEM
+	pem := config.Config.GitHub.PEMByte
 
 	tr := http.DefaultTransport
 	_, err := ghinstallation.New(tr, appID, installationID, pem)
@@ -49,8 +45,8 @@ func CheckSignature(installationID int64) error {
 }
 
 // ExistGitHubRepository check exist of github repository
-func ExistGitHubRepository(scope, gheDomain string, gheDomainValid bool, githubPersonalToken string) error {
-	repoURL, err := getRepositoryURL(scope, gheDomain, gheDomainValid)
+func ExistGitHubRepository(scope, gheDomain string, githubPersonalToken string) error {
+	repoURL, err := getRepositoryURL(scope, gheDomain)
 	if err != nil {
 		return fmt.Errorf("failed to get repository url: %w", err)
 	}
@@ -119,7 +115,7 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 	return rs, nil
 }
 
-func getRepositoryURL(scope, gheDomain string, gheDomainValid bool) (string, error) {
+func getRepositoryURL(scope, gheDomain string) (string, error) {
 	// github.com
 	//   => https://api.github.com/repos/:owner/:repo
 	//   => https://api.github.com/orgs/:owner
@@ -132,21 +128,9 @@ func getRepositoryURL(scope, gheDomain string, gheDomainValid bool) (string, err
 		return "", fmt.Errorf("failed to detect valid scope")
 	}
 
-	var apiEndpoint *url.URL
-	if gheDomainValid {
-		u, err := url.Parse(gheDomain)
-		if err != nil {
-			return "", fmt.Errorf("failed to parse GHE url: %w", err)
-		}
-
-		u.Path = path.Join(u.Path, "api")
-		apiEndpoint = u
-	} else {
-		u, err := url.Parse("https://api.github.com")
-		if err != nil {
-			return "", fmt.Errorf("failed to parse github.com: %w", err)
-		}
-		apiEndpoint = u
+	apiEndpoint, err := getAPIEndpoint(gheDomain)
+	if err != nil {
+		return "", fmt.Errorf("failed to get API Endpoint: %w", err)
 	}
 
 	p := path.Join(apiEndpoint.Path, s.String(), scope)
@@ -155,54 +139,25 @@ func getRepositoryURL(scope, gheDomain string, gheDomainValid bool) (string, err
 	return apiEndpoint.String(), nil
 }
 
-// Scope is scope for auto-scaling target
-type Scope int
+func getAPIEndpoint(gheDomain string) (*url.URL, error) {
+	var apiEndpoint *url.URL
+	if gheDomain != "" {
+		u, err := url.Parse(gheDomain)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse GHE url: %w", err)
+		}
 
-// Scope values
-const (
-	Unknown Scope = iota
-	Repository
-	Organization
-)
-
-// String is fmt.Stringer interface
-func (s Scope) String() string {
-	switch s {
-	case Repository:
-		return "repos"
-	case Organization:
-		return "orgs"
-	default:
-		return "unknown"
-	}
-}
-
-// DetectScope detect a scope (repo or org)
-func DetectScope(scope string) Scope {
-	sep := strings.Split(scope, "/")
-	switch len(sep) {
-	case 1:
-		return Organization
-	case 2:
-		return Repository
-	default:
-		return Unknown
-	}
-}
-
-// DivideScope divide scope to owner and repo
-func DivideScope(scope string) (string, string) {
-	var owner, repo string
-
-	switch DetectScope(scope) {
-	case Organization:
-		owner = scope
-		repo = ""
-	case Repository:
-		s := strings.Split(scope, "/")
-		owner = s[0]
-		repo = s[1]
+		p := u.Path
+		p = path.Join(p, "api", "v3")
+		u.Path = p
+		apiEndpoint = u
+	} else {
+		u, err := url.Parse("https://api.github.com")
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse github.com: %w", err)
+		}
+		apiEndpoint = u
 	}
 
-	return owner, repo
+	return apiEndpoint, nil
 }

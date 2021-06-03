@@ -1,5 +1,7 @@
 package config
 
+import "crypto/rsa"
+
 // Config is config value
 var Config conf
 
@@ -7,7 +9,8 @@ type conf struct {
 	GitHub struct {
 		AppID     int64
 		AppSecret []byte
-		PEM       []byte
+		PEMByte   []byte
+		PEM       *rsa.PrivateKey
 	}
 
 	MySQLDSN        string
