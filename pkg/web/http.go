@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -71,16 +72,29 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 }
 
 // Serve start webhook receiver
-func Serve(ds datastore.Datastore) error {
+func Serve(ctx context.Context, ds datastore.Datastore) error {
 	mux := NewMux(ds)
-
 	listenAddress := fmt.Sprintf(":%d", config.Config.Port)
-	logger.Logf(false, "start webhook receiver, listen %s", listenAddress)
-	if err := http.ListenAndServe(listenAddress, mux); err != nil {
-		return fmt.Errorf("failed to listen and serve: %w", err)
+	s := &http.Server{
+		Addr:    listenAddress,
+		Handler: mux,
 	}
 
-	return nil
+	errCh := make(chan error)
+	go func() {
+		defer close(errCh)
+		logger.Logf(false, "start webhook receiver, listen %s", listenAddress)
+		if err := s.ListenAndServe(); err != nil {
+			errCh <- fmt.Errorf("failed to listen and serve: %w", err)
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return s.Shutdown(ctx)
+	case err := <-errCh:
+		return fmt.Errorf("occured error in web serve: %w", err)
+	}
 }
 
 func apacheLogging(r *http.Request) {

@@ -62,7 +62,7 @@ func (m *myShoes) Run() error {
 	ctx := context.Background()
 
 	eg.Go(func() error {
-		if err := web.Serve(m.ds); err != nil {
+		if err := web.Serve(ctx, m.ds); err != nil {
 			return fmt.Errorf("failed to serve: %w", err)
 		}
 		return nil

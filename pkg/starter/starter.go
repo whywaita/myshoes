@@ -49,6 +49,9 @@ func (s *Starter) Loop(ctx context.Context) error {
 			if err := s.do(ctx); err != nil {
 				logger.Logf(false, "failed to starter: %+v", err)
 			}
+
+		case <-ctx.Done():
+			return nil
 		}
 	}
 }
