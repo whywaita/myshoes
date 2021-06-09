@@ -36,10 +36,12 @@ please prepare a few things first.
       - Actions: Read-only
       - Administration: Read & write
       - Checks: Read-only
+    - Organization permissions:
+      - Self-hosted runners: Read & write
     - Subscribe to events
       - check `Check run`
   - download from GitHub or upload private key from your machine.
-- Install GitHub Apps to target repository to organization.
+- Install GitHub Apps to target repository or organization.
   
 ### Running
 
@@ -71,7 +73,7 @@ $ ./myshoes
 
 and more some env values from [shoes provider](https://github.com/whywaita/myshoes-providers).
 
-## Repository setup
+## Repository or Organization setup
 
 ### Register target
 
