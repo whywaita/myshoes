@@ -26,6 +26,21 @@ type targetCreateParam struct {
 	ProviderURL   string `json:"provider_url"`
 }
 
+type userTarget struct {
+	UUID              uuid.UUID              `json:"id"`
+	Scope             string                 `json:"scope"`
+	TokenExpiredAt    time.Time              `json:"token_expired_at"`
+	GHEDomain         string                 `json:"ghe_domain"`
+	ResourceType      string                 `json:"resource_type"`
+	RunnerUser        string                 `json:"runner_user"`
+	RunnerVersion     string                 `json:"runner_version"`
+	ProviderURL       string                 `json:"provider_url"`
+	Status            datastore.TargetStatus `json:"status"`
+	StatusDescription string                 `json:"status_description"`
+	CreatedAt         time.Time              `json:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at"`
+}
+
 // function pointer (for testing)
 var (
 	GHExistGitHubRepositoryFunc = gh.ExistGitHubRepository
@@ -101,10 +116,10 @@ func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore read error")
 	}
 
-	var targets []datastore.Target
+	var targets []userTarget
 	for _, t := range ts {
-		target := sanitizeTarget(&t)
-		targets = append(targets, *target)
+		ut := sanitizeTarget(&t)
+		targets = append(targets, ut)
 	}
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
@@ -129,18 +144,31 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 		return
 	}
 
-	target = sanitizeTarget(target)
+	ut := sanitizeTarget(target)
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(target)
+	json.NewEncoder(w).Encode(ut)
 	return
 }
 
-func sanitizeTarget(t *datastore.Target) *datastore.Target {
-	t.GitHubToken = ""
+func sanitizeTarget(t *datastore.Target) userTarget {
+	ut := userTarget{
+		UUID:              t.UUID,
+		Scope:             t.Scope,
+		TokenExpiredAt:    t.TokenExpiredAt,
+		GHEDomain:         t.GitHubToken,
+		ResourceType:      t.ResourceType.String(),
+		RunnerUser:        t.RunnerUser.String,
+		RunnerVersion:     t.RunnerVersion.String,
+		ProviderURL:       t.ProviderURL.String,
+		Status:            t.Status,
+		StatusDescription: t.StatusDescription.String,
+		CreatedAt:         t.CreatedAt,
+		UpdatedAt:         t.UpdatedAt,
+	}
 
-	return t
+	return ut
 }
 
 func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
