@@ -130,7 +130,7 @@ func listInstallations(gheDomain string) ([]*github.Installation, error) {
 		"installations")
 	jb, err := callAPIPrivateKey(http.MethodGet, p, gheDomain)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call API: %w", err)
+		return nil, fmt.Errorf("failed to call API (body: %s): %w", string(jb), err)
 	}
 
 	is := new([]*github.Installation)
@@ -164,13 +164,13 @@ func callAPIPrivateKey(method, apiPath, gheDomain string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to POST request: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode > 400 {
-		return nil, fmt.Errorf("invalid status code (%d)", resp.StatusCode)
-	}
 
 	jb, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode > 400 {
+		return jb, fmt.Errorf("invalid status code (%d)", resp.StatusCode)
 	}
 
 	return jb, nil
