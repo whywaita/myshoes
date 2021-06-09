@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 	"testing"
 	"time"
 
@@ -55,47 +54,36 @@ func setStubFunctions() {
 
 func Test_handleTargetCreate(t *testing.T) {
 	testURL := testutils.GetTestURL()
-	testDatastore, teardown := testutils.GetTestDatastore()
+	_, teardown := testutils.GetTestDatastore()
 	defer teardown()
 
 	setStubFunctions()
 
 	tests := []struct {
 		input string
-		want  *datastore.Target
+		want  *web.UserTarget
 		err   bool
 	}{
 		{
 			input: `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`,
-			want: &datastore.Target{
+			want: &web.UserTarget{
 				Scope:          "octocat",
-				GitHubToken:    testGitHubAppToken,
 				TokenExpiredAt: testTime,
-				ResourceType:   datastore.ResourceTypeMicro,
-				RunnerUser: sql.NullString{
-					Valid:  true,
-					String: "ubuntu",
-				},
-				Status: datastore.TargetStatusActive,
+				ResourceType:   datastore.ResourceTypeMicro.String(),
+				RunnerUser:     "ubuntu",
+				Status:         datastore.TargetStatusActive,
 			},
 			err: false,
 		},
 		{
 			input: `{"scope": "whywaita/whywaita", "ghe_domain": "github.example.com", "resource_type": "nano", "runner_user": "ubuntu"}`,
-			want: &datastore.Target{
+			want: &web.UserTarget{
 				Scope:          "whywaita/whywaita",
-				GitHubToken:    testGitHubAppToken,
 				TokenExpiredAt: testTime,
-				GHEDomain: sql.NullString{
-					Valid:  true,
-					String: "github.example.com",
-				},
-				ResourceType: datastore.ResourceTypeNano,
-				RunnerUser: sql.NullString{
-					Valid:  true,
-					String: "ubuntu",
-				},
-				Status: datastore.TargetStatusActive,
+				GHEDomain:      "github.example.com",
+				ResourceType:   datastore.ResourceTypeNano.String(),
+				RunnerUser:     "ubuntu",
+				Status:         datastore.TargetStatusActive,
 			},
 		},
 	}
@@ -110,30 +98,16 @@ func Test_handleTargetCreate(t *testing.T) {
 			t.Fatalf("must be response statuscode is 201, but got %d", code)
 		}
 
-		var gotContent datastore.Target
+		var gotContent web.UserTarget
 		if err := json.Unmarshal(content, &gotContent); err != nil {
 			t.Fatalf("failed to unmarshal resoponse content: %+v", err)
 		}
 
-		u := gotContent.UUID
 		gotContent.UUID = uuid.UUID{}
-		gotContent.GitHubToken = testGitHubAppToken // http response hasn't a token
 		gotContent.CreatedAt = time.Time{}
 		gotContent.UpdatedAt = time.Time{}
 
 		if diff := cmp.Diff(test.want, &gotContent); diff != "" {
-			t.Errorf("mismatch (-want +got):\n%s", diff)
-		}
-
-		got, err := testDatastore.GetTarget(context.Background(), u)
-		if err != nil {
-			t.Fatalf("failed to retrieve target from datastore: %+v", err)
-		}
-		got.UUID = uuid.UUID{}
-		got.CreatedAt = time.Time{}
-		got.UpdatedAt = time.Time{}
-
-		if diff := cmp.Diff(test.want, got); diff != "" {
 			t.Errorf("mismatch (-want +got):\n%s", diff)
 		}
 	}
@@ -187,7 +161,7 @@ func Test_handleTargetCreate_recreated(t *testing.T) {
 	if code != http.StatusCreated {
 		t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
 	}
-	var gotContent datastore.Target
+	var gotContent web.UserTarget
 	if err := json.Unmarshal(content, &gotContent); err != nil {
 		t.Fatalf("failed to unmarshal resoponse content: %+v", err)
 	}
@@ -249,31 +223,25 @@ func Test_handleTargetList(t *testing.T) {
 
 	tests := []struct {
 		input interface{}
-		want  *[]datastore.Target
+		want  *[]web.UserTarget
 		err   bool
 	}{
 		{
 			input: nil,
-			want: &[]datastore.Target{
+			want: &[]web.UserTarget{
 				{
 					Scope:          "reponano",
 					TokenExpiredAt: testTime,
-					ResourceType:   datastore.ResourceTypeNano,
-					RunnerUser: sql.NullString{
-						Valid:  true,
-						String: "ubuntu",
-					},
-					Status: datastore.TargetStatusActive,
+					ResourceType:   datastore.ResourceTypeNano.String(),
+					RunnerUser:     "ubuntu",
+					Status:         datastore.TargetStatusActive,
 				},
 				{
 					Scope:          "repomicro",
 					TokenExpiredAt: testTime,
-					ResourceType:   datastore.ResourceTypeMicro,
-					RunnerUser: sql.NullString{
-						Valid:  true,
-						String: "ubuntu",
-					},
-					Status: datastore.TargetStatusActive,
+					ResourceType:   datastore.ResourceTypeMicro.String(),
+					RunnerUser:     "ubuntu",
+					Status:         datastore.TargetStatusActive,
 				},
 			},
 		},
@@ -289,14 +257,10 @@ func Test_handleTargetList(t *testing.T) {
 			t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
 		}
 
-		var gotContents []datastore.Target
+		var gotContents []web.UserTarget
 		if err := json.Unmarshal(content, &gotContents); err != nil {
 			t.Fatalf("failed to unmarshal resoponse content: %+v", err)
 		}
-
-		sort.Slice(gotContents, func(i, j int) bool {
-			return gotContents[i].ResourceType < gotContents[j].ResourceType
-		})
 
 		for i := range gotContents {
 			gotContents[i].UUID = uuid.UUID{}
@@ -327,7 +291,7 @@ func Test_handleTargetRead(t *testing.T) {
 	if statusCode != http.StatusCreated {
 		t.Fatalf("must be response statuscode is 201, but got %d: %+v", resp.StatusCode, string(content))
 	}
-	var respTarget datastore.Target
+	var respTarget web.UserTarget
 	if err := json.Unmarshal(content, &respTarget); err != nil {
 		t.Fatalf("failed to unmarshal response JSON: %+v", err)
 	}
@@ -335,21 +299,18 @@ func Test_handleTargetRead(t *testing.T) {
 
 	tests := []struct {
 		input uuid.UUID
-		want  *datastore.Target
+		want  *web.UserTarget
 		err   bool
 	}{
 		{
 			input: targetUUID,
-			want: &datastore.Target{
+			want: &web.UserTarget{
 				UUID:           targetUUID,
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
-				ResourceType:   datastore.ResourceTypeMicro,
-				RunnerUser: sql.NullString{
-					Valid:  true,
-					String: "ubuntu",
-				},
-				Status: datastore.TargetStatusActive,
+				ResourceType:   datastore.ResourceTypeMicro.String(),
+				RunnerUser:     "ubuntu",
+				Status:         datastore.TargetStatusActive,
 			},
 		},
 	}
@@ -364,7 +325,7 @@ func Test_handleTargetRead(t *testing.T) {
 			t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
 		}
 
-		var got datastore.Target
+		var got web.UserTarget
 		if err := json.Unmarshal(content, &got); err != nil {
 			t.Fatalf("failed to unmarshal resoponse content: %+v", err)
 		}
@@ -395,7 +356,7 @@ func Test_handleTargetDelete(t *testing.T) {
 	if statusCode != http.StatusCreated {
 		t.Fatalf("must be response statuscode is 201, but got %d: %+v", resp.StatusCode, string(content))
 	}
-	var respTarget datastore.Target
+	var respTarget web.UserTarget
 	if err := json.Unmarshal(content, &respTarget); err != nil {
 		t.Fatalf("failed to unmarshal response JSON: %+v", err)
 	}

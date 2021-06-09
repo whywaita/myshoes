@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -24,6 +25,37 @@ type targetCreateParam struct {
 	GHEDomain     string `json:"ghe_domain"`
 	RunnerVersion string `json:"runner_version"`
 	ProviderURL   string `json:"provider_url"`
+}
+
+// UserTarget is format for user
+type UserTarget struct {
+	UUID              uuid.UUID              `json:"id"`
+	Scope             string                 `json:"scope"`
+	TokenExpiredAt    time.Time              `json:"token_expired_at"`
+	GHEDomain         string                 `json:"ghe_domain"`
+	ResourceType      string                 `json:"resource_type"`
+	RunnerUser        string                 `json:"runner_user"`
+	RunnerVersion     string                 `json:"runner_version"`
+	ProviderURL       string                 `json:"provider_url"`
+	Status            datastore.TargetStatus `json:"status"`
+	StatusDescription string                 `json:"status_description"`
+	CreatedAt         time.Time              `json:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at"`
+}
+
+func sortUserTarget(uts []UserTarget) []UserTarget {
+	sort.SliceStable(uts, func(i, j int) bool {
+		if uts[i].CreatedAt != uts[j].CreatedAt {
+			return uts[i].CreatedAt.After(uts[j].CreatedAt)
+		}
+
+		iType := datastore.UnmarshalResourceTypeString(uts[i].ResourceType)
+		jType := datastore.UnmarshalResourceTypeString(uts[j].ResourceType)
+
+		return iType < jType
+	})
+
+	return uts
 }
 
 // function pointer (for testing)
@@ -101,11 +133,13 @@ func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore read error")
 	}
 
-	var targets []datastore.Target
+	var targets []UserTarget
 	for _, t := range ts {
-		target := sanitizeTarget(&t)
-		targets = append(targets, *target)
+		ut := sanitizeTarget(&t)
+		targets = append(targets, ut)
 	}
+
+	targets = sortUserTarget(targets)
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -129,18 +163,31 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 		return
 	}
 
-	target = sanitizeTarget(target)
+	ut := sanitizeTarget(target)
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(target)
+	json.NewEncoder(w).Encode(ut)
 	return
 }
 
-func sanitizeTarget(t *datastore.Target) *datastore.Target {
-	t.GitHubToken = ""
+func sanitizeTarget(t *datastore.Target) UserTarget {
+	ut := UserTarget{
+		UUID:              t.UUID,
+		Scope:             t.Scope,
+		TokenExpiredAt:    t.TokenExpiredAt,
+		GHEDomain:         t.GHEDomain.String,
+		ResourceType:      t.ResourceType.String(),
+		RunnerUser:        t.RunnerUser.String,
+		RunnerVersion:     t.RunnerVersion.String,
+		ProviderURL:       t.ProviderURL.String,
+		Status:            t.Status,
+		StatusDescription: t.StatusDescription.String,
+		CreatedAt:         t.CreatedAt,
+		UpdatedAt:         t.UpdatedAt,
+	}
 
-	return t
+	return ut
 }
 
 func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
