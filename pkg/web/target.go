@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -26,7 +27,8 @@ type targetCreateParam struct {
 	ProviderURL   string `json:"provider_url"`
 }
 
-type userTarget struct {
+// UserTarget is format for user
+type UserTarget struct {
 	UUID              uuid.UUID              `json:"id"`
 	Scope             string                 `json:"scope"`
 	TokenExpiredAt    time.Time              `json:"token_expired_at"`
@@ -39,6 +41,21 @@ type userTarget struct {
 	StatusDescription string                 `json:"status_description"`
 	CreatedAt         time.Time              `json:"created_at"`
 	UpdatedAt         time.Time              `json:"updated_at"`
+}
+
+func sortUserTarget(uts []UserTarget) []UserTarget {
+	sort.SliceStable(uts, func(i, j int) bool {
+		if uts[i].CreatedAt != uts[j].CreatedAt {
+			return uts[i].CreatedAt.After(uts[j].CreatedAt)
+		}
+
+		iType := datastore.UnmarshalResourceTypeString(uts[i].ResourceType)
+		jType := datastore.UnmarshalResourceTypeString(uts[j].ResourceType)
+
+		return iType < jType
+	})
+
+	return uts
 }
 
 // function pointer (for testing)
@@ -116,11 +133,13 @@ func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore read error")
 	}
 
-	var targets []userTarget
+	var targets []UserTarget
 	for _, t := range ts {
 		ut := sanitizeTarget(&t)
 		targets = append(targets, ut)
 	}
+
+	targets = sortUserTarget(targets)
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -152,12 +171,12 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 	return
 }
 
-func sanitizeTarget(t *datastore.Target) userTarget {
-	ut := userTarget{
+func sanitizeTarget(t *datastore.Target) UserTarget {
+	ut := UserTarget{
 		UUID:              t.UUID,
 		Scope:             t.Scope,
 		TokenExpiredAt:    t.TokenExpiredAt,
-		GHEDomain:         t.GitHubToken,
+		GHEDomain:         t.GHEDomain.String,
 		ResourceType:      t.ResourceType.String(),
 		RunnerUser:        t.RunnerUser.String,
 		RunnerVersion:     t.RunnerVersion.String,
