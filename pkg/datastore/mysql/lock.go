@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	// LockKey is key of database lock
 	LockKey = "myshoes"
 )
 
