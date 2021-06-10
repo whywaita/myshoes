@@ -19,6 +19,12 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
+// Lock values
+var (
+	IsLocked    = "is locked"
+	IsNotLocked = "is not locked"
+)
+
 // Datastore is persistent storage
 type Datastore interface {
 	CreateTarget(ctx context.Context, target Target) error
@@ -39,6 +45,10 @@ type Datastore interface {
 	ListRunners(ctx context.Context) ([]Runner, error)
 	GetRunner(ctx context.Context, id uuid.UUID) (*Runner, error)
 	DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time, reason RunnerStatus) error
+
+	// Lock
+	GetLock(ctx context.Context) error
+	IsLocked(ctx context.Context) (string, error)
 }
 
 // Target is a target repository that will add auto-scaling runner.

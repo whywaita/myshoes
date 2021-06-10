@@ -216,3 +216,13 @@ func (m *Memory) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.
 	delete(m.runners, id)
 	return nil
 }
+
+// GetLock get lock
+func (m *Memory) GetLock(ctx context.Context) error {
+	return nil
+}
+
+// IsLocked return status of lock
+func (m *Memory) IsLocked(ctx context.Context) (string, error) {
+	return datastore.IsNotLocked, nil
+}
