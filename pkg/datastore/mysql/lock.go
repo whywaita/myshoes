@@ -4,19 +4,22 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-sql-driver/mysql"
+	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
-)
-
-const (
-	// LockKey is key of database lock
-	LockKey = "myshoes"
 )
 
 // GetLock get lock
 func (m *MySQL) GetLock(ctx context.Context) error {
 	var res int
 
-	query := fmt.Sprintf(`SELECT GET_LOCK('%s', 10)`, LockKey)
+	cfg, err := mysql.ParseDSN(config.Config.MySQLDSN)
+	if err != nil {
+		return fmt.Errorf("failed to parse DSN: %w", err)
+	}
+	lockKey := cfg.DBName
+
+	query := fmt.Sprintf(`SELECT GET_LOCK('%s', 10)`, lockKey)
 	if err := m.Conn.GetContext(ctx, &res, query); err != nil {
 		return fmt.Errorf("failed to GET_LOCK: %w", err)
 	}
@@ -28,7 +31,13 @@ func (m *MySQL) GetLock(ctx context.Context) error {
 func (m *MySQL) IsLocked(ctx context.Context) (string, error) {
 	var res int
 
-	query := fmt.Sprintf(`SELECT IS_FREE_LOCK('%s')`, LockKey)
+	cfg, err := mysql.ParseDSN(config.Config.MySQLDSN)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse DSN: %w", err)
+	}
+	lockKey := cfg.DBName
+
+	query := fmt.Sprintf(`SELECT IS_FREE_LOCK('%s')`, lockKey)
 	if err := m.Conn.GetContext(ctx, &res, query); err != nil {
 		return "", fmt.Errorf("failed to IS_FREE_LOCK: %w", err)
 	}
