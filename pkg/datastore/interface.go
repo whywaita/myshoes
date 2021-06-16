@@ -5,7 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"path"
+	"net/url"
+	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -75,7 +76,14 @@ func (t *Target) RepoURL() string {
 		serverURL = t.GHEDomain.String
 	}
 
-	return path.Join(serverURL, t.Scope)
+	s := strings.Split(serverURL, "://")
+
+	var u url.URL
+	u.Scheme = s[0]
+	u.Host = s[1]
+	u.Path = t.Scope
+
+	return u.String()
 }
 
 // OwnerRepo return :owner and :repo
