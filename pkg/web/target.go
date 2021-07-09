@@ -18,6 +18,7 @@ import (
 	"goji.io/pat"
 )
 
+// TargetCreateParam is parameter for POST /target
 type TargetCreateParam struct {
 	datastore.Target
 
@@ -105,6 +106,7 @@ func isValidTargetCreateParam(input TargetCreateParam) (bool, error) {
 	return true, nil
 }
 
+// ToDS convert to datastore.Target
 func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datastore.Target {
 	gheDomain := toNullString(t.GHEDomain)
 	runnerUser := toNullString(t.RunnerUser)
