@@ -18,7 +18,8 @@ import (
 	"goji.io/pat"
 )
 
-type targetCreateParam struct {
+// TargetCreateParam is parameter for POST /target
+type TargetCreateParam struct {
 	datastore.Target
 
 	RunnerUser    string `json:"runner_user"`
@@ -79,7 +80,7 @@ func toNullString(input string) sql.NullString {
 	}
 }
 
-func isValidTargetCreateParam(input targetCreateParam) (bool, error) {
+func isValidTargetCreateParam(input TargetCreateParam) (bool, error) {
 	if input.Scope == "" || input.ResourceType == datastore.ResourceTypeUnknown {
 		return false, fmt.Errorf("scope, resource_type must be set")
 	}
@@ -105,7 +106,8 @@ func isValidTargetCreateParam(input targetCreateParam) (bool, error) {
 	return true, nil
 }
 
-func (t *targetCreateParam) toDS(appToken string, tokenExpired time.Time) datastore.Target {
+// ToDS convert to datastore.Target
+func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datastore.Target {
 	gheDomain := toNullString(t.GHEDomain)
 	runnerUser := toNullString(t.RunnerUser)
 	runnerVersion := toNullString(t.RunnerVersion)

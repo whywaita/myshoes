@@ -21,7 +21,7 @@ var testScopeRepo = "octocat/hello-world"
 var testGitHubToken = "this-code-is-github-token"
 var testRunnerVersion = "v999.99.9"
 var testProviderURL = "/shoes-mock"
-var testTime = time.Date(2037, 9, 3, 0, 0, 0, 0, time.Local)
+var testTime = time.Date(2037, 9, 3, 0, 0, 0, 0, time.UTC)
 
 func TestMySQL_CreateTarget(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()

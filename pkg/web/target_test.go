@@ -22,7 +22,7 @@ import (
 
 var testInstallationID = int64(100000000)
 var testGitHubAppToken = "secret-app-token"
-var testTime = time.Date(2037, 9, 3, 0, 0, 0, 0, time.Local)
+var testTime = time.Date(2037, 9, 3, 0, 0, 0, 0, time.UTC)
 
 func parseResponse(resp *http.Response) ([]byte, int) {
 	defer resp.Body.Close()
