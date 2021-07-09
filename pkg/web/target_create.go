@@ -17,7 +17,7 @@ import (
 func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	// input values: scope, gpt, ghe_domain, resource_type
 	ctx := r.Context()
-	inputTarget := targetCreateParam{}
+	inputTarget := TargetCreateParam{}
 	if err := json.NewDecoder(r.Body).Decode(&inputTarget); err != nil {
 		logger.Logf(false, "failed to decode request body: %+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, "json decode error")
@@ -40,7 +40,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		logger.Logf(false, "failed to generate")
 	}
 
-	t := inputTarget.toDS(token, *expiredAt)
+	t := inputTarget.ToDS(token, *expiredAt)
 	if err := isValidScopeAndToken(ctx, t.Scope, t.GHEDomain.String, token); err != nil {
 		outputErrorMsg(w, http.StatusBadRequest, err.Error())
 		return
