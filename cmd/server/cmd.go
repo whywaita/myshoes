@@ -62,8 +62,7 @@ func newShoes() (*myShoes, error) {
 
 // Run start services.
 func (m *myShoes) Run() error {
-	eg := errgroup.Group{}
-	ctx := context.Background()
+	eg, ctx := errgroup.WithContext(context.Background())
 
 	for {
 		logger.Logf(false, "start getting lock...")
@@ -86,18 +85,21 @@ func (m *myShoes) Run() error {
 
 	eg.Go(func() error {
 		if err := web.Serve(ctx, m.ds); err != nil {
+			logger.Logf(false, "failed to web.Serve: %+v", err)
 			return fmt.Errorf("failed to serve: %w", err)
 		}
 		return nil
 	})
 	eg.Go(func() error {
 		if err := m.start.Loop(ctx); err != nil {
+			logger.Logf(false, "failed to starter manager: %+v", err)
 			return fmt.Errorf("failed to starter loop: %w", err)
 		}
 		return nil
 	})
 	eg.Go(func() error {
 		if err := m.run.Loop(ctx); err != nil {
+			logger.Logf(false, "failed to runner manager: %+v", err)
 			return fmt.Errorf("failed to runner loop: %w", err)
 		}
 		return nil
