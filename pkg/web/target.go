@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -193,7 +195,51 @@ func sanitizeTarget(t *datastore.Target) UserTarget {
 }
 
 func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
-	outputErrorMsg(w, http.StatusMethodNotAllowed, "not implement")
+	ctx := r.Context()
+	targetID, err := parseReqTargetID(r)
+	if err != nil {
+		logger.Logf(false, "failed to decode request body: %+v", err)
+		outputErrorMsg(w, http.StatusBadRequest, "incorrect target id")
+		return
+	}
+
+	inputTarget := TargetCreateParam{}
+	if err := json.NewDecoder(r.Body).Decode(&inputTarget); err != nil {
+		logger.Logf(false, "failed to decode request body: %+v", err)
+		outputErrorMsg(w, http.StatusBadRequest, "json decode error")
+		return
+	}
+	newTarget := inputTarget.ToDS("", time.Time{})
+
+	oldTarget, err := ds.GetTarget(ctx, targetID)
+	if err != nil {
+		logger.Logf(false, "failed to get target: %+v", err)
+		outputErrorMsg(w, http.StatusBadRequest, "incorrect target id (not found)")
+		return
+	}
+	if err := validateUpdateTarget(oldTarget, &newTarget); err != nil {
+		logger.Logf(false, "input error in validateUpdateTarget: %+v", err)
+		outputErrorMsg(w, http.StatusBadRequest, "request parameter has value of not updatable")
+		return
+	}
+
+	if err := ds.UpdateResourceType(ctx, targetID, inputTarget.ResourceType); err != nil {
+		logger.Logf(false, "failed to ds.UpdateResourceType: %+v", err)
+		outputErrorMsg(w, http.StatusInternalServerError, "datastore update error")
+		return
+	}
+
+	updatedTarget, err := ds.GetTarget(ctx, targetID)
+	if err != nil {
+		logger.Logf(false, "failed to get recently target in datastore: %+v", err)
+		outputErrorMsg(w, http.StatusInternalServerError, "datastore get error")
+		return
+	}
+	ut := sanitizeTarget(updatedTarget)
+
+	w.Header().Set("Content-Type", "application/json;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(ut)
 	return
 }
 
@@ -251,4 +297,29 @@ func outputErrorMsg(w http.ResponseWriter, status int, msg string) {
 	json.NewEncoder(w).Encode(struct {
 		Error string `json:"error"`
 	}{Error: msg})
+}
+
+// validateUpdateTarget check input target that can valid input in update.
+func validateUpdateTarget(old, new *datastore.Target) error {
+	for _, t := range []*datastore.Target{old, new} {
+		t.UUID = uuid.UUID{}
+
+		// can update variables
+		t.ResourceType = datastore.ResourceTypeUnknown
+
+		// time
+		t.TokenExpiredAt = time.Time{}
+		t.CreatedAt = time.Time{}
+		t.UpdatedAt = time.Time{}
+
+		// generated
+		t.Status = ""
+		t.GitHubToken = ""
+	}
+
+	if diff := cmp.Diff(old, new); diff != "" {
+		return fmt.Errorf("mismatch (-want +got):\n%s", diff)
+	}
+
+	return nil
 }

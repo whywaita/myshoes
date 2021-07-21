@@ -108,3 +108,13 @@ func (m *MySQL) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken st
 
 	return nil
 }
+
+// UpdateResourceType update resource type in target
+func (m *MySQL) UpdateResourceType(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType) error {
+	query := `UPDATE targets SET resource_type = ? WHERE uuid = ?`
+	if _, err := m.Conn.ExecContext(ctx, query, newResourceType, targetID.String()); err != nil {
+		return fmt.Errorf("failed to execute UPDATE query: %w", err)
+	}
+
+	return nil
+}

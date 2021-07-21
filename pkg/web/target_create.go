@@ -72,12 +72,17 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	case target.Status == datastore.TargetStatusDeleted:
 		// deleted, need to recreate
-		// TODO: need to update resource
 		if err := ds.UpdateTargetStatus(ctx, target.UUID, datastore.TargetStatusActive, ""); err != nil {
 			logger.Logf(false, "failed to recreate target: %+v", err)
 			outputErrorMsg(w, http.StatusInternalServerError, "datastore recreate error")
 			return
 		}
+		if err := ds.UpdateResourceType(ctx, target.UUID, t.ResourceType); err != nil {
+			logger.Logf(false, "failed to update resource type in recreating target: %+v", err)
+			outputErrorMsg(w, http.StatusInternalServerError, "update resource type error")
+			return
+		}
+
 		targetUUID = target.UUID
 	}
 
