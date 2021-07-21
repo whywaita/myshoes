@@ -339,6 +339,71 @@ func Test_handleTargetRead(t *testing.T) {
 	}
 }
 
+func Test_handleTargetUpdate(t *testing.T) {
+	testURL := testutils.GetTestURL()
+	_, teardown := testutils.GetTestDatastore()
+	defer teardown()
+
+	setStubFunctions()
+
+	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu"}`
+
+	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	content, statusCode := parseResponse(resp)
+	if statusCode != http.StatusCreated {
+		t.Fatalf("must be response statuscode is 201, but got %d: %+v", resp.StatusCode, string(content))
+	}
+	var respTarget web.UserTarget
+	if err := json.Unmarshal(content, &respTarget); err != nil {
+		t.Fatalf("failed to unmarshal response JSON: %+v", err)
+	}
+	targetUUID := respTarget.UUID
+
+	tests := []struct {
+		input string
+		want  *web.UserTarget
+		err   bool
+	}{
+		{
+			input: `{"scope": "repo", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			want: &web.UserTarget{
+				UUID:           targetUUID,
+				Scope:          "repo",
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano.String(),
+				RunnerUser:     "ubuntu",
+				Status:         datastore.TargetStatusActive,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		resp, err := http.Post(fmt.Sprintf("%s/target/%s", testURL, targetUUID.String()), "application/json", bytes.NewBufferString(test.input))
+		if !test.err && err != nil {
+			t.Fatalf("failed to POST request: %+v", err)
+		}
+		content, code := parseResponse(resp)
+		if code != http.StatusOK {
+			t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
+		}
+
+		var got web.UserTarget
+		if err := json.Unmarshal(content, &got); err != nil {
+			t.Fatalf("failed to unmarshal resoponse content: %+v", err)
+		}
+
+		got.CreatedAt = time.Time{}
+		got.UpdatedAt = time.Time{}
+
+		if diff := cmp.Diff(test.want, &got); diff != "" {
+			t.Errorf("mismatch (-want +got):\n%s", diff)
+		}
+	}
+}
+
 func Test_handleTargetDelete(t *testing.T) {
 	testURL := testutils.GetTestURL()
 	testDatastore, teardown := testutils.GetTestDatastore()

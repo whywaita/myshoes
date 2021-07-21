@@ -54,7 +54,7 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 		apacheLogging(r)
 		handleTargetRead(w, r, ds)
 	})
-	mux.HandleFunc(pat.Put("/target/:id"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Post("/target/:id"), func(w http.ResponseWriter, r *http.Request) {
 		apacheLogging(r)
 		handleTargetUpdate(w, r, ds)
 	})
