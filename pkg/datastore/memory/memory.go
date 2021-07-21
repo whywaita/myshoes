@@ -141,6 +141,21 @@ func (m *Memory) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken s
 	return nil
 }
 
+// UpdateResourceType update resource_type in target
+func (m *Memory) UpdateResourceType(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	t, ok := m.targets[targetID]
+	if !ok {
+		return fmt.Errorf("not found")
+	}
+	t.ResourceType = newResourceType
+
+	m.targets[targetID] = t
+	return nil
+}
+
 // EnqueueJob add a job
 func (m *Memory) EnqueueJob(ctx context.Context, job datastore.Job) error {
 	m.mu.Lock()
