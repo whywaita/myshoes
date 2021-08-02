@@ -155,7 +155,7 @@ func searchRepo(ctx context.Context, ds datastore.Datastore, gheDomain, repo str
 	repoTarget, err := ds.GetTargetByScope(ctx, gheDomain, repo)
 	if err == nil && repoTarget.CanReceiveJob() {
 		return repoTarget, nil
-	} else if err != datastore.ErrNotFound {
+	} else if err != nil && err != datastore.ErrNotFound {
 		return nil, fmt.Errorf("failed to get target from repo: %w", err)
 	}
 
