@@ -93,7 +93,7 @@ func Serve(ctx context.Context, ds datastore.Datastore) error {
 	case <-ctx.Done():
 		return s.Shutdown(ctx)
 	case err := <-errCh:
-		return fmt.Errorf("occured error in web serve: %w", err)
+		return fmt.Errorf("occurred error in web serve: %w", err)
 	}
 }
 
