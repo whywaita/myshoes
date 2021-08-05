@@ -154,6 +154,9 @@ func callAPIPrivateKey(method, apiPath, gheDomain string) ([]byte, error) {
 	p := path.Join(apiEndpoint.Path, apiPath)
 	apiEndpoint.Path = p
 	req, err := http.NewRequest(method, apiEndpoint.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to http.NewRequest: %w", err)
+	}
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
 	req.Header.Add("Accept", "application/vnd.github.v3+json")
 
