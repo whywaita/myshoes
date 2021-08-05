@@ -2,6 +2,11 @@
 
 ![](./docs/img/myshoes_logo_yoko_colorA.png)
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/whywaita/myshoes.svg)](https://pkg.go.dev/github.com/whywaita/myshoes)
+[![test](https://github.com/whywaita/myshoes/actions/workflows/test.yaml/badge.svg)](https://github.com/whywaita/myshoes/actions/workflows/test.yaml)
+[![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/whywaita/myshoes)](https://goreportcard.com/report/github.com/whywaita/myshoes)
+
 Auto scaling self-hosted runner :runner: (like GitHub-hosted) for GitHub Actions!
 
 # features
