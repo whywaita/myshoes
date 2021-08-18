@@ -246,7 +246,75 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 						Valid:  true,
 					},
 				}); err != nil {
-					return fmt.Errorf("failed to create active repository: %w", err)
+					return fmt.Errorf("failed to create repository: %w", err)
+				}
+
+				if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+					UUID:           testTargetID2,
+					Scope:          testScopeOrg,
+					GitHubToken:    testGitHubToken,
+					TokenExpiredAt: testTime,
+					ResourceType:   datastore.ResourceTypeNano,
+					RunnerVersion: sql.NullString{
+						String: testRunnerVersion,
+						Valid:  true,
+					},
+					ProviderURL: sql.NullString{
+						String: testProviderURL,
+						Valid:  true,
+					},
+				}); err != nil {
+					return fmt.Errorf("failed to create organization (will delete): %w", err)
+				}
+
+				if err := testDatastore.DeleteTarget(context.Background(), testTargetID2); err != nil {
+					return fmt.Errorf("failed to delete organization: %w", err)
+				}
+
+				return nil
+			},
+			err: false,
+		},
+		{
+			// repository is deleted and organization is active, correct return organization
+			input: testScopeOrg,
+			want: &datastore.Target{
+				UUID:           testTargetID2,
+				Scope:          testScopeOrg,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
+				Status:         datastore.TargetStatusActive,
+				ResourceType:   datastore.ResourceTypeNano,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+			},
+			prepare: func() error {
+				if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+					UUID:           testTargetID,
+					Scope:          testScopeRepo,
+					GitHubToken:    testGitHubToken,
+					TokenExpiredAt: testTime,
+					ResourceType:   datastore.ResourceTypeNano,
+					RunnerVersion: sql.NullString{
+						String: testRunnerVersion,
+						Valid:  true,
+					},
+					ProviderURL: sql.NullString{
+						String: testProviderURL,
+						Valid:  true,
+					},
+				}); err != nil {
+					return fmt.Errorf("failed to create repository (will delete): %w", err)
+				}
+
+				if err := testDatastore.DeleteTarget(context.Background(), testTargetID); err != nil {
+					return fmt.Errorf("failed to delete repository: %w", err)
 				}
 
 				if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
