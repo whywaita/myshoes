@@ -17,6 +17,8 @@ import (
 )
 
 var testTargetID = uuid.FromStringOrNil("8a72d42c-372c-4e0d-9c6a-4304d44af137")
+var testTargetID2 = uuid.FromStringOrNil("d14ccfea-b123-4ada-974e-bbff0937e9c7")
+var testScopeOrg = "octocat"
 var testScopeRepo = "octocat/hello-world"
 var testGitHubToken = "this-code-is-github-token"
 var testRunnerVersion = "v999.99.9"
@@ -165,31 +167,14 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
 	defer teardown()
 
-	err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:           testTargetID,
-		Scope:          testScopeRepo,
-		GitHubToken:    testGitHubToken,
-		TokenExpiredAt: testTime,
-		ResourceType:   datastore.ResourceTypeNano,
-		RunnerVersion: sql.NullString{
-			String: testRunnerVersion,
-			Valid:  true,
-		},
-		ProviderURL: sql.NullString{
-			String: testProviderURL,
-			Valid:  true,
-		},
-	})
-	if err != nil {
-		t.Fatalf("failed to create target: %+v", err)
-	}
-
 	tests := []struct {
-		input string
-		want  *datastore.Target
-		err   bool
+		input   string
+		want    *datastore.Target
+		prepare func() error
+		err     bool
 	}{
 		{
+			// create single instance
 			input: testScopeRepo,
 			want: &datastore.Target{
 				UUID:           testTargetID,
@@ -207,11 +192,160 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 					Valid:  true,
 				},
 			},
+			prepare: func() error {
+				return testDatastore.CreateTarget(context.Background(), datastore.Target{
+					UUID:           testTargetID,
+					Scope:          testScopeRepo,
+					GitHubToken:    testGitHubToken,
+					TokenExpiredAt: testTime,
+					ResourceType:   datastore.ResourceTypeNano,
+					RunnerVersion: sql.NullString{
+						String: testRunnerVersion,
+						Valid:  true,
+					},
+					ProviderURL: sql.NullString{
+						String: testProviderURL,
+						Valid:  true,
+					},
+				})
+			},
+			err: false,
+		},
+		{
+			// repository is active and organization is deleted, correct return repository
+			input: testScopeRepo,
+			want: &datastore.Target{
+				UUID:           testTargetID,
+				Scope:          testScopeRepo,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
+				Status:         datastore.TargetStatusActive,
+				ResourceType:   datastore.ResourceTypeNano,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+			},
+			prepare: func() error {
+				if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+					UUID:           testTargetID,
+					Scope:          testScopeRepo,
+					GitHubToken:    testGitHubToken,
+					TokenExpiredAt: testTime,
+					ResourceType:   datastore.ResourceTypeNano,
+					RunnerVersion: sql.NullString{
+						String: testRunnerVersion,
+						Valid:  true,
+					},
+					ProviderURL: sql.NullString{
+						String: testProviderURL,
+						Valid:  true,
+					},
+				}); err != nil {
+					return fmt.Errorf("failed to create repository: %w", err)
+				}
+
+				if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+					UUID:           testTargetID2,
+					Scope:          testScopeOrg,
+					GitHubToken:    testGitHubToken,
+					TokenExpiredAt: testTime,
+					ResourceType:   datastore.ResourceTypeNano,
+					RunnerVersion: sql.NullString{
+						String: testRunnerVersion,
+						Valid:  true,
+					},
+					ProviderURL: sql.NullString{
+						String: testProviderURL,
+						Valid:  true,
+					},
+				}); err != nil {
+					return fmt.Errorf("failed to create organization (will delete): %w", err)
+				}
+
+				if err := testDatastore.DeleteTarget(context.Background(), testTargetID2); err != nil {
+					return fmt.Errorf("failed to delete organization: %w", err)
+				}
+
+				return nil
+			},
+			err: false,
+		},
+		{
+			// repository is deleted and organization is active, correct return organization
+			input: testScopeOrg,
+			want: &datastore.Target{
+				UUID:           testTargetID2,
+				Scope:          testScopeOrg,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
+				Status:         datastore.TargetStatusActive,
+				ResourceType:   datastore.ResourceTypeNano,
+				RunnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+			},
+			prepare: func() error {
+				if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+					UUID:           testTargetID,
+					Scope:          testScopeRepo,
+					GitHubToken:    testGitHubToken,
+					TokenExpiredAt: testTime,
+					ResourceType:   datastore.ResourceTypeNano,
+					RunnerVersion: sql.NullString{
+						String: testRunnerVersion,
+						Valid:  true,
+					},
+					ProviderURL: sql.NullString{
+						String: testProviderURL,
+						Valid:  true,
+					},
+				}); err != nil {
+					return fmt.Errorf("failed to create repository (will delete): %w", err)
+				}
+
+				if err := testDatastore.DeleteTarget(context.Background(), testTargetID); err != nil {
+					return fmt.Errorf("failed to delete repository: %w", err)
+				}
+
+				if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+					UUID:           testTargetID2,
+					Scope:          testScopeOrg,
+					GitHubToken:    testGitHubToken,
+					TokenExpiredAt: testTime,
+					ResourceType:   datastore.ResourceTypeNano,
+					RunnerVersion: sql.NullString{
+						String: testRunnerVersion,
+						Valid:  true,
+					},
+					ProviderURL: sql.NullString{
+						String: testProviderURL,
+						Valid:  true,
+					},
+				}); err != nil {
+					return fmt.Errorf("failed to create deleted organization: %w", err)
+				}
+
+				return nil
+			},
 			err: false,
 		},
 	}
 
 	for _, test := range tests {
+		if err := test.prepare(); err != nil {
+			t.Fatalf("failed to prepare function: %+v", err)
+		}
+
 		got, err := testDatastore.GetTargetByScope(context.Background(), "", test.input)
 		if err != nil {
 			t.Fatalf("failed to get target: %+v", err)
@@ -224,6 +358,8 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 		if diff := cmp.Diff(test.want, got); diff != "" {
 			t.Errorf("mismatch (-want +got):\n%s", diff)
 		}
+
+		teardown()
 	}
 }
 
