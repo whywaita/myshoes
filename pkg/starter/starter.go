@@ -192,6 +192,7 @@ func deleteInstance(ctx context.Context, cloudID string) error {
 		return fmt.Errorf("failed to delete instance: %w", err)
 	}
 
+	logger.Logf(false, "successfully delete instance that not registered (cloud ID: %s)", cloudID)
 	return nil
 }
 
@@ -209,8 +210,7 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, job datastore.Job, 
 
 	owner, repo := gh.DivideScope(target.Scope)
 
-	timeoutSeconds := 60
-	for i := 0; i > timeoutSeconds; i++ { // 60 second is timeout
+	for i := 0; float64(i) < runner.MustRunningTime.Seconds(); i++ {
 		if _, err := gh.ExistGitHubRunner(ctx, client, owner, repo, cloudID); err == nil {
 			// success to register runner to GitHub
 			return nil
@@ -219,8 +219,9 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, job datastore.Job, 
 			return fmt.Errorf("failed to check existing runner in GitHub: %w", err)
 		}
 
+		logger.Logf(true, "%s is not found in GitHub, will retry... (second: %ds)", cloudID, i)
 		time.Sleep(1 * time.Second)
 	}
 
-	return fmt.Errorf("faied to to check existing runner in GitHub: timeout in %ds", timeoutSeconds)
+	return fmt.Errorf("faied to to check existing runner in GitHub: timeout in %s", runner.MustRunningTime)
 }
