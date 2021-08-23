@@ -209,8 +209,7 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, job datastore.Job, 
 
 	owner, repo := gh.DivideScope(target.Scope)
 
-	timeoutSeconds := 60
-	for i := 0; i > timeoutSeconds; i++ { // 60 second is timeout
+	for i := 0; float64(i) > runner.MustRunningTime.Seconds(); i++ {
 		if _, err := gh.ExistGitHubRunner(ctx, client, owner, repo, cloudID); err == nil {
 			// success to register runner to GitHub
 			return nil
@@ -222,5 +221,5 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, job datastore.Job, 
 		time.Sleep(1 * time.Second)
 	}
 
-	return fmt.Errorf("faied to to check existing runner in GitHub: timeout in %ds", timeoutSeconds)
+	return fmt.Errorf("faied to to check existing runner in GitHub: timeout in %s", runner.MustRunningTime)
 }
