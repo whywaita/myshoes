@@ -63,6 +63,7 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 		handleTargetDelete(w, r, ds)
 	})
 
+	// Config endpoints
 	mux.HandleFunc(pat.Post("/config/debug"), func(w http.ResponseWriter, r *http.Request) {
 		apacheLogging(r)
 		handleConfigDebug(w, r)
