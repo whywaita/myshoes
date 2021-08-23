@@ -218,6 +218,7 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, job datastore.Job, 
 			return fmt.Errorf("failed to check existing runner in GitHub: %w", err)
 		}
 
+		logger.Logf(true, "%s is not found in GitHub, will retry... (second: %ds)", cloudID, i)
 		time.Sleep(1 * time.Second)
 	}
 
