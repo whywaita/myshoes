@@ -192,6 +192,7 @@ func deleteInstance(ctx context.Context, cloudID string) error {
 		return fmt.Errorf("failed to delete instance: %w", err)
 	}
 
+	logger.Logf(false, "successfully delete instance that not registered (cloud ID: %s)", cloudID)
 	return nil
 }
 
@@ -209,7 +210,7 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, job datastore.Job, 
 
 	owner, repo := gh.DivideScope(target.Scope)
 
-	for i := 0; float64(i) > runner.MustRunningTime.Seconds(); i++ {
+	for i := 0; float64(i) < runner.MustRunningTime.Seconds(); i++ {
 		if _, err := gh.ExistGitHubRunner(ctx, client, owner, repo, cloudID); err == nil {
 			// success to register runner to GitHub
 			return nil
