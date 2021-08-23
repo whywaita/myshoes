@@ -7,12 +7,17 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/v35/github"
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/logger"
 	"golang.org/x/oauth2"
+)
+
+var (
+	ErrNotFound = fmt.Errorf("not found")
 )
 
 // NewClient create a client of GitHub
@@ -70,6 +75,22 @@ func ExistGitHubRepository(scope, gheDomain string, githubPersonalToken string) 
 	}
 
 	return fmt.Errorf("invalid response code (%d)", resp.StatusCode)
+}
+
+// ExistGitHubRunner check exist registered of github runner
+func ExistGitHubRunner(ctx context.Context, client *github.Client, owner, repo, runnerName string) (*github.Runner, error) {
+	runners, err := ListRunners(ctx, client, owner, repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get list of runners: %w", err)
+	}
+
+	for _, r := range runners {
+		if strings.EqualFold(r.GetName(), runnerName) {
+			return r, nil
+		}
+	}
+
+	return nil, ErrNotFound
 }
 
 // ListRunners get runners that registered repository or org
