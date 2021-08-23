@@ -98,11 +98,6 @@ func ExistGitHubRunner(ctx context.Context, client *github.Client, owner, repo, 
 func ListRunners(ctx context.Context, client *github.Client, owner, repo string) ([]*github.Runner, error) {
 	var rs []*github.Runner
 
-	isOrg := false
-	if repo == "" {
-		isOrg = true
-	}
-
 	var opts = &github.ListOptions{
 		Page:    0,
 		PerPage: 10,
@@ -110,31 +105,37 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 
 	for {
 		logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d", opts.Page, len(rs))
-		var runners *github.Runners
-		var err error
-
-		if isOrg {
-			runners, _, err = client.Actions.ListOrganizationRunners(ctx, owner, opts)
-			if err != nil {
-				return nil, fmt.Errorf("failed to list organization runners: %w", err)
-			}
-		} else {
-			runners, _, err = client.Actions.ListRunners(ctx, owner, repo, opts)
-			if err != nil {
-				return nil, fmt.Errorf("failed to list repository runners: %w", err)
-			}
+		runners, resp, err := listRunners(ctx, client, owner, repo, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list runners: %w", err)
 		}
 
 		rs = append(rs, runners.Runners...)
-		if len(rs) >= runners.TotalCount {
+		if resp.NextPage == 0 {
 			break
 		}
-		opts.Page = opts.Page + 1
+		opts.Page = resp.NextPage
 	}
 
 	logger.Logf(true, "found %d runners", len(rs))
 
 	return rs, nil
+}
+
+func listRunners(ctx context.Context, client *github.Client, owner, repo string, opts *github.ListOptions) (*github.Runners, *github.Response, error) {
+	if repo == "" {
+		runners, resp, err := client.Actions.ListOrganizationRunners(ctx, owner, opts)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to list organization runners: %w", err)
+		}
+		return runners, resp, nil
+	}
+
+	runners, resp, err := client.Actions.ListRunners(ctx, owner, repo, opts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to list repository runners: %w", err)
+	}
+	return runners, resp, nil
 }
 
 func getRepositoryURL(scope, gheDomain string) (string, error) {
