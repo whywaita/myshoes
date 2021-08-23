@@ -17,6 +17,7 @@ import (
 )
 
 var (
+	// ErrNotFound is error for not found
 	ErrNotFound = fmt.Errorf("not found")
 )
 
