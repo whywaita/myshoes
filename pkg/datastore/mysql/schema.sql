@@ -26,6 +26,7 @@ CREATE TABLE `runner_detail` (
     `ip_address` VARCHAR(255) NOT NULL,
     `target_id` VARCHAR(36) NOT NULL,
     `cloud_id` TEXT NOT NULL,
+    `resource_type` ENUM('nano', 'micro', 'small', 'medium', 'large', 'xlarge', '2xlarge', '3xlarge', '4xlarge') NOT NULL,
     `repository_url` VARCHAR(255) NOT NULL,
     `request_webhook` TEXT NOT NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT current_timestamp,

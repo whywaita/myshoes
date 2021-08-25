@@ -22,6 +22,7 @@ var testRunner = datastore.Runner{
 	ShoesType:      "shoes-test",
 	TargetID:       testTargetID,
 	CloudID:        "mycloud-uuid",
+	ResourceType:   datastore.ResourceTypeNano,
 	RepositoryURL:  "https://github.com/octocat/Hello-World",
 	RequestWebhook: "{}",
 }
@@ -290,7 +291,7 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 
 func getRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
-	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, repository_url, request_webhook FROM runner_detail WHERE runner_id = ?`
+	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook FROM runner_detail WHERE runner_id = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
@@ -304,7 +305,7 @@ func getRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) 
 
 func getRunningRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
-	query := `SELECT detail.runner_id, shoes_type, ip_address, target_id, cloud_id, detail.created_at, updated_at, detail.repository_url, detail.request_webhook
+	query := `SELECT detail.runner_id, shoes_type, ip_address, target_id, cloud_id, detail.created_at, updated_at, detail.resource_type, detail.repository_url, detail.request_webhook
 FROM runner_detail AS detail JOIN runnesr_running AS running ON detail.runner_id = running.runner_id WHERE detail.runner_id = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
@@ -319,7 +320,7 @@ FROM runner_detail AS detail JOIN runnesr_running AS running ON detail.runner_id
 
 func getDeletedRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
-	query := `SELECT detail.runner_id, shoes_type, ip_address, target_id, cloud_id, detail.created_at, updated_at, detail.repository_url, detail.request_webhook
+	query := `SELECT detail.runner_id, shoes_type, ip_address, target_id, cloud_id, detail.created_at, updated_at, detail.resource_type, detail.repository_url, detail.request_webhook
 FROM runner_detail AS detail JOIN runners_deleted AS deleted ON detail.runner_id = deleted.runner_id WHERE detail.runner_id = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {

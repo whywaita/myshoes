@@ -190,6 +190,7 @@ type Runner struct {
 	CloudID        string       `db:"cloud_id"`
 	Deleted        bool         `db:"deleted"`
 	Status         RunnerStatus `db:"status"`
+	ResourceType   ResourceType `db:"resource_type"`
 	RepositoryURL  string       `db:"repository_url"`
 	RequestWebhook string       `db:"request_webhook"`
 	CreatedAt      time.Time    `db:"created_at"`

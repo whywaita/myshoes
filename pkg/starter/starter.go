@@ -129,6 +129,7 @@ func (s *Starter) do(ctx context.Context) error {
 				IPAddress:      ipAddress,
 				TargetID:       job.TargetID,
 				CloudID:        cloudID,
+				ResourceType:   target.ResourceType,
 				RepositoryURL:  job.RepoURL(),
 				RequestWebhook: job.CheckEventJSON,
 			}
