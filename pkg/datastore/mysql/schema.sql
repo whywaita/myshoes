@@ -26,6 +26,8 @@ CREATE TABLE `runner_detail` (
     `ip_address` VARCHAR(255) NOT NULL,
     `target_id` VARCHAR(36) NOT NULL,
     `cloud_id` TEXT NOT NULL,
+    `repository_url` VARCHAR(255) NOT NULL,
+    `request_webhook` TEXT NOT NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT current_timestamp,
     `updated_at` TIMESTAMP NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp,
     KEY `fk_runner_target_id` (`target_id`),

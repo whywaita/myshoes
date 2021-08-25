@@ -67,8 +67,9 @@ func receiveCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 	action := event.GetAction()
 	installationID := event.GetInstallation().GetID()
 
-	repoName := *(event.Repo.FullName)
-	repoURL := *(event.Repo.HTMLURL)
+	repo := event.GetRepo()
+	repoName := repo.GetFullName()
+	repoURL := repo.GetHTMLURL()
 
 	jb, err := json.Marshal(event)
 	if err != nil {

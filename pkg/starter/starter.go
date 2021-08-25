@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -87,7 +89,13 @@ func (s *Starter) do(ctx context.Context) error {
 				return
 			}
 
-			cloudID, ipAddress, shoesType, err := s.bung(ctx, job)
+			target, err := s.ds.GetTarget(ctx, job.TargetID)
+			if err != nil {
+				logger.Logf(false, "failed to retrieve relational target: (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
+				return
+			}
+
+			cloudID, ipAddress, shoesType, err := s.bung(ctx, job.UUID, *target)
 			if err != nil {
 				logger.Logf(false, "failed to bung (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
@@ -99,7 +107,7 @@ func (s *Starter) do(ctx context.Context) error {
 				return
 			}
 
-			if err := s.checkRegisteredRunner(ctx, job, cloudID); err != nil {
+			if err := s.checkRegisteredRunner(ctx, cloudID, *target); err != nil {
 				logger.Logf(false, "failed to check to register runner (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
 				if err := deleteInstance(ctx, cloudID); err != nil {
@@ -116,11 +124,13 @@ func (s *Starter) do(ctx context.Context) error {
 			}
 
 			r := datastore.Runner{
-				UUID:      job.UUID,
-				ShoesType: shoesType,
-				IPAddress: ipAddress,
-				TargetID:  job.TargetID,
-				CloudID:   cloudID,
+				UUID:           job.UUID,
+				ShoesType:      shoesType,
+				IPAddress:      ipAddress,
+				TargetID:       job.TargetID,
+				CloudID:        cloudID,
+				RepositoryURL:  job.RepoURL(),
+				RequestWebhook: job.CheckEventJSON,
 			}
 			if err := s.ds.CreateRunner(ctx, r); err != nil {
 				logger.Logf(false, "failed to save runner to datastore (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
@@ -152,31 +162,26 @@ func (s *Starter) do(ctx context.Context) error {
 }
 
 // bung is start runner, like a pistol! :)
-func (s *Starter) bung(ctx context.Context, job datastore.Job) (string, string, string, error) {
-	logger.Logf(false, "start create instance (job: %s)", job.UUID)
+func (s *Starter) bung(ctx context.Context, jobUUID uuid.UUID, target datastore.Target) (string, string, string, error) {
+	logger.Logf(false, "start create instance (job: %s)", jobUUID)
 	client, teardown, err := shoes.GetClient()
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to get plugin client: %w", err)
 	}
 	defer teardown()
 
-	target, err := s.ds.GetTarget(ctx, job.TargetID)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to retrieve relational target: %w", err)
-	}
-
-	script, err := s.getSetupScript(*target)
+	script, err := s.getSetupScript(target)
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to get setup scripts: %w", err)
 	}
 
-	runnerName := runner.ToName(job.UUID.String())
+	runnerName := runner.ToName(jobUUID.String())
 	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType)
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to add instance: %w", err)
 	}
 
-	logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
+	logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", jobUUID, cloudID)
 
 	return cloudID, ipAddress, shoesType, nil
 }
@@ -197,12 +202,7 @@ func deleteInstance(ctx context.Context, cloudID string) error {
 }
 
 // checkRegisteredRunner check to register runner to GitHub
-func (s *Starter) checkRegisteredRunner(ctx context.Context, job datastore.Job, cloudID string) error {
-	target, err := s.ds.GetTarget(ctx, job.TargetID)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve relational target: %w", err)
-	}
-
+func (s *Starter) checkRegisteredRunner(ctx context.Context, cloudID string, target datastore.Target) error {
 	client, err := gh.NewClient(ctx, target.GitHubToken, target.GHEDomain.String)
 	if err != nil {
 		return fmt.Errorf("failed to create github client: %w", err)
