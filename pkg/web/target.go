@@ -314,6 +314,7 @@ func validateUpdateTarget(old, new *datastore.Target) error {
 
 		// generated
 		t.Status = ""
+		t.StatusDescription = sql.NullString{}
 		t.GitHubToken = ""
 	}
 
