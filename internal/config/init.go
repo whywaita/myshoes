@@ -85,6 +85,13 @@ func Load() {
 	} else {
 		Config.Debug = false
 	}
+
+	strict := os.Getenv(EnvStrict)
+	if strict == "true" {
+		Config.Strict = true
+	} else {
+		Config.Strict = false
+	}
 }
 
 func checkBinary(p string) (string, error) {

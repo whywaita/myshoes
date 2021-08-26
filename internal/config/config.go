@@ -16,9 +16,10 @@ type conf struct {
 	MySQLDSN        string
 	Port            int
 	ShoesPluginPath string
+	RunnerUser      string
 
-	RunnerUser string
-	Debug      bool
+	Debug  bool
+	Strict bool // check to registered runner before delete job
 }
 
 // Config Environment keys
@@ -30,4 +31,5 @@ const (
 	EnvPort                      = "PORT"
 	EnvShoesPluginPath           = "PLUGIN"
 	EnvDebug                     = "DEBUG"
+	EnvStrict                    = "STRICT"
 )

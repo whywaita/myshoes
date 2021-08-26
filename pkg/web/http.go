@@ -68,6 +68,10 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 		apacheLogging(r)
 		handleConfigDebug(w, r)
 	})
+	mux.HandleFunc(pat.Post("/config/strict"), func(w http.ResponseWriter, r *http.Request) {
+		apacheLogging(r)
+		handleConfigStrict(w, r)
+	})
 
 	return mux
 }

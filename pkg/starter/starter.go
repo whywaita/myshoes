@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/whywaita/myshoes/internal/config"
+
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -107,20 +109,22 @@ func (s *Starter) do(ctx context.Context) error {
 				return
 			}
 
-			if err := s.checkRegisteredRunner(ctx, cloudID, *target); err != nil {
-				logger.Logf(false, "failed to check to register runner (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
+			if config.Config.Strict {
+				if err := s.checkRegisteredRunner(ctx, cloudID, *target); err != nil {
+					logger.Logf(false, "failed to check to register runner (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
-				if err := deleteInstance(ctx, cloudID); err != nil {
-					logger.Logf(false, "failed to delete an instance that not registered instance (target ID: %s, cloud ID: %s): %+v\n", job.TargetID, cloudID, err)
-					// not return, need to update target status if err.
-				}
+					if err := deleteInstance(ctx, cloudID); err != nil {
+						logger.Logf(false, "failed to delete an instance that not registered instance (target ID: %s, cloud ID: %s): %+v\n", job.TargetID, cloudID, err)
+						// not return, need to update target status if err.
+					}
 
-				if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("cannot register runner to GitHub (job ID: %s)", job.UUID)); err != nil {
-					logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
+					if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("cannot register runner to GitHub (job ID: %s)", job.UUID)); err != nil {
+						logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
+						return
+					}
+
 					return
 				}
-
-				return
 			}
 
 			r := datastore.Runner{
