@@ -11,6 +11,7 @@ require (
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lestrrat-go/jwx v1.2.0 // indirect
 	github.com/ory/dockertest/v3 v3.6.2
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/prometheus/client_golang v1.10.0 // indirect
 	github.com/satori/go.uuid v1.2.0
 	goji.io v2.0.2+incompatible

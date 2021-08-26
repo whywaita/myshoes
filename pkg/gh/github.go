@@ -8,6 +8,9 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
+
+	"github.com/patrickmn/go-cache"
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/v35/github"
@@ -19,7 +22,15 @@ import (
 var (
 	// ErrNotFound is error for not found
 	ErrNotFound = fmt.Errorf("not found")
+
+	// ResponseCache is cache variable
+	responseCache *cache.Cache
 )
+
+func init() {
+	c := cache.New(5*time.Minute, 10*time.Minute)
+	responseCache = c
+}
 
 // NewClient create a client of GitHub
 func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Client, error) {
@@ -96,13 +107,16 @@ func ExistGitHubRunner(ctx context.Context, client *github.Client, owner, repo, 
 
 // ListRunners get runners that registered repository or org
 func ListRunners(ctx context.Context, client *github.Client, owner, repo string) ([]*github.Runner, error) {
-	var rs []*github.Runner
+	if cachedRs, found := responseCache.Get(getCacheKey(owner, repo)); found {
+		return cachedRs.([]*github.Runner), nil
+	}
 
 	var opts = &github.ListOptions{
 		Page:    0,
 		PerPage: 10,
 	}
 
+	var rs []*github.Runner
 	for {
 		logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d", opts.Page, len(rs))
 		runners, resp, err := listRunners(ctx, client, owner, repo, opts)
@@ -117,9 +131,14 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 		opts.Page = resp.NextPage
 	}
 
+	responseCache.Set(getCacheKey(owner, repo), rs, 1*time.Second)
 	logger.Logf(true, "found %d runners", len(rs))
 
 	return rs, nil
+}
+
+func getCacheKey(owner, repo string) string {
+	return fmt.Sprintf("owner-%s-repo-%s", owner, repo)
 }
 
 func listRunners(ctx context.Context, client *github.Client, owner, repo string, opts *github.ListOptions) (*github.Runners, *github.Response, error) {
