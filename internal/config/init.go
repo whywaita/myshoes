@@ -86,10 +86,8 @@ func Load() {
 		Config.Debug = false
 	}
 
-	strict := os.Getenv(EnvStrict)
-	if strict == "true" {
-		Config.Strict = true
-	} else {
+	Config.Strict = true
+	if os.Getenv(EnvStrict) == "false" {
 		Config.Strict = false
 	}
 }
