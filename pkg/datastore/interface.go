@@ -164,18 +164,38 @@ type Job struct {
 	UpdatedAt      time.Time      `db:"updated_at" json:"updated_at"`
 }
 
+// RepoURL return repository URL that send webhook.
+func (j *Job) RepoURL() string {
+	serverURL := "https://github.com"
+	if j.GHEDomain.Valid {
+		serverURL = j.GHEDomain.String
+	}
+
+	s := strings.Split(serverURL, "://")
+
+	var u url.URL
+	u.Scheme = s[0]
+	u.Host = s[1]
+	u.Path = j.Repository
+
+	return u.String()
+}
+
 // Runner is a runner
 type Runner struct {
-	UUID      uuid.UUID    `db:"runner_id"`
-	ShoesType string       `db:"shoes_type"`
-	IPAddress string       `db:"ip_address"`
-	TargetID  uuid.UUID    `db:"target_id"`
-	CloudID   string       `db:"cloud_id"`
-	Deleted   bool         `db:"deleted"`
-	Status    RunnerStatus `db:"status"`
-	CreatedAt time.Time    `db:"created_at"`
-	UpdatedAt time.Time    `db:"updated_at"`
-	DeletedAt sql.NullTime `db:"deleted_at"`
+	UUID           uuid.UUID    `db:"runner_id"`
+	ShoesType      string       `db:"shoes_type"`
+	IPAddress      string       `db:"ip_address"`
+	TargetID       uuid.UUID    `db:"target_id"`
+	CloudID        string       `db:"cloud_id"`
+	Deleted        bool         `db:"deleted"`
+	Status         RunnerStatus `db:"status"`
+	ResourceType   ResourceType `db:"resource_type"`
+	RepositoryURL  string       `db:"repository_url"`
+	RequestWebhook string       `db:"request_webhook"`
+	CreatedAt      time.Time    `db:"created_at"`
+	UpdatedAt      time.Time    `db:"updated_at"`
+	DeletedAt      sql.NullTime `db:"deleted_at"`
 }
 
 // RunnerStatus is status for runner
