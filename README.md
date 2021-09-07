@@ -1,6 +1,6 @@
 # myshoes: Auto scaling self-hosted runner for GitHub Actions
 
-![](./docs/img/myshoes_logo_yoko_colorA.png)
+![](./docs/assets/img/myshoes_logo_yoko_colorA.png)
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/whywaita/myshoes.svg)](https://pkg.go.dev/github.com/whywaita/myshoes)
 [![test](https://github.com/whywaita/myshoes/actions/workflows/test.yaml/badge.svg)](https://github.com/whywaita/myshoes/actions/workflows/test.yaml)

@@ -1,18 +1,26 @@
-# Setup (only once)
+# Setup myshoes daemon
 
 ## Goal
 
 - Start myshoes daemon
-- Start provision runner
 
 ## Prepare
 
-- network connectivity to myshoes server.
-  - github.com **OR** your GitHub Enterprise Server to myshoes (`/github/events`).
+- The network connectivity to myshoes server.
+  - The webhook endpoint from github.com **OR** your GitHub Enterprise Server (`POST /github/events`).
+  - REST API from your workspace (`GET, POST, DELETE /target`).
+- You decide platform for runner and shoes-provider
+  - The official shoes-provider is [whywaita/myshoes-provider](https://github.com/whywaita/myshoes-provider).
+  - You can implement and use your private shoes-provider. Please check [how-to-develop-shoes.md](./03_how-to-develop-shoes.md).
+
+## Word definition
+
+- `your_shoes_host`: The endpoint of serving myshoes.
+  - e.g.) `https://myshoes.example.com`
 
 ## Setup
 
-please prepare a few things first.
+Please prepare a few things first.
 
 ### Machine image for runner
 
@@ -24,7 +32,7 @@ please prepare a few things first.
   - put latest runner tar.gz to `/usr/local/etc` [optional]
     - optional, but **STRONG RECOMMEND INSTALLING BEFORE** (please read known issue)
 
-For example is [here](https://github.com/whywaita/myshoes-providers/tree/master/shoes-lxd/images)! (packer file)
+For example is [here](https://github.com/whywaita/myshoes-providers/tree/master/shoes-lxd/images). (packer file)
 
 ### Create GitHub Apps
 
@@ -55,10 +63,6 @@ For example is [here](https://github.com/whywaita/myshoes-providers/tree/master/
 
 - download from GitHub or upload private key from your machine.
 
-### Install GitHub Apps
-
-Install GitHub Apps to target repository or organization.
-  
 ### Running
 
 ```bash
@@ -75,10 +79,10 @@ $ ./myshoes
   - `GITHUB_APP_SECRET` (if you set)
   - `GITHUB_PRIVATE_KEY_BASE64`
     - base64 encoded private key from GitHub Apps
+    - `$ cat privatekey.pem | base64 -w 0`
 - `MYSQL_URL`
   - required
   - DataSource Name, ex) `username:password@tcp(localhost:3306)/myshoes`
-  - set if you use MySQL as a `datastore`.
 - `PLUGIN`
   - required
   - set path of myshoes-provider binary.
@@ -86,42 +90,8 @@ $ ./myshoes
 - `DEBUG`
   - default: false
   - show debugging log
+- `STRICT`
+  - default: true
+  - set strict mode
 
 and more some env values from [shoes provider](https://github.com/whywaita/myshoes-providers).
-
-## Repository or Organization setup
-
-### Register target
-
-you need to register a target that repository or organization.
-
-- `scope`: set target scope for an auto-scaling runner.
-  - repository example: `octocat/hello-worlds`
-  - organization example: `octocat`
-- `ghe_domain`: set domain of your GitHub Enterprise Server.
-  - example: `https://github.example.com`
-  - please contain schema.
-- `runner_user`: set linux username that executes runner. you need to set exist user.
-  - DO NOT set `root`. It can't run GitHub Actions runner in root permission.
-  - example: `ubuntu`
-- `resource_type`: set instance size for a runner.
-  - please check a document of shoes-providers.
-
-create target example:
-
-```bash
-$ curl -XPOST -d '{"scope": "octocat/hello-world", "ghe_domain": "https://github.example.com", "resource_type": "micro", "runner_user": "ubuntu"}' ${your_shoes_host}/target
-```
-
-### Create an offline runner (only one)
-
-GitHub Actions need offline runner if queueing job.
-please create an offline runner in the target repository.
-
-https://docs.github.com/en/free-pro-team@latest/actions/hosting-your-own-runners/adding-self-hosted-runners
-
-please delete a runner after registered.
-
-### Let's go using your shoes!
-
-Let's execute your jobs! :runner::runner::runner:
