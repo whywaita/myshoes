@@ -73,6 +73,9 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 		handleConfigStrict(w, r)
 	})
 
+	// metrics endpoint
+	mux.HandleFunc(pat.Get("/metrics"), newMetricsHandler(ds))
+
 	return mux
 }
 
