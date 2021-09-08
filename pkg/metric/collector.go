@@ -75,8 +75,8 @@ func (c *Collector) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 			}
 			ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeStartTime).Seconds(), label)
 		}(scraper)
-		wg.Wait()
 	}
+	wg.Wait()
 }
 
 // Scraper is interface for scraping

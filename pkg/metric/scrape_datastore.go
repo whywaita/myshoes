@@ -43,3 +43,5 @@ func (ScraperDatastore) Scrape(ctx context.Context, ds datastore.Datastore, ch c
 
 	return nil
 }
+
+var _ Scraper = ScraperDatastore{}
