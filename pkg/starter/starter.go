@@ -97,7 +97,7 @@ func (s *Starter) do(ctx context.Context) error {
 				return
 			}
 
-			cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime*2)
+			cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
 			defer cancel()
 			cloudID, ipAddress, shoesType, err := s.bung(cctx, job.UUID, *target)
 			if err != nil {
