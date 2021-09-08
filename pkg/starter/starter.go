@@ -97,7 +97,9 @@ func (s *Starter) do(ctx context.Context) error {
 				return
 			}
 
-			cloudID, ipAddress, shoesType, err := s.bung(ctx, job.UUID, *target)
+			cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
+			defer cancel()
+			cloudID, ipAddress, shoesType, err := s.bung(cctx, job.UUID, *target)
 			if err != nil {
 				logger.Logf(false, "failed to bung (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
@@ -160,7 +162,6 @@ func (s *Starter) do(ctx context.Context) error {
 			}
 		}()
 	}
-
 	wg.Wait()
 
 	return nil

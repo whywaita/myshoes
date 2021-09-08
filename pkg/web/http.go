@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -34,7 +32,6 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 		json.NewEncoder(w).Encode(h)
 		return
 	})
-	mux.Handle(pat.Get("/metrics"), promhttp.Handler())
 
 	mux.HandleFunc(pat.Post("/github/events"), func(w http.ResponseWriter, r *http.Request) {
 		apacheLogging(r)
@@ -71,6 +68,12 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 	mux.HandleFunc(pat.Post("/config/strict"), func(w http.ResponseWriter, r *http.Request) {
 		apacheLogging(r)
 		handleConfigStrict(w, r)
+	})
+
+	// metrics endpoint
+	mux.HandleFunc(pat.Get("/metrics"), func(w http.ResponseWriter, r *http.Request) {
+		apacheLogging(r)
+		handleMetrics(w, r, ds)
 	})
 
 	return mux
