@@ -11,18 +11,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func newMetricsHandler(ds datastore.Datastore) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
+func handleMetrics(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+	ctx := r.Context()
 
-		registry := prometheus.NewRegistry()
-		registry.MustRegister(metric.NewCollector(ctx, ds))
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(metric.NewCollector(ctx, ds))
 
-		gatherers := prometheus.Gatherers{
-			prometheus.DefaultGatherer,
-			registry,
-		}
-		h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
-		h.ServeHTTP(w, r)
+	gatherers := prometheus.Gatherers{
+		prometheus.DefaultGatherer,
+		registry,
 	}
+	h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
+	h.ServeHTTP(w, r)
+	return
 }

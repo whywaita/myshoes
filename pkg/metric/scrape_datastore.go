@@ -14,7 +14,7 @@ var (
 	datastoreJobsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, datastoreName, "jobs"),
 		"Number of jobs",
-		nil, nil,
+		[]string{"key"}, nil,
 	)
 )
 
@@ -38,7 +38,7 @@ func (ScraperDatastore) Scrape(ctx context.Context, ds datastore.Datastore, ch c
 		return fmt.Errorf("failed to list jobs: %w", err)
 	}
 	ch <- prometheus.MustNewConstMetric(
-		datastoreJobsDesc, prometheus.GaugeValue, float64(len(jobs)), "",
+		datastoreJobsDesc, prometheus.GaugeValue, float64(len(jobs)), "value",
 	)
 
 	return nil
