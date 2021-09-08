@@ -23,6 +23,7 @@ var (
 	)
 )
 
+// Collector is a collector for prometheus
 type Collector struct {
 	ctx      context.Context
 	metrics  Metrics
@@ -30,6 +31,7 @@ type Collector struct {
 	scrapers []Scraper
 }
 
+// NewCollector create a collector
 func NewCollector(ctx context.Context, ds datastore.Datastore) *Collector {
 	return &Collector{
 		ctx:      ctx,
@@ -39,12 +41,14 @@ func NewCollector(ctx context.Context, ds datastore.Datastore) *Collector {
 	}
 }
 
+// Describe describe metrics
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.metrics.TotalScrapes.Desc()
 	ch <- c.metrics.Error.Desc()
 	c.metrics.ScrapeErrors.Describe(ch)
 }
 
+// Collect collect metrics
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	c.scrape(c.ctx, ch)
 
@@ -75,22 +79,28 @@ func (c *Collector) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	}
 }
 
+// Scraper is interface for scraping
 type Scraper interface {
 	Name() string
 	Help() string
 	Scrape(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error
 }
 
+// NewScrapers return list of scraper
 func NewScrapers() []Scraper {
-	return []Scraper{}
+	return []Scraper{
+		ScraperDatastore{},
+	}
 }
 
+// Metrics is data in scraper
 type Metrics struct {
 	TotalScrapes prometheus.Counter
 	ScrapeErrors *prometheus.CounterVec
 	Error        prometheus.Gauge
 }
 
+// NewMetrics create a metrics
 func NewMetrics() Metrics {
 	return Metrics{
 		TotalScrapes: prometheus.NewCounter(prometheus.CounterOpts{

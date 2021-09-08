@@ -18,16 +18,20 @@ var (
 	)
 )
 
+// ScraperDatastore is scraper implement for datastore.Datastore
 type ScraperDatastore struct{}
 
+// Name return name
 func (ScraperDatastore) Name() string {
 	return datastoreName
 }
 
+// Help return help
 func (ScraperDatastore) Help() string {
 	return "Collect from datastore"
 }
 
+// Scrape scrape metrics
 func (ScraperDatastore) Scrape(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
 	jobs, err := ds.ListJobs(ctx)
 	if err != nil {
