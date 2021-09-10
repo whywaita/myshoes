@@ -47,6 +47,42 @@ func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Cl
 	return github.NewEnterpriseClient(gheDomain, gheDomain, tc)
 }
 
+// NewClientGitHubApps create a client of GitHub using Private Key from GitHub Apps
+// docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-a-github-app
+func NewClientGitHubApps(gheDomain string) (*github.Client, error) {
+	appID := config.Config.GitHub.AppID
+	pem := config.Config.GitHub.PEMByte
+
+	tr := http.DefaultTransport
+	itr, err := ghinstallation.NewAppsTransport(tr, appID, pem)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Apps transport: %w", err)
+	}
+
+	if gheDomain == "" {
+		return github.NewClient(&http.Client{Transport: itr}), nil
+	}
+	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: itr})
+}
+
+// NewClientInstallation create a client of Github using installation ID from GitHub Apps
+// docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-an-installation
+func NewClientInstallation(gheDomain string, installationID int64) (*github.Client, error) {
+	appID := config.Config.GitHub.AppID
+	pem := config.Config.GitHub.PEMByte
+
+	tr := http.DefaultTransport
+	itr, err := ghinstallation.New(tr, appID, installationID, pem)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Apps transport: %w", err)
+	}
+
+	if gheDomain == "" {
+		return github.NewClient(&http.Client{Transport: itr}), nil
+	}
+	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: itr})
+}
+
 // CheckSignature check trust installation id from event.
 func CheckSignature(installationID int64) error {
 	appID := config.Config.GitHub.AppID
