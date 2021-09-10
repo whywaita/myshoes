@@ -110,12 +110,12 @@ func (m *Manager) doTargetToken(ctx context.Context) error {
 			logger.Logf(false, "failed to get installationID: %+v", err)
 			continue
 		}
-		clientInstallation, err := gh.NewClientInstallation(target.GHEDomain.String, installationID)
+		clientApps, err := gh.NewClientGitHubApps(target.GHEDomain.String)
 		if err != nil {
 			logger.Logf(false, "failed to create client of GitHub installation: %+v", err)
 			continue
 		}
-		token, expiredAt, err := gh.GenerateGitHubAppsToken(ctx, clientInstallation, installationID)
+		token, expiredAt, err := gh.GenerateGitHubAppsToken(ctx, clientApps, installationID)
 		if err != nil {
 			logger.Logf(false, "failed to get Apps Token: %+v", err)
 			continue

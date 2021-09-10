@@ -19,8 +19,9 @@ var (
 )
 
 // GenerateGitHubAppsToken generate token of GitHub Apps using private key
-func GenerateGitHubAppsToken(ctx context.Context, clientInstallation *github.Client, installationID int64) (string, *time.Time, error) {
-	token, _, err := clientInstallation.Apps.CreateInstallationToken(ctx, installationID, nil)
+// clientApps needs to response of `NewClientGitHubApps()`
+func GenerateGitHubAppsToken(ctx context.Context, clientApps *github.Client, installationID int64) (string, *time.Time, error) {
+	token, _, err := clientApps.Apps.CreateInstallationToken(ctx, installationID, nil)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate token from API: %w", err)
 	}
@@ -95,11 +96,11 @@ func isInstalledGitHubAppSelected(ctx context.Context, gheDomain, inputScope str
 }
 
 func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID int64) (*github.ListRepositories, error) {
-	clientInstallation, err := NewClientInstallation(gheDomain, installationID)
+	clientApps, err := NewClientGitHubApps(gheDomain)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create github.Client from installationID: %w", err)
 	}
-	token, _, err := GenerateGitHubAppsToken(ctx, clientInstallation, installationID)
+	token, _, err := GenerateGitHubAppsToken(ctx, clientApps, installationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate GitHub Apps Token: %w", err)
 	}
