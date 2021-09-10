@@ -9,7 +9,7 @@ import (
 )
 
 func setStubFunctions() {
-	GHlistInstallations = func(gheDomain string) ([]*github.Installation, error) {
+	GHlistInstallations = func(ctx context.Context, clientApps *github.Client) ([]*github.Installation, error) {
 		i10 := int64(10)
 		i11 := int64(11)
 		i12 := int64(12)
@@ -60,6 +60,10 @@ func setStubFunctions() {
 				},
 			},
 		}, nil
+	}
+
+	GHNewClientGitHubApps = func(gheDomain string) (*github.Client, error) {
+		return &github.Client{}, nil
 	}
 }
 

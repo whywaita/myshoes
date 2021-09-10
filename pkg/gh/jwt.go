@@ -2,50 +2,38 @@ package gh
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"path"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/whywaita/myshoes/pkg/logger"
+
 	"github.com/google/go-github/v35/github"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/whywaita/myshoes/internal/config"
 )
 
 // function pointers (for testing)
 var (
 	GHlistInstallations     = listInstallations
 	GHlistAppsInstalledRepo = listAppsInstalledRepo
+	GHNewClientGitHubApps   = NewClientGitHubApps
 )
 
 // GenerateGitHubAppsToken generate token of GitHub Apps using private key
-func GenerateGitHubAppsToken(gheDomain string, installationID int64) (string, *time.Time, error) {
-	p := path.Join(
-		"app",
-		"installations",
-		strconv.FormatInt(installationID, 10),
-		"access_tokens")
-	jb, err := callAPIPrivateKey(http.MethodPost, p, gheDomain)
+func GenerateGitHubAppsToken(ctx context.Context, clientInstallation *github.Client, installationID int64) (string, *time.Time, error) {
+	token, _, err := clientInstallation.Apps.CreateInstallationToken(ctx, installationID, nil)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to call API: %w", err)
+		return "", nil, fmt.Errorf("failed to generate token from API: %w", err)
 	}
-
-	it := new(github.InstallationToken)
-	if err := json.Unmarshal(jb, it); err != nil {
-		return "", nil, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-
-	return *it.Token, it.ExpiresAt, nil
+	return *token.Token, token.ExpiresAt, nil
 }
 
 // IsInstalledGitHubApp check installed GitHub Apps in gheDomain + inputScope
 func IsInstalledGitHubApp(ctx context.Context, gheDomain, inputScope string) (int64, error) {
-	installations, err := GHlistInstallations(gheDomain)
+	clientApps, err := GHNewClientGitHubApps(gheDomain)
+	if err != nil {
+		return -1, fmt.Errorf("failed to create client from GitHub Apps: %w", err)
+	}
+	installations, err := GHlistInstallations(ctx, clientApps)
 	if err != nil {
 		return -1, fmt.Errorf("failed to get list of installations: %w", err)
 	}
@@ -107,7 +95,11 @@ func isInstalledGitHubAppSelected(ctx context.Context, gheDomain, inputScope str
 }
 
 func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID int64) (*github.ListRepositories, error) {
-	token, _, err := GenerateGitHubAppsToken(gheDomain, installationID)
+	clientInstallation, err := NewClientInstallation(gheDomain, installationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create github.Client from installationID: %w", err)
+	}
+	token, _, err := GenerateGitHubAppsToken(ctx, clientInstallation, installationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate GitHub Apps Token: %w", err)
 	}
@@ -124,78 +116,24 @@ func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID
 	return lr, nil
 }
 
-func listInstallations(gheDomain string) ([]*github.Installation, error) {
-	p := path.Join(
-		"app",
-		"installations")
-	jb, err := callAPIPrivateKey(http.MethodGet, p, gheDomain)
-	if err != nil {
-		return nil, fmt.Errorf("failed to call API (body: %s): %w", string(jb), err)
+func listInstallations(ctx context.Context, clientApps *github.Client) ([]*github.Installation, error) {
+	var opts = &github.ListOptions{
+		Page:    0,
+		PerPage: 10,
 	}
 
-	is := new([]*github.Installation)
-	if err := json.Unmarshal(jb, is); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	var installations []*github.Installation
+	for {
+		logger.Logf(true, "get installations from GitHub, page: %d, now all installations: %d", opts.Page, len(installations))
+		is, resp, err := clientApps.Apps.ListInstallations(ctx, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list installations: %w", err)
+		}
+		installations = append(installations, is...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
-
-	return *is, nil
-}
-
-func callAPIPrivateKey(method, apiPath, gheDomain string) ([]byte, error) {
-	jwtToken, err := generateJWT(time.Now())
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate JWT token: %w", err)
-	}
-	apiEndpoint, err := getAPIEndpoint(gheDomain)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get API endpoint: %w", err)
-	}
-
-	p := path.Join(apiEndpoint.Path, apiPath)
-	apiEndpoint.Path = p
-	req, err := http.NewRequest(method, apiEndpoint.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to http.NewRequest: %w", err)
-	}
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
-	req.Header.Add("Accept", "application/vnd.github.v3+json")
-
-	client := http.Client{}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to POST request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	jb, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	if resp.StatusCode > 400 {
-		return jb, fmt.Errorf("invalid status code (%d)", resp.StatusCode)
-	}
-
-	return jb, nil
-}
-
-func generateJWT(baseTime time.Time) ([]byte, error) {
-	privateKey := config.Config.GitHub.PEM
-	appID := strconv.Itoa(int(config.Config.GitHub.AppID))
-
-	if privateKey == nil {
-		return nil, fmt.Errorf("GitHub Apps private key is not configured")
-	}
-
-	token := jwt.New()
-	token.Set(jwt.IssuedAtKey, baseTime.Add(-1*time.Minute))
-	token.Set(jwt.ExpirationKey, baseTime.Add(10*time.Minute))
-	token.Set(jwt.IssuerKey, appID)
-
-	signed, err := jwt.Sign(token, jwa.RS256, privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign JWT: %w", err)
-	}
-
-	return signed, nil
+	return installations, nil
 }

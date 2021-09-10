@@ -81,7 +81,7 @@ func (m *Manager) do(ctx context.Context) error {
 	logger.Logf(true, "found %d targets in datastore", len(targets))
 	for _, target := range targets {
 		if err := m.removeRunner(ctx, &target); err != nil {
-			logger.Logf(true, "failed to delete runners (target: %s): %+v", target.RepoURL(), err)
+			logger.Logf(false, "failed to delete runners (target: %s): %+v", target.RepoURL(), err)
 		}
 	}
 
@@ -110,7 +110,12 @@ func (m *Manager) doTargetToken(ctx context.Context) error {
 			logger.Logf(false, "failed to get installationID: %+v", err)
 			continue
 		}
-		token, expiredAt, err := gh.GenerateGitHubAppsToken(target.GHEDomain.String, installationID)
+		clientInstallation, err := gh.NewClientInstallation(target.GHEDomain.String, installationID)
+		if err != nil {
+			logger.Logf(false, "failed to create client of GitHub installation: %+v", err)
+			continue
+		}
+		token, expiredAt, err := gh.GenerateGitHubAppsToken(ctx, clientInstallation, installationID)
 		if err != nil {
 			logger.Logf(false, "failed to get Apps Token: %+v", err)
 			continue
