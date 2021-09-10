@@ -62,7 +62,11 @@ func NewClientGitHubApps(gheDomain string) (*github.Client, error) {
 	if gheDomain == "" {
 		return github.NewClient(&http.Client{Transport: itr}), nil
 	}
-	itr.BaseURL = gheDomain
+	apiEndpoint, err := getAPIEndpoint(gheDomain)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub API Endpoint: %w", err)
+	}
+	itr.BaseURL = apiEndpoint.String()
 	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: itr})
 }
 
@@ -81,7 +85,11 @@ func NewClientInstallation(gheDomain string, installationID int64) (*github.Clie
 	if gheDomain == "" {
 		return github.NewClient(&http.Client{Transport: itr}), nil
 	}
-	itr.BaseURL = gheDomain
+	apiEndpoint, err := getAPIEndpoint(gheDomain)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub API Endpoint: %w", err)
+	}
+	itr.BaseURL = apiEndpoint.String()
 	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: itr})
 }
 
