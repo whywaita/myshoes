@@ -36,13 +36,13 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
-	clientInstallations, err := GHNewClientInstallation(inputTarget.GHEDomain, installationID)
+	clientApps, err := GHNewClientApps(inputTarget.GHEDomain)
 	if err != nil {
-		logger.Logf(false, "failed to client of GitHub Apps installation: %+v", err)
-		outputErrorMsg(w, http.StatusInternalServerError, "failed to client GitHub Apps client")
+		logger.Logf(false, "failed to client of GitHub Apps: %+v", err)
+		outputErrorMsg(w, http.StatusInternalServerError, "failed to client GitHub Apps")
 		return
 	}
-	token, expiredAt, err := GHGenerateGitHubAppsToken(ctx, clientInstallations, installationID)
+	token, expiredAt, err := GHGenerateGitHubAppsToken(ctx, clientApps, installationID)
 	if err != nil {
 		logger.Logf(false, "failed to generate GitHub Apps Token: %+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "failed to generate GitHub Apps token")

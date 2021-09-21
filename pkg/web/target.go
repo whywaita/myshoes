@@ -68,6 +68,7 @@ var (
 	GHIsInstalledGitHubApp      = gh.IsInstalledGitHubApp
 	GHGenerateGitHubAppsToken   = gh.GenerateGitHubAppsToken
 	GHNewClientInstallation     = gh.NewClientInstallation
+	GHNewClientApps             = gh.NewClientGitHubApps
 )
 
 func toNullString(input string) sql.NullString {
