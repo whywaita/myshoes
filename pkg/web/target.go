@@ -67,7 +67,6 @@ var (
 	GHListRunnersFunc           = gh.ListRunners
 	GHIsInstalledGitHubApp      = gh.IsInstalledGitHubApp
 	GHGenerateGitHubAppsToken   = gh.GenerateGitHubAppsToken
-	GHNewClientInstallation     = gh.NewClientInstallation
 	GHNewClientApps             = gh.NewClientGitHubApps
 )
 
