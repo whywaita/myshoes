@@ -46,24 +46,33 @@ func (m *Manager) Loop(ctx context.Context) error {
 
 	ticker := time.NewTicker(GoalCheckerInterval)
 	defer ticker.Stop()
-	tokenRefreshTicker := time.NewTicker(TargetTokenInterval)
-	defer tokenRefreshTicker.Stop()
 
 	if err := m.doTargetToken(ctx); err != nil {
 		logger.Logf(false, "failed to refresh token in initialize: %+v", err)
 	}
 
+	go func(ctx context.Context) {
+		tokenRefreshTicker := time.NewTicker(TargetTokenInterval)
+		defer tokenRefreshTicker.Stop()
+
+		for {
+			select {
+			case <-tokenRefreshTicker.C:
+				if err := m.doTargetToken(ctx); err != nil {
+					logger.Logf(false, "failed to refresh token: %+v", err)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}(ctx)
+
 	for {
 		select {
-		case <-tokenRefreshTicker.C:
-			if err := m.doTargetToken(ctx); err != nil {
-				logger.Logf(false, "failed to refresh token: %+v", err)
-			}
 		case <-ticker.C:
 			if err := m.do(ctx); err != nil {
 				logger.Logf(false, "failed to starter: %+v", err)
 			}
-
 		case <-ctx.Done():
 			return nil
 		}
