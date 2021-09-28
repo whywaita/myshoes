@@ -24,6 +24,8 @@ var (
 	PistolInterval = 10 * time.Second
 	// DefaultRunnerVersion is default value of actions/runner
 	DefaultRunnerVersion = "v2.275.1"
+	// LastRunStarterUnixTime is last time of starter.do()
+	LastRunStarterUnixTime = time.Now().Unix()
 )
 
 // Starter is dispatcher for running job
@@ -69,12 +71,13 @@ func (s *Starter) do(ctx context.Context) error {
 
 	logger.Logf(true, "found %d jobs", len(jobs))
 	wg := &sync.WaitGroup{}
+	LastRunStarterUnixTime = time.Now().Unix()
 	for _, j := range jobs {
 		wg.Add(1)
 		job := j
 
 		go func() {
-			defer wg.Done()
+			wg.Done()
 			logger.Logf(false, "start job (job id: %s)\n", job.UUID.String())
 
 			isOK, err := s.safety.Check(&job)

@@ -90,6 +90,7 @@ type Scraper interface {
 func NewScrapers() []Scraper {
 	return []Scraper{
 		ScraperDatastore{},
+		ScraperMemory{},
 	}
 }
 
