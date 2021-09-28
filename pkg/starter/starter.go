@@ -26,6 +26,8 @@ var (
 	DefaultRunnerVersion = "v2.275.1"
 	// LastRunStarterUnixTime is last time of starter.do()
 	LastRunStarterUnixTime = time.Now().Unix()
+	// ErrCounterStarter is ErrCounter in starter.do()
+	ErrCounterStarter = 0
 )
 
 // Starter is dispatcher for running job
@@ -72,12 +74,18 @@ func (s *Starter) do(ctx context.Context) error {
 	logger.Logf(true, "found %d jobs", len(jobs))
 	wg := &sync.WaitGroup{}
 	LastRunStarterUnixTime = time.Now().Unix()
+	ErrCounterStarter = 0
 	for _, j := range jobs {
 		wg.Add(1)
 		job := j
 
 		go func() {
-			wg.Done()
+			defer wg.Done()
+			defer func() {
+				if err != nil {
+					ErrCounterStarter++
+				}
+			}()
 			logger.Logf(false, "start job (job id: %s)\n", job.UUID.String())
 
 			isOK, err := s.safety.Check(&job)
