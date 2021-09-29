@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -23,6 +24,8 @@ import (
 var (
 	// DefaultRunnerVersion is default value of actions/runner
 	DefaultRunnerVersion = "v2.275.1"
+
+	inProgress = sync.Map{}
 )
 
 // Starter is dispatcher for running job
@@ -92,12 +95,21 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 		select {
 		case job := <-ch:
 			// receive job from dispatcher
+
+			if _, ok := inProgress.Load(job.UUID); ok {
+				// this job is in progress, skip
+				continue
+			}
+
 			if err := sem.Acquire(ctx, 1); err != nil {
 				return fmt.Errorf("failed to Acquire: %w", err)
 			}
 
+			inProgress.Store(job.UUID, struct{}{})
+
 			go func(job datastore.Job) {
 				defer sem.Release(1)
+				defer inProgress.Delete(job.UUID)
 				if err := s.processJob(ctx, job); err != nil {
 					logger.Logf(false, "failed to process job: %+v\n", err)
 				}
