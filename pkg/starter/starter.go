@@ -56,19 +56,26 @@ func (s *Starter) Loop(ctx context.Context) error {
 		return nil
 	})
 
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+	eg.Go(func() error {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			if err := s.dispatcher(ctx, ch); err != nil {
-				logger.Logf(false, "failed to starter: %+v", err)
+		for {
+			select {
+			case <-ticker.C:
+				if err := s.dispatcher(ctx, ch); err != nil {
+					logger.Logf(false, "failed to starter: %+v", err)
+				}
+			case <-ctx.Done():
+				return nil
 			}
-		case <-ctx.Done():
-			return nil
 		}
+	})
+
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("failed to errgroup wait: %w", err)
 	}
+	return nil
 }
 
 func (s *Starter) dispatcher(ctx context.Context, ch chan datastore.Job) error {
