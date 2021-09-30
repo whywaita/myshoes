@@ -23,8 +23,10 @@ import (
 var (
 	// DefaultRunnerVersion is default value of actions/runner
 	DefaultRunnerVersion = "v2.275.1"
-	// ConnectionsSemaphore is number of semaphore connections
-	ConnectionsSemaphore = 0
+	// CountRunning is count of running semaphore
+	CountRunning = 0
+	// CountWaiting is count of waiting job
+	CountWaiting = 0
 
 	inProgress = sync.Map{}
 )
@@ -109,10 +111,12 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 				continue
 			}
 
+			CountWaiting++
 			if err := sem.Acquire(ctx, 1); err != nil {
 				return fmt.Errorf("failed to Acquire: %w", err)
 			}
-			ConnectionsSemaphore++
+			CountWaiting--
+			CountRunning++
 
 			inProgress.Store(job.UUID, struct{}{})
 
@@ -120,7 +124,7 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 				defer func() {
 					sem.Release(1)
 					inProgress.Delete(job.UUID)
-					ConnectionsSemaphore--
+					CountRunning--
 				}()
 
 				if err := s.processJob(ctx, job); err != nil {

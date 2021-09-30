@@ -4,20 +4,30 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/whywaita/myshoes/internal/config"
-	"github.com/whywaita/myshoes/pkg/starter"
-
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/starter"
 )
 
 const memoryName = "memory"
 
 var (
-	memoryStarterStatus = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, memoryName, "starter_status"),
-		"status values from starter",
-		[]string{"type"}, nil,
+	memoryStarterMaxRunning = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "starter_max_running"),
+		"The number of max running in starter (Config)",
+		[]string{"starter"}, nil,
+	)
+	memoryStarterQueueRunning = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "starter_queue_running"),
+		"running queue in starter",
+		[]string{"starter"}, nil,
+	)
+	memoryStarterQueueWaiting = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "starter_queue_waiting"),
+		"waiting queue in starter",
+		[]string{"starter"}, nil,
 	)
 )
 
@@ -44,17 +54,21 @@ func (ScraperMemory) Scrape(ctx context.Context, ds datastore.Datastore, ch chan
 }
 
 func scrapeStarterValues(ch chan<- prometheus.Metric) error {
-	maxConnections := config.Config.MaxConnectionsToBackend
-	connections := starter.ConnectionsSemaphore
+	configMax := config.Config.MaxConnectionsToBackend
 
-	result := map[string]float64{
-		"max_connections":  float64(maxConnections),
-		"semaphore_number": float64(connections),
-	}
-	for key, n := range result {
-		ch <- prometheus.MustNewConstMetric(
-			memoryStarterStatus, prometheus.GaugeValue, n, key)
-	}
+	const labelStarter = "starter"
+
+	ch <- prometheus.MustNewConstMetric(
+		memoryStarterMaxRunning, prometheus.GaugeValue, float64(configMax), labelStarter)
+
+	countRunning := starter.CountRunning
+	countWaiting := starter.CountWaiting
+
+	ch <- prometheus.MustNewConstMetric(
+		memoryStarterQueueRunning, prometheus.GaugeValue, float64(countRunning), labelStarter)
+	ch <- prometheus.MustNewConstMetric(
+		memoryStarterQueueWaiting, prometheus.GaugeValue, float64(countWaiting), labelStarter)
+
 	return nil
 }
 
