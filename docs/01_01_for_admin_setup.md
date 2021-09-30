@@ -93,5 +93,8 @@ $ ./myshoes
 - `STRICT`
   - default: true
   - set strict mode
+- `MAX_CONNECTIONS_TO_BACKEND`
+  - default: 50
+  - The number of max connections to shoes-provider
 
 and more some env values from [shoes provider](https://github.com/whywaita/myshoes-providers).

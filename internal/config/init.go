@@ -90,6 +90,15 @@ func Load() {
 	if os.Getenv(EnvStrict) == "false" {
 		Config.Strict = false
 	}
+
+	Config.MaxConnectionsToBackend = 50
+	if os.Getenv(EnvMaxConnectionsToBackend) != "" {
+		numberPB, err := strconv.ParseInt(os.Getenv(EnvMaxConnectionsToBackend), 10, 64)
+		if err != nil {
+			log.Panicf("failed to convert int64 %s: %+v", EnvMaxConnectionsToBackend, err)
+		}
+		Config.MaxConnectionsToBackend = numberPB
+	}
 }
 
 func checkBinary(p string) (string, error) {

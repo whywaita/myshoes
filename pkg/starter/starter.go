@@ -7,10 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/whywaita/myshoes/internal/config"
-
 	uuid "github.com/satori/go.uuid"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 
+	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -20,10 +21,14 @@ import (
 )
 
 var (
-	// PistolInterval is interval of bung (a.k.a. create instance)
-	PistolInterval = 10 * time.Second
 	// DefaultRunnerVersion is default value of actions/runner
 	DefaultRunnerVersion = "v2.275.1"
+	// CountRunning is count of running semaphore
+	CountRunning = 0
+	// CountWaiting is count of waiting job
+	CountWaiting = 0
+
+	inProgress = sync.Map{}
 )
 
 // Starter is dispatcher for running job
@@ -32,7 +37,7 @@ type Starter struct {
 	safety safety.Safety
 }
 
-// New is create starter instance
+// New create starter instance
 func New(ds datastore.Datastore, s safety.Safety) *Starter {
 	return &Starter{
 		ds:     ds,
@@ -43,16 +48,89 @@ func New(ds datastore.Datastore, s safety.Safety) *Starter {
 // Loop is main loop for starter
 func (s *Starter) Loop(ctx context.Context) error {
 	logger.Logf(false, "start starter loop")
+	ch := make(chan datastore.Job)
 
-	ticker := time.NewTicker(PistolInterval)
-	defer ticker.Stop()
+	eg, ctx := errgroup.WithContext(ctx)
 
+	eg.Go(func() error {
+		if err := s.run(ctx, ch); err != nil {
+			return fmt.Errorf("faied to start processor: %w", err)
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := s.dispatcher(ctx, ch); err != nil {
+					logger.Logf(false, "failed to starter: %+v", err)
+				}
+			case <-ctx.Done():
+				return nil
+			}
+		}
+	})
+
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("failed to errgroup wait: %w", err)
+	}
+	return nil
+}
+
+func (s *Starter) dispatcher(ctx context.Context, ch chan datastore.Job) error {
+	logger.Logf(true, "start to check starter")
+	jobs, err := s.ds.ListJobs(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get jobs: %w", err)
+	}
+
+	for _, j := range jobs {
+		// send to processor
+		ch <- j
+	}
+
+	return nil
+}
+
+func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
+	sem := semaphore.NewWeighted(config.Config.MaxConnectionsToBackend)
+
+	// Processor
 	for {
 		select {
-		case <-ticker.C:
-			if err := s.do(ctx); err != nil {
-				logger.Logf(false, "failed to starter: %+v", err)
+		case job := <-ch:
+			// receive job from dispatcher
+
+			if _, ok := inProgress.Load(job.UUID); ok {
+				// this job is in progress, skip
+				continue
 			}
+
+			logger.Logf(true, "found new job: %s", job.UUID)
+			CountWaiting++
+			if err := sem.Acquire(ctx, 1); err != nil {
+				return fmt.Errorf("failed to Acquire: %w", err)
+			}
+			CountWaiting--
+			CountRunning++
+
+			inProgress.Store(job.UUID, struct{}{})
+
+			go func(job datastore.Job) {
+				defer func() {
+					sem.Release(1)
+					inProgress.Delete(job.UUID)
+					CountRunning--
+				}()
+
+				if err := s.processJob(ctx, job); err != nil {
+					logger.Logf(false, "failed to process job: %+v\n", err)
+				}
+			}(job)
 
 		case <-ctx.Done():
 			return nil
@@ -60,109 +138,85 @@ func (s *Starter) Loop(ctx context.Context) error {
 	}
 }
 
-func (s *Starter) do(ctx context.Context) error {
-	logger.Logf(true, "start to check starter")
-	jobs, err := s.ds.ListJobs(ctx)
+func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
+	logger.Logf(false, "start job (job id: %s)\n", job.UUID.String())
+
+	isOK, err := s.safety.Check(&job)
 	if err != nil {
-		return fmt.Errorf("failed to get jobs: %w", err)
+		return fmt.Errorf("failed to check safety: %w", err)
+	}
+	if !isOK {
+		// is not ok, save job
+		return nil
+	}
+	if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusRunning, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+		return fmt.Errorf("failed to update target status (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
 
-	logger.Logf(true, "found %d jobs", len(jobs))
-	wg := &sync.WaitGroup{}
-	for _, j := range jobs {
-		wg.Add(1)
-		job := j
-
-		go func() {
-			defer wg.Done()
-			logger.Logf(false, "start job (job id: %s)\n", job.UUID.String())
-
-			isOK, err := s.safety.Check(&job)
-			if err != nil {
-				logger.Logf(false, "failed to check safety: %+v\n", err)
-				return
-			}
-			if !isOK {
-				// is not ok, save job
-				return
-			}
-			if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusRunning, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
-				logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
-				return
-			}
-
-			target, err := s.ds.GetTarget(ctx, job.TargetID)
-			if err != nil {
-				logger.Logf(false, "failed to retrieve relational target: (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
-				return
-			}
-
-			cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
-			defer cancel()
-			cloudID, ipAddress, shoesType, err := s.bung(cctx, job.UUID, *target)
-			if err != nil {
-				logger.Logf(false, "failed to bung (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
-
-				if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("failed to create an instance (job ID: %s)", job.UUID)); err != nil {
-					logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
-					return
-				}
-
-				return
-			}
-
-			if config.Config.Strict {
-				if err := s.checkRegisteredRunner(ctx, cloudID, *target); err != nil {
-					logger.Logf(false, "failed to check to register runner (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
-
-					if err := deleteInstance(ctx, cloudID); err != nil {
-						logger.Logf(false, "failed to delete an instance that not registered instance (target ID: %s, cloud ID: %s): %+v\n", job.TargetID, cloudID, err)
-						// not return, need to update target status if err.
-					}
-
-					if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("cannot register runner to GitHub (job ID: %s)", job.UUID)); err != nil {
-						logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
-						return
-					}
-
-					return
-				}
-			}
-
-			r := datastore.Runner{
-				UUID:           job.UUID,
-				ShoesType:      shoesType,
-				IPAddress:      ipAddress,
-				TargetID:       job.TargetID,
-				CloudID:        cloudID,
-				ResourceType:   target.ResourceType,
-				RepositoryURL:  job.RepoURL(),
-				RequestWebhook: job.CheckEventJSON,
-			}
-			if err := s.ds.CreateRunner(ctx, r); err != nil {
-				logger.Logf(false, "failed to save runner to datastore (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
-
-				if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
-					logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
-					return
-				}
-
-				return
-			}
-
-			if err := s.ds.DeleteJob(ctx, job.UUID); err != nil {
-				logger.Logf(false, "failed to delete job: %+v\n", err)
-
-				if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
-					logger.Logf(false, "failed to update target status (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
-					return
-				}
-
-				return
-			}
-		}()
+	target, err := s.ds.GetTarget(ctx, job.TargetID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve relational target: (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
-	wg.Wait()
+
+	cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
+	defer cancel()
+	cloudID, ipAddress, shoesType, err := s.bung(cctx, job.UUID, *target)
+	if err != nil {
+		logger.Logf(false, "failed to bung (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
+
+		if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("failed to create an instance (job ID: %s)", job.UUID)); err != nil {
+			return fmt.Errorf("failed to update target status (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
+		}
+
+		return fmt.Errorf("failed to bung (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
+	}
+
+	if config.Config.Strict {
+		if err := s.checkRegisteredRunner(ctx, cloudID, *target); err != nil {
+			logger.Logf(false, "failed to check to register runner (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
+
+			if err := deleteInstance(ctx, cloudID); err != nil {
+				logger.Logf(false, "failed to delete an instance that not registered instance (target ID: %s, cloud ID: %s): %+v\n", job.TargetID, cloudID, err)
+				// not return, need to update target status if err.
+			}
+
+			if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("cannot register runner to GitHub (job ID: %s)", job.UUID)); err != nil {
+				return fmt.Errorf("failed to update target status (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
+			}
+
+			return fmt.Errorf("failed to check to register runner (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
+		}
+	}
+
+	r := datastore.Runner{
+		UUID:           job.UUID,
+		ShoesType:      shoesType,
+		IPAddress:      ipAddress,
+		TargetID:       job.TargetID,
+		CloudID:        cloudID,
+		ResourceType:   target.ResourceType,
+		RepositoryURL:  job.RepoURL(),
+		RequestWebhook: job.CheckEventJSON,
+	}
+	if err := s.ds.CreateRunner(ctx, r); err != nil {
+		logger.Logf(false, "failed to save runner to datastore (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
+
+		if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+			return fmt.Errorf("failed to update target status (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
+		}
+
+		return fmt.Errorf("failed to save runner to datastore (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
+	}
+
+	if err := s.ds.DeleteJob(ctx, job.UUID); err != nil {
+		logger.Logf(false, "failed to delete job: %+v\n", err)
+
+		if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+			return fmt.Errorf("failed to update target status (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
+		}
+
+		return fmt.Errorf("failed to delete job: %w", err)
+	}
 
 	return nil
 }
@@ -213,21 +267,30 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, cloudID string, tar
 	if err != nil {
 		return fmt.Errorf("failed to create github client: %w", err)
 	}
-
 	owner, repo := gh.DivideScope(target.Scope)
 
-	for i := 0; float64(i) < runner.MustRunningTime.Seconds(); i++ {
-		if _, err := gh.ExistGitHubRunner(ctx, client, owner, repo, cloudID); err == nil {
-			// success to register runner to GitHub
-			return nil
-		} else if !errors.Is(err, gh.ErrNotFound) {
-			// not retryable error
-			return fmt.Errorf("failed to check existing runner in GitHub: %w", err)
+	cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
+	defer cancel()
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	count := 0
+	for {
+		select {
+		case <-cctx.Done():
+			// timeout
+			return fmt.Errorf("faied to to check existing runner in GitHub: timeout in %s", runner.MustRunningTime)
+		case <-ticker.C:
+			if _, err := gh.ExistGitHubRunner(cctx, client, owner, repo, cloudID); err == nil {
+				// success to register runner to GitHub
+				return nil
+			} else if !errors.Is(err, gh.ErrNotFound) {
+				// not retryable error
+				return fmt.Errorf("failed to check existing runner in GitHub: %w", err)
+			}
+			count++
+			logger.Logf(true, "%s is not found in GitHub, will retry... (second: %ds)", cloudID, count)
 		}
-
-		logger.Logf(true, "%s is not found in GitHub, will retry... (second: %ds)", cloudID, i)
-		time.Sleep(1 * time.Second)
 	}
-
-	return fmt.Errorf("faied to to check existing runner in GitHub: timeout in %s", runner.MustRunningTime)
 }
