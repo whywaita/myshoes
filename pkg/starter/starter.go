@@ -60,7 +60,7 @@ func (s *Starter) Loop(ctx context.Context) error {
 	})
 
 	eg.Go(func() error {
-		ticker := time.NewTicker(1 * time.Second)
+		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -88,7 +88,6 @@ func (s *Starter) dispatcher(ctx context.Context, ch chan datastore.Job) error {
 		return fmt.Errorf("failed to get jobs: %w", err)
 	}
 
-	logger.Logf(true, "found %d jobs", len(jobs))
 	for _, j := range jobs {
 		// send to processor
 		ch <- j
@@ -111,6 +110,7 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 				continue
 			}
 
+			logger.Logf(true, "found new job: %s", job.UUID)
 			CountWaiting++
 			if err := sem.Acquire(ctx, 1); err != nil {
 				return fmt.Errorf("failed to Acquire: %w", err)
