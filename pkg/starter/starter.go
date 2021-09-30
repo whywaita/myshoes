@@ -37,7 +37,7 @@ type Starter struct {
 	safety safety.Safety
 }
 
-// New is creating starter instance
+// New create starter instance
 func New(ds datastore.Datastore, s safety.Safety) *Starter {
 	return &Starter{
 		ds:     ds,
