@@ -7,9 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	uuid "github.com/satori/go.uuid"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/whywaita/myshoes/internal/config"
@@ -24,6 +23,8 @@ import (
 var (
 	// DefaultRunnerVersion is default value of actions/runner
 	DefaultRunnerVersion = "v2.275.1"
+	// ConnectionsSemaphore is number of semaphore connections
+	ConnectionsSemaphore = 0
 
 	inProgress = sync.Map{}
 )
@@ -111,12 +112,17 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 			if err := sem.Acquire(ctx, 1); err != nil {
 				return fmt.Errorf("failed to Acquire: %w", err)
 			}
+			ConnectionsSemaphore++
 
 			inProgress.Store(job.UUID, struct{}{})
 
 			go func(job datastore.Job) {
-				defer sem.Release(1)
-				defer inProgress.Delete(job.UUID)
+				defer func() {
+					sem.Release(1)
+					inProgress.Delete(job.UUID)
+					ConnectionsSemaphore--
+				}()
+
 				if err := s.processJob(ctx, job); err != nil {
 					logger.Logf(false, "failed to process job: %+v\n", err)
 				}
