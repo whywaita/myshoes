@@ -18,8 +18,9 @@ type conf struct {
 	ShoesPluginPath string
 	RunnerUser      string
 
-	Debug  bool
-	Strict bool // check to registered runner before delete job
+	Debug                   bool
+	Strict                  bool // check to registered runner before delete job
+	MaxConnectionsToBackend int64
 }
 
 // Config Environment keys
@@ -32,4 +33,5 @@ const (
 	EnvShoesPluginPath           = "PLUGIN"
 	EnvDebug                     = "DEBUG"
 	EnvStrict                    = "STRICT"
+	EnvMaxConnectionsToBackend   = "MAX_CONNECTIONS_TO_BACKEND"
 )
