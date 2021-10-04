@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"database/sql"
 	_ "embed" // TODO:
 	"encoding/base64"
 	"fmt"
 	"text/template"
 
-	"github.com/whywaita/myshoes/pkg/gh"
+	"github.com/hashicorp/go-version"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/gh"
 )
 
 //go:embed scripts/RunnerService.js
@@ -48,11 +50,9 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
 	}
-	targetVersion := ""
-	if target.RunnerVersion.Valid {
-		targetVersion = target.RunnerVersion.String
-	} else {
-		targetVersion = DefaultRunnerVersion
+	runnerVersion, runnerArg, err := getRunnerVersion(target.RunnerVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to get runner version: %w", err)
 	}
 
 	runnerServiceJs, err := getPatchedFiles()
@@ -74,8 +74,9 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		GHEDomain:               target.GHEDomain.String,
 		RunnerRegistrationToken: token,
 		RunnerUser:              runnerUser,
-		TargetVersion:           targetVersion,
+		RunnerVersion:           runnerVersion,
 		RunnerServiceJS:         runnerServiceJs,
+		RunnerArg:               runnerArg,
 	}
 
 	t, err := template.New("templateCreateLatestRunnerOnce").Parse(templateCreateLatestRunnerOnce)
@@ -87,6 +88,29 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		return "", fmt.Errorf("failed to execute scripts: %w", err)
 	}
 	return buff.String(), nil
+}
+
+func getRunnerVersion(runnerVersion sql.NullString) (string, string, error) {
+	if !runnerVersion.Valid {
+		// not set, return default
+		return DefaultRunnerVersion, "--once", nil
+	}
+
+	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse ephemeral runner version: %w", err)
+	}
+
+	inputVersion, err := version.NewVersion(runnerVersion.String)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse input runner version: %w", err)
+	}
+
+	if ephemeralSupportVersion.GreaterThan(inputVersion) {
+		return runnerVersion.String, "--once", nil
+	} else {
+		return runnerVersion.String, "--ephemeral", nil
+	}
 }
 
 const templateCompressedScript = `#!/bin/bash
@@ -107,8 +131,9 @@ type templateCreateLatestRunnerOnceValue struct {
 	GHEDomain               string
 	RunnerRegistrationToken string
 	RunnerUser              string
-	TargetVersion           string
+	RunnerVersion           string
 	RunnerServiceJS         string
+	RunnerArg               string
 }
 
 // templateCreateLatestRunnerOnce is script template of setup runner.
@@ -121,10 +146,9 @@ set -e
 runner_scope={{.Scope}}
 ghe_hostname={{.GHEDomain}}
 runner_name=${3:-$(hostname)}
-svc_user=${4:-$USER}
 RUNNER_TOKEN={{.RunnerRegistrationToken}}
 RUNNER_USER={{.RunnerUser}}
-RUNNER_VERSION={{.TargetVersion}}
+RUNNER_VERSION={{.RunnerVersion}}
 RUNNER_BASE_DIRECTORY=/tmp  # /tmp is path of all user writable.
 
 sudo_prefix=""
@@ -222,7 +246,7 @@ runner_file="actions-runner-${runner_plat}-x64-${version}.tar.gz"
 
 if [ -f "${RUNNER_BASE_DIRECTORY}/runner/config.sh" ]; then
     # already extracted
-	echo "${RUNNER_BASE_DIRECTORY}/runner/config.sh exists. skipping download and extract"
+    echo "${RUNNER_BASE_DIRECTORY}/runner/config.sh exists. skipping download and extract."
 elif [ -f "${runner_file}" ]; then
     echo "${runner_file} exists. skipping download."
     extract_runner ${runner_file} ${RUNNER_USER}
@@ -284,5 +308,5 @@ EOF
 #---------------------------------------
 # run!
 #---------------------------------------
-echo "./bin/runsvc.sh --once"
-${sudo_prefix}./bin/runsvc.sh --once`
+echo "./bin/runsvc.sh {{.RunnerArg}}"
+${sudo_prefix}./bin/runsvc.sh {{.RunnerArg}}`
