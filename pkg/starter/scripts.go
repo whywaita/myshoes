@@ -108,9 +108,8 @@ func getRunnerVersion(runnerVersion sql.NullString) (string, string, error) {
 
 	if ephemeralSupportVersion.GreaterThan(inputVersion) {
 		return runnerVersion.String, "--once", nil
-	} else {
-		return runnerVersion.String, "--ephemeral", nil
 	}
+	return runnerVersion.String, "--ephemeral", nil
 }
 
 const templateCompressedScript = `#!/bin/bash
