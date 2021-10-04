@@ -6,6 +6,7 @@ import (
 	_ "embed" // TODO:
 	"encoding/base64"
 	"fmt"
+	"text/template"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
@@ -56,15 +57,25 @@ func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
 		return "", fmt.Errorf("failed to get patched files: %w", err)
 	}
 
-	script := fmt.Sprintf(templateCreateLatestRunnerOnce,
-		target.Scope,
-		target.GHEDomain.String,
-		target.GitHubToken,
-		runnerUser,
-		targetVersion,
-		runnerServiceJs)
+	v := templateCreateLatestRunnerOnceValue{
+		Scope:           target.Scope,
+		GHEDomain:       target.GHEDomain.String,
+		Token:           target.GitHubToken,
+		RunnerUser:      runnerUser,
+		TargetVersion:   targetVersion,
+		RunnerServiceJS: runnerServiceJs,
+	}
 
-	return script, nil
+	t, err := template.New("templateCreateLatestRunnerOnce").Parse(templateCreateLatestRunnerOnce)
+	if err != nil {
+		return "", fmt.Errorf("failed to create template")
+	}
+	var buff bytes.Buffer
+	if err := t.Execute(&buff, v); err != nil {
+		return "", fmt.Errorf("failed to execute scripts: %w", err)
+	}
+	fmt.Println(buff.String())
+	return buff.String(), nil
 }
 
 const templateCompressedScript = `#!/bin/bash
@@ -80,6 +91,15 @@ echo ${COMPRESSED_SCRIPT} | base64 -d | gzip -d > ${MAIN_SCRIPT_PATH}
 chmod +x ${MAIN_SCRIPT_PATH}
 bash -c ${MAIN_SCRIPT_PATH}`
 
+type templateCreateLatestRunnerOnceValue struct {
+	Scope           string
+	GHEDomain       string
+	Token           string
+	RunnerUser      string
+	TargetVersion   string
+	RunnerServiceJS string
+}
+
 // templateCreateLatestRunnerOnce is script template of setup runner.
 // need to set runnerUser if execute using root permission. (for example, use cloud-init)
 // original script: https://github.com/actions/runner/blob/80bf68db812beb298b7534012b261e6f222e004a/scripts/create-latest-svc.sh
@@ -87,37 +107,13 @@ const templateCreateLatestRunnerOnce = `#!/bin/bash
 
 set -e
 
-#
-# Downloads latest releases (not pre-release) runner
-# Configures as a service
-#
-# Examples:
-# RUNNER_CFG_PAT=<yourPAT> ./create-latest-svc.sh myuser/myrepo my.ghe.deployment.net
-# RUNNER_CFG_PAT=<yourPAT> ./create-latest-svc.sh myorg my.ghe.deployment.net
-#
-# Usage:
-#     export RUNNER_CFG_PAT=<yourPAT>
-#     ./create-latest-svc scope [ghe_domain] [name] [user]
-#
-#      scope       required  repo (:owner/:repo) or org (:organization)
-#      ghe_domain  optional  the fully qualified domain name of your GitHub Enterprise Server deployment
-#      name        optional  defaults to hostname
-#      user        optional  user svc will run as. defaults to current
-#
-# Notes:
-# PATS over envvars are more secure
-# Should be used on VMs and not containers
-# Works on OSX and Linux
-# Assumes x64 arch
-#
-
-runner_scope=%s
-ghe_hostname=%s
+runner_scope={{.Scope}}
+ghe_hostname={{.GHEDomain}}
 runner_name=${3:-$(hostname)}
 svc_user=${4:-$USER}
-RUNNER_CFG_PAT=%s
-RUNNER_USER=%s
-RUNNER_VERSION=%s
+RUNNER_CFG_PAT={{.Token}}
+RUNNER_USER={{.RunnerUser}}
+RUNNER_VERSION={{.TargetVersion}}
 
 sudo_prefix=""
 if [ $(id -u) -eq 0 ]; then  # if root
@@ -288,7 +284,7 @@ wait \$PID
 EOF
 
 cat << EOF > ./bin/RunnerService.js
-%s
+{{.RunnerServiceJS}}
 EOF
 
 #---------------------------------------
