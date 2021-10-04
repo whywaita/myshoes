@@ -3,10 +3,13 @@ package starter
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	_ "embed" // TODO:
 	"encoding/base64"
 	"fmt"
 	"text/template"
+
+	"github.com/whywaita/myshoes/pkg/gh"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
@@ -18,8 +21,8 @@ func getPatchedFiles() (string, error) {
 	return runnerService, nil
 }
 
-func (s *Starter) getSetupScript(target datastore.Target) (string, error) {
-	rawScript, err := s.getSetupRawScript(target)
+func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target) (string, error) {
+	rawScript, err := s.getSetupRawScript(ctx, target)
 	if err != nil {
 		return "", fmt.Errorf("failed to get raw setup scripts: %w", err)
 	}
@@ -40,7 +43,7 @@ func (s *Starter) getSetupScript(target datastore.Target) (string, error) {
 	return fmt.Sprintf(templateCompressedScript, encoded), nil
 }
 
-func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
+func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target) (string, error) {
 	runnerUser := ""
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
@@ -57,13 +60,22 @@ func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
 		return "", fmt.Errorf("failed to get patched files: %w", err)
 	}
 
+	installationID, err := gh.IsInstalledGitHubApp(ctx, target.GHEDomain.String, target.Scope)
+	if err != nil {
+		return "", fmt.Errorf("failed to get installlation id: %w", err)
+	}
+	token, err := gh.GenerateRunnerRegistrationToken(ctx, target.GHEDomain.String, installationID, target.Scope)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate runner register token: %w", err)
+	}
+
 	v := templateCreateLatestRunnerOnceValue{
-		Scope:           target.Scope,
-		GHEDomain:       target.GHEDomain.String,
-		Token:           target.GitHubToken,
-		RunnerUser:      runnerUser,
-		TargetVersion:   targetVersion,
-		RunnerServiceJS: runnerServiceJs,
+		Scope:                   target.Scope,
+		GHEDomain:               target.GHEDomain.String,
+		RunnerRegistrationToken: token,
+		RunnerUser:              runnerUser,
+		TargetVersion:           targetVersion,
+		RunnerServiceJS:         runnerServiceJs,
 	}
 
 	t, err := template.New("templateCreateLatestRunnerOnce").Parse(templateCreateLatestRunnerOnce)
@@ -74,7 +86,6 @@ func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
 	if err := t.Execute(&buff, v); err != nil {
 		return "", fmt.Errorf("failed to execute scripts: %w", err)
 	}
-	fmt.Println(buff.String())
 	return buff.String(), nil
 }
 
@@ -92,12 +103,12 @@ chmod +x ${MAIN_SCRIPT_PATH}
 bash -c ${MAIN_SCRIPT_PATH}`
 
 type templateCreateLatestRunnerOnceValue struct {
-	Scope           string
-	GHEDomain       string
-	Token           string
-	RunnerUser      string
-	TargetVersion   string
-	RunnerServiceJS string
+	Scope                   string
+	GHEDomain               string
+	RunnerRegistrationToken string
+	RunnerUser              string
+	TargetVersion           string
+	RunnerServiceJS         string
 }
 
 // templateCreateLatestRunnerOnce is script template of setup runner.
@@ -111,7 +122,7 @@ runner_scope={{.Scope}}
 ghe_hostname={{.GHEDomain}}
 runner_name=${3:-$(hostname)}
 svc_user=${4:-$USER}
-RUNNER_CFG_PAT={{.Token}}
+RUNNER_TOKEN={{.RunnerRegistrationToken}}
 RUNNER_USER={{.RunnerUser}}
 RUNNER_VERSION={{.TargetVersion}}
 
@@ -158,7 +169,6 @@ function install_docker()
 }
 
 if [ -z "${runner_scope}" ]; then fatal "supply scope as argument 1"; fi
-if [ -z "${RUNNER_CFG_PAT}" ]; then fatal "RUNNER_CFG_PAT must be set before calling"; fi
 
 which curl || fatal "curl required.  Please install in PATH with apt-get, brew, etc"
 which jq || install_jq
@@ -175,30 +185,6 @@ if [ -d ./runner ]; then
 fi
 
 ${sudo_prefix}mkdir -p runner
-
-# TODO: validate not in a container
-# TODO: validate systemd or osx svc installer
-
-#--------------------------------------
-# Get a config token
-#--------------------------------------
-echo
-echo "Generating a registration token..."
-
-base_api_url="https://api.github.com"
-if [ -n "${ghe_hostname}" ]; then
-    base_api_url="${ghe_hostname}/api/v3"
-fi
-
-# if the scope has a slash, it's a repo runner
-orgs_or_repos="orgs"
-if [[ "$runner_scope" == *\/* ]]; then
-    orgs_or_repos="repos"
-fi
-
-export RUNNER_TOKEN=$(curl -s -X POST ${base_api_url}/${orgs_or_repos}/${runner_scope}/actions/runners/registration-token -H "accept: application/vnd.github.everest-preview+json" -H "authorization: token ${RUNNER_CFG_PAT}" | jq -r '.token')
-
-if [ "null" == "$RUNNER_TOKEN" -o -z "$RUNNER_TOKEN" ]; then fatal "Failed to get a token"; fi
 
 #---------------------------------------
 # Download latest released and extract
