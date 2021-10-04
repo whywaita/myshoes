@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/hashicorp/go-version"
-
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 )
@@ -95,21 +93,23 @@ func getRunnerVersion(runnerVersion sql.NullString) (string, string, error) {
 		// not set, return default
 		return DefaultRunnerVersion, "--once", nil
 	}
+	return runnerVersion.String, "--once", nil
 
-	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse ephemeral runner version: %w", err)
-	}
-
-	inputVersion, err := version.NewVersion(runnerVersion.String)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse input runner version: %w", err)
-	}
-
-	if ephemeralSupportVersion.GreaterThan(inputVersion) {
-		return runnerVersion.String, "--once", nil
-	}
-	return runnerVersion.String, "--ephemeral", nil
+	// NOTE(whywaita): --ephemeral is not checked by me. So disable yet.
+	//ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
+	//if err != nil {
+	//	return "", "", fmt.Errorf("failed to parse ephemeral runner version: %w", err)
+	//}
+	//
+	//inputVersion, err := version.NewVersion(runnerVersion.String)
+	//if err != nil {
+	//	return "", "", fmt.Errorf("failed to parse input runner version: %w", err)
+	//}
+	//
+	//if ephemeralSupportVersion.GreaterThan(inputVersion) {
+	//	return runnerVersion.String, "--once", nil
+	//}
+	//return runnerVersion.String, "--ephemeral", nil
 }
 
 const templateCompressedScript = `#!/bin/bash
