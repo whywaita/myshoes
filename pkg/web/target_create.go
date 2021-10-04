@@ -32,7 +32,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	installationID, err := GHIsInstalledGitHubApp(ctx, inputTarget.GHEDomain, inputTarget.Scope)
 	if err != nil {
 		logger.Logf(false, "failed to check installed GitHub App: %+v", err)
-		outputErrorMsg(w, http.StatusBadRequest, "invalid GitHub Apps")
+		outputErrorMsg(w, http.StatusBadRequest, "failed to check to install GitHub Apps. Are you installed?")
 		return
 	}
 
