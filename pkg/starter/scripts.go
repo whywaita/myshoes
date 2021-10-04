@@ -125,6 +125,7 @@ svc_user=${4:-$USER}
 RUNNER_TOKEN={{.RunnerRegistrationToken}}
 RUNNER_USER={{.RunnerUser}}
 RUNNER_VERSION={{.TargetVersion}}
+RUNNER_BASE_DIRECTORY=/tmp  # /tmp is path of all user writable.
 
 sudo_prefix=""
 if [ $(id -u) -eq 0 ]; then  # if root
@@ -168,6 +169,36 @@ function install_docker()
     fi
 }
 
+function download_runner()
+{
+    runner_version=$1
+    runner_plat=$2
+
+    runner_url="https://github.com/actions/runner/releases/download/${runner_version}/${runner_file}"
+
+    echo "Downloading ${runner_version} for ${runner_plat} ..."
+    echo $runner_url
+
+    curl -O -L ${runner_url}
+
+    ls -la *.tar.gz
+}
+
+function extract_runner()
+{
+	runner_file=$1
+	runner_user=$2
+
+	echo "Extracting ${runner_file} to ./runner"
+
+	tar xzf "./${runner_file}" -C runner
+
+	# export of pass
+	if [ $(id -u) -eq 0 ]; then
+	chown -R ${runner_user} ./runner
+	fi
+}
+
 if [ -z "${runner_scope}" ]; then fatal "supply scope as argument 1"; fi
 
 which curl || fatal "curl required.  Please install in PATH with apt-get, brew, etc"
@@ -176,14 +207,8 @@ which jq || fatal "jq required.  Please install in PATH with apt-get, brew, etc"
 which docker || install_docker
 which docker || fatal "docker required.  Please install in PATH with apt-get, brew, etc"
 
-# move /tmp, /tmp is path of all user writable.
-cd /tmp
 
-# bail early if there's already a runner there. also sudo early
-if [ -d ./runner ]; then
-    fatal "Runner already exists.  Use a different directory or delete ./runner"
-fi
-
+cd ${RUNNER_BASE_DIRECTORY}
 ${sudo_prefix}mkdir -p runner
 
 #---------------------------------------
@@ -192,42 +217,25 @@ ${sudo_prefix}mkdir -p runner
 echo
 echo "Downloading latest runner ..."
 
-# For the GHES Alpha, download the runner from github.com
-#latest_version_label=$(curl -s -X GET 'https://api.github.com/repos/actions/runner/releases/latest' | jq -r '.tag_name')
-#latest_version=$(echo ${latest_version_label:1})
 version=$(echo ${RUNNER_VERSION:1})
 runner_file="actions-runner-${runner_plat}-x64-${version}.tar.gz"
 
-if [ -f "${runner_file}" ]; then
+if [ -f "${RUNNER_BASE_DIRECTORY}/runner/config.sh" ]; then
+    # already extracted
+	echo "${RUNNER_BASE_DIRECTORY}/runner/config.sh exists. skipping download and extract"
+elif [ -f "${runner_file}" ]; then
     echo "${runner_file} exists. skipping download."
+    extract_runner ${runner_file} ${RUNNER_USER}
 elif [ -f "/usr/local/etc/${runner_file}" ]; then
     echo "${runner_file} cache is found. skipping download."
     mv /usr/local/etc/${runner_file} ./
+    extract_runner ${runner_file} ${RUNNER_USER}
 else
-    runner_url="https://github.com/actions/runner/releases/download/${RUNNER_VERSION}/${runner_file}"
-
-    echo "Downloading ${version_label} for ${runner_plat} ..."
-    echo $runner_url
-
-    curl -O -L ${runner_url}
+    download_runner ${RUNNER_VERSION} ${runner_plat}
+    extract_runner ${runner_file} ${RUNNER_USER}
 fi
 
-ls -la *.tar.gz
-
-#---------------------------------------------------
-# extract to runner directory in this directory
-#---------------------------------------------------
-echo
-echo "Extracting ${runner_file} to ./runner"
-
-tar xzf "./${runner_file}" -C runner
-
-# export of pass
-if [ $(id -u) -eq 0 ]; then
-chown -R ${RUNNER_USER} ./runner
-fi
-
-pushd ./runner
+cd ${RUNNER_BASE_DIRECTORY}/runner
 
 #---------------------------------------
 # Unattend config
