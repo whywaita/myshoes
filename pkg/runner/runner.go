@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/whywaita/myshoes/internal/config"
+
 	"github.com/google/go-github/v35/github"
 	uuid "github.com/satori/go.uuid"
 
@@ -119,7 +121,7 @@ func (m *Manager) doTargetToken(ctx context.Context) error {
 			logger.Logf(false, "failed to get installationID: %+v", err)
 			continue
 		}
-		clientApps, err := gh.NewClientGitHubApps(target.GHEDomain.String)
+		clientApps, err := gh.NewClientGitHubApps(target.GHEDomain.String, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
 		if err != nil {
 			logger.Logf(false, "failed to create client of GitHub installation: %+v", err)
 			continue

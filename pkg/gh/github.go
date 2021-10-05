@@ -50,12 +50,9 @@ func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Cl
 // NewClientGitHubApps create a client of GitHub using Private Key from GitHub Apps
 // header is "Authorization: Bearer YOUR_JWT"
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-a-github-app
-func NewClientGitHubApps(gheDomain string) (*github.Client, error) {
-	appID := config.Config.GitHub.AppID
-	pem := config.Config.GitHub.PEMByte
-
+func NewClientGitHubApps(gheDomain string, appID int64, appPEM []byte) (*github.Client, error) {
 	tr := http.DefaultTransport
-	itr, err := ghinstallation.NewAppsTransport(tr, appID, pem)
+	itr, err := ghinstallation.NewAppsTransport(tr, appID, appPEM)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Apps transport: %w", err)
 	}
@@ -74,12 +71,9 @@ func NewClientGitHubApps(gheDomain string) (*github.Client, error) {
 // NewClientInstallation create a client of Github using installation ID from GitHub Apps
 // header is "Authorization: token YOUR_INSTALLATION_ACCESS_TOKEN"
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-an-installation
-func NewClientInstallation(gheDomain string, installationID int64) (*github.Client, error) {
-	appID := config.Config.GitHub.AppID
-	pem := config.Config.GitHub.PEMByte
-
+func NewClientInstallation(gheDomain string, installationID int64, appID int64, appPEM []byte) (*github.Client, error) {
 	tr := http.DefaultTransport
-	itr, err := ghinstallation.New(tr, appID, installationID, pem)
+	itr, err := ghinstallation.New(tr, appID, installationID, appPEM)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Apps transport: %w", err)
 	}

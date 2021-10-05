@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/whywaita/myshoes/internal/config"
+
 	"github.com/whywaita/myshoes/pkg/logger"
 
 	"github.com/google/go-github/v35/github"
@@ -30,7 +32,7 @@ func GenerateGitHubAppsToken(ctx context.Context, clientApps *github.Client, ins
 
 // GenerateRunnerRegistrationToken generate token for register runner
 func GenerateRunnerRegistrationToken(ctx context.Context, gheDomain string, installationID int64, scope string) (string, *time.Time, error) {
-	client, err := NewClientInstallation(gheDomain, installationID)
+	client, err := NewClientInstallation(gheDomain, installationID, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create NewClientInstallation: %w", err)
 	}
@@ -56,7 +58,7 @@ func GenerateRunnerRegistrationToken(ctx context.Context, gheDomain string, inst
 
 // IsInstalledGitHubApp check installed GitHub Apps in gheDomain + inputScope
 func IsInstalledGitHubApp(ctx context.Context, gheDomain, inputScope string) (int64, error) {
-	clientApps, err := GHNewClientGitHubApps(gheDomain)
+	clientApps, err := GHNewClientGitHubApps(gheDomain, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
 	if err != nil {
 		return -1, fmt.Errorf("failed to create client from GitHub Apps: %w", err)
 	}
@@ -122,7 +124,7 @@ func isInstalledGitHubAppSelected(ctx context.Context, gheDomain, inputScope str
 }
 
 func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID int64) (*github.ListRepositories, error) {
-	clientApps, err := NewClientGitHubApps(gheDomain)
+	clientApps, err := NewClientGitHubApps(gheDomain, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create github.Client from installationID: %w", err)
 	}
