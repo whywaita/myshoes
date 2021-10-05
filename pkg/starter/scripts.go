@@ -62,7 +62,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 	if err != nil {
 		return "", fmt.Errorf("failed to get installlation id: %w", err)
 	}
-	token, err := gh.GenerateRunnerRegistrationToken(ctx, target.GHEDomain.String, installationID, target.Scope)
+	token, _, err := gh.GenerateRunnerRegistrationToken(ctx, target.GHEDomain.String, installationID, target.Scope)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate runner register token: %w", err)
 	}

@@ -29,28 +29,28 @@ func GenerateGitHubAppsToken(ctx context.Context, clientApps *github.Client, ins
 }
 
 // GenerateRunnerRegistrationToken generate token for register runner
-func GenerateRunnerRegistrationToken(ctx context.Context, gheDomain string, installationID int64, scope string) (string, error) {
+func GenerateRunnerRegistrationToken(ctx context.Context, gheDomain string, installationID int64, scope string) (string, *time.Time, error) {
 	client, err := NewClientInstallation(gheDomain, installationID)
 	if err != nil {
-		return "", fmt.Errorf("failed to create NewClientInstallation: %w", err)
+		return "", nil, fmt.Errorf("failed to create NewClientInstallation: %w", err)
 	}
 
 	switch DetectScope(scope) {
 	case Organization:
 		token, _, err := client.Actions.CreateOrganizationRegistrationToken(ctx, scope)
 		if err != nil {
-			return "", fmt.Errorf("failed to generate registration token for organization (scope: %s): %w", scope, err)
+			return "", nil, fmt.Errorf("failed to generate registration token for organization (scope: %s): %w", scope, err)
 		}
-		return *token.Token, nil
+		return *token.Token, &token.ExpiresAt.Time, nil
 	case Repository:
 		owner, repo := DivideScope(scope)
 		token, _, err := client.Actions.CreateRegistrationToken(ctx, owner, repo)
 		if err != nil {
-			return "", fmt.Errorf("failed to generate registration token for repository (scope: %s): %w", scope, err)
+			return "", nil, fmt.Errorf("failed to generate registration token for repository (scope: %s): %w", scope, err)
 		}
-		return *token.Token, nil
+		return *token.Token, &token.ExpiresAt.Time, nil
 	default:
-		return "", fmt.Errorf("failed to detect scope (scope: %s)", scope)
+		return "", nil, fmt.Errorf("failed to detect scope (scope: %s)", scope)
 	}
 }
 
