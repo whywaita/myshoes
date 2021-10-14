@@ -3,11 +3,15 @@ package starter
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
+	"database/sql"
 	_ "embed" // TODO:
 	"encoding/base64"
 	"fmt"
+	"text/template"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/gh"
 )
 
 //go:embed scripts/RunnerService.js
@@ -17,8 +21,8 @@ func getPatchedFiles() (string, error) {
 	return runnerService, nil
 }
 
-func (s *Starter) getSetupScript(target datastore.Target) (string, error) {
-	rawScript, err := s.getSetupRawScript(target)
+func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target) (string, error) {
+	rawScript, err := s.getSetupRawScript(ctx, target)
 	if err != nil {
 		return "", fmt.Errorf("failed to get raw setup scripts: %w", err)
 	}
@@ -39,16 +43,14 @@ func (s *Starter) getSetupScript(target datastore.Target) (string, error) {
 	return fmt.Sprintf(templateCompressedScript, encoded), nil
 }
 
-func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
+func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target) (string, error) {
 	runnerUser := ""
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
 	}
-	targetVersion := ""
-	if target.RunnerVersion.Valid {
-		targetVersion = target.RunnerVersion.String
-	} else {
-		targetVersion = DefaultRunnerVersion
+	runnerVersion, runnerArg, err := getRunnerVersion(target.RunnerVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to get runner version: %w", err)
 	}
 
 	runnerServiceJs, err := getPatchedFiles()
@@ -56,15 +58,58 @@ func (s *Starter) getSetupRawScript(target datastore.Target) (string, error) {
 		return "", fmt.Errorf("failed to get patched files: %w", err)
 	}
 
-	script := fmt.Sprintf(templateCreateLatestRunnerOnce,
-		target.Scope,
-		target.GHEDomain.String,
-		target.GitHubToken,
-		runnerUser,
-		targetVersion,
-		runnerServiceJs)
+	installationID, err := gh.IsInstalledGitHubApp(ctx, target.GHEDomain.String, target.Scope)
+	if err != nil {
+		return "", fmt.Errorf("failed to get installlation id: %w", err)
+	}
+	token, _, err := gh.GenerateRunnerRegistrationToken(ctx, target.GHEDomain.String, installationID, target.Scope)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate runner register token: %w", err)
+	}
 
-	return script, nil
+	v := templateCreateLatestRunnerOnceValue{
+		Scope:                   target.Scope,
+		GHEDomain:               target.GHEDomain.String,
+		RunnerRegistrationToken: token,
+		RunnerUser:              runnerUser,
+		RunnerVersion:           runnerVersion,
+		RunnerServiceJS:         runnerServiceJs,
+		RunnerArg:               runnerArg,
+	}
+
+	t, err := template.New("templateCreateLatestRunnerOnce").Parse(templateCreateLatestRunnerOnce)
+	if err != nil {
+		return "", fmt.Errorf("failed to create template")
+	}
+	var buff bytes.Buffer
+	if err := t.Execute(&buff, v); err != nil {
+		return "", fmt.Errorf("failed to execute scripts: %w", err)
+	}
+	return buff.String(), nil
+}
+
+func getRunnerVersion(runnerVersion sql.NullString) (string, string, error) {
+	if !runnerVersion.Valid {
+		// not set, return default
+		return DefaultRunnerVersion, "--once", nil
+	}
+	return runnerVersion.String, "--once", nil
+
+	// NOTE(whywaita): --ephemeral is not checked by me. So disable yet.
+	//ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
+	//if err != nil {
+	//	return "", "", fmt.Errorf("failed to parse ephemeral runner version: %w", err)
+	//}
+	//
+	//inputVersion, err := version.NewVersion(runnerVersion.String)
+	//if err != nil {
+	//	return "", "", fmt.Errorf("failed to parse input runner version: %w", err)
+	//}
+	//
+	//if ephemeralSupportVersion.GreaterThan(inputVersion) {
+	//	return runnerVersion.String, "--once", nil
+	//}
+	//return runnerVersion.String, "--ephemeral", nil
 }
 
 const templateCompressedScript = `#!/bin/bash
@@ -80,6 +125,16 @@ echo ${COMPRESSED_SCRIPT} | base64 -d | gzip -d > ${MAIN_SCRIPT_PATH}
 chmod +x ${MAIN_SCRIPT_PATH}
 bash -c ${MAIN_SCRIPT_PATH}`
 
+type templateCreateLatestRunnerOnceValue struct {
+	Scope                   string
+	GHEDomain               string
+	RunnerRegistrationToken string
+	RunnerUser              string
+	RunnerVersion           string
+	RunnerServiceJS         string
+	RunnerArg               string
+}
+
 // templateCreateLatestRunnerOnce is script template of setup runner.
 // need to set runnerUser if execute using root permission. (for example, use cloud-init)
 // original script: https://github.com/actions/runner/blob/80bf68db812beb298b7534012b261e6f222e004a/scripts/create-latest-svc.sh
@@ -87,37 +142,13 @@ const templateCreateLatestRunnerOnce = `#!/bin/bash
 
 set -e
 
-#
-# Downloads latest releases (not pre-release) runner
-# Configures as a service
-#
-# Examples:
-# RUNNER_CFG_PAT=<yourPAT> ./create-latest-svc.sh myuser/myrepo my.ghe.deployment.net
-# RUNNER_CFG_PAT=<yourPAT> ./create-latest-svc.sh myorg my.ghe.deployment.net
-#
-# Usage:
-#     export RUNNER_CFG_PAT=<yourPAT>
-#     ./create-latest-svc scope [ghe_domain] [name] [user]
-#
-#      scope       required  repo (:owner/:repo) or org (:organization)
-#      ghe_domain  optional  the fully qualified domain name of your GitHub Enterprise Server deployment
-#      name        optional  defaults to hostname
-#      user        optional  user svc will run as. defaults to current
-#
-# Notes:
-# PATS over envvars are more secure
-# Should be used on VMs and not containers
-# Works on OSX and Linux
-# Assumes x64 arch
-#
-
-runner_scope=%s
-ghe_hostname=%s
+runner_scope={{.Scope}}
+ghe_hostname={{.GHEDomain}}
 runner_name=${3:-$(hostname)}
-svc_user=${4:-$USER}
-RUNNER_CFG_PAT=%s
-RUNNER_USER=%s
-RUNNER_VERSION=%s
+RUNNER_TOKEN={{.RunnerRegistrationToken}}
+RUNNER_USER={{.RunnerUser}}
+RUNNER_VERSION={{.RunnerVersion}}
+RUNNER_BASE_DIRECTORY=/tmp  # /tmp is path of all user writable.
 
 sudo_prefix=""
 if [ $(id -u) -eq 0 ]; then  # if root
@@ -161,8 +192,37 @@ function install_docker()
     fi
 }
 
+function download_runner()
+{
+    runner_version=$1
+    runner_plat=$2
+
+    runner_url="https://github.com/actions/runner/releases/download/${runner_version}/${runner_file}"
+
+    echo "Downloading ${runner_version} for ${runner_plat} ..."
+    echo $runner_url
+
+    curl -O -L ${runner_url}
+
+    ls -la *.tar.gz
+}
+
+function extract_runner()
+{
+	runner_file=$1
+	runner_user=$2
+
+	echo "Extracting ${runner_file} to ./runner"
+
+	tar xzf "./${runner_file}" -C runner
+
+	# export of pass
+	if [ $(id -u) -eq 0 ]; then
+	chown -R ${runner_user} ./runner
+	fi
+}
+
 if [ -z "${runner_scope}" ]; then fatal "supply scope as argument 1"; fi
-if [ -z "${RUNNER_CFG_PAT}" ]; then fatal "RUNNER_CFG_PAT must be set before calling"; fi
 
 which curl || fatal "curl required.  Please install in PATH with apt-get, brew, etc"
 which jq || install_jq
@@ -170,39 +230,9 @@ which jq || fatal "jq required.  Please install in PATH with apt-get, brew, etc"
 which docker || install_docker
 which docker || fatal "docker required.  Please install in PATH with apt-get, brew, etc"
 
-# move /tmp, /tmp is path of all user writable.
-cd /tmp
 
-# bail early if there's already a runner there. also sudo early
-if [ -d ./runner ]; then
-    fatal "Runner already exists.  Use a different directory or delete ./runner"
-fi
-
+cd ${RUNNER_BASE_DIRECTORY}
 ${sudo_prefix}mkdir -p runner
-
-# TODO: validate not in a container
-# TODO: validate systemd or osx svc installer
-
-#--------------------------------------
-# Get a config token
-#--------------------------------------
-echo
-echo "Generating a registration token..."
-
-base_api_url="https://api.github.com"
-if [ -n "${ghe_hostname}" ]; then
-    base_api_url="${ghe_hostname}/api/v3"
-fi
-
-# if the scope has a slash, it's a repo runner
-orgs_or_repos="orgs"
-if [[ "$runner_scope" == *\/* ]]; then
-    orgs_or_repos="repos"
-fi
-
-export RUNNER_TOKEN=$(curl -s -X POST ${base_api_url}/${orgs_or_repos}/${runner_scope}/actions/runners/registration-token -H "accept: application/vnd.github.everest-preview+json" -H "authorization: token ${RUNNER_CFG_PAT}" | jq -r '.token')
-
-if [ "null" == "$RUNNER_TOKEN" -o -z "$RUNNER_TOKEN" ]; then fatal "Failed to get a token"; fi
 
 #---------------------------------------
 # Download latest released and extract
@@ -210,42 +240,25 @@ if [ "null" == "$RUNNER_TOKEN" -o -z "$RUNNER_TOKEN" ]; then fatal "Failed to ge
 echo
 echo "Downloading latest runner ..."
 
-# For the GHES Alpha, download the runner from github.com
-#latest_version_label=$(curl -s -X GET 'https://api.github.com/repos/actions/runner/releases/latest' | jq -r '.tag_name')
-#latest_version=$(echo ${latest_version_label:1})
 version=$(echo ${RUNNER_VERSION:1})
 runner_file="actions-runner-${runner_plat}-x64-${version}.tar.gz"
 
-if [ -f "${runner_file}" ]; then
+if [ -f "${RUNNER_BASE_DIRECTORY}/runner/config.sh" ]; then
+    # already extracted
+    echo "${RUNNER_BASE_DIRECTORY}/runner/config.sh exists. skipping download and extract."
+elif [ -f "${runner_file}" ]; then
     echo "${runner_file} exists. skipping download."
+    extract_runner ${runner_file} ${RUNNER_USER}
 elif [ -f "/usr/local/etc/${runner_file}" ]; then
     echo "${runner_file} cache is found. skipping download."
     mv /usr/local/etc/${runner_file} ./
+    extract_runner ${runner_file} ${RUNNER_USER}
 else
-    runner_url="https://github.com/actions/runner/releases/download/${RUNNER_VERSION}/${runner_file}"
-
-    echo "Downloading ${version_label} for ${runner_plat} ..."
-    echo $runner_url
-
-    curl -O -L ${runner_url}
+    download_runner ${RUNNER_VERSION} ${runner_plat}
+    extract_runner ${runner_file} ${RUNNER_USER}
 fi
 
-ls -la *.tar.gz
-
-#---------------------------------------------------
-# extract to runner directory in this directory
-#---------------------------------------------------
-echo
-echo "Extracting ${runner_file} to ./runner"
-
-tar xzf "./${runner_file}" -C runner
-
-# export of pass
-if [ $(id -u) -eq 0 ]; then
-chown -R ${RUNNER_USER} ./runner
-fi
-
-pushd ./runner
+cd ${RUNNER_BASE_DIRECTORY}/runner
 
 #---------------------------------------
 # Unattend config
@@ -288,11 +301,11 @@ wait \$PID
 EOF
 
 cat << EOF > ./bin/RunnerService.js
-%s
+{{.RunnerServiceJS}}
 EOF
 
 #---------------------------------------
 # run!
 #---------------------------------------
-echo "./bin/runsvc.sh --once"
-${sudo_prefix}./bin/runsvc.sh --once`
+echo "./bin/runsvc.sh {{.RunnerArg}}"
+${sudo_prefix}./bin/runsvc.sh {{.RunnerArg}}`

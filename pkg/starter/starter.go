@@ -230,7 +230,7 @@ func (s *Starter) bung(ctx context.Context, jobUUID uuid.UUID, target datastore.
 	}
 	defer teardown()
 
-	script, err := s.getSetupScript(target)
+	script, err := s.getSetupScript(ctx, target)
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to get setup scripts: %w", err)
 	}

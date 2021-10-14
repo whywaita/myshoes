@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/whywaita/myshoes/internal/config"
+
 	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -36,7 +38,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
-	clientApps, err := GHNewClientApps(inputTarget.GHEDomain)
+	clientApps, err := GHNewClientApps(inputTarget.GHEDomain, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
 	if err != nil {
 		logger.Logf(false, "failed to client of GitHub Apps: %+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "failed to client GitHub Apps")
