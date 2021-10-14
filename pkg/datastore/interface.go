@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-version"
+
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -183,19 +185,22 @@ func (j *Job) RepoURL() string {
 
 // Runner is a runner
 type Runner struct {
-	UUID           uuid.UUID    `db:"runner_id"`
-	ShoesType      string       `db:"shoes_type"`
-	IPAddress      string       `db:"ip_address"`
-	TargetID       uuid.UUID    `db:"target_id"`
-	CloudID        string       `db:"cloud_id"`
-	Deleted        bool         `db:"deleted"`
-	Status         RunnerStatus `db:"status"`
-	ResourceType   ResourceType `db:"resource_type"`
-	RepositoryURL  string       `db:"repository_url"`
-	RequestWebhook string       `db:"request_webhook"`
-	CreatedAt      time.Time    `db:"created_at"`
-	UpdatedAt      time.Time    `db:"updated_at"`
-	DeletedAt      sql.NullTime `db:"deleted_at"`
+	UUID           uuid.UUID      `db:"runner_id"`
+	ShoesType      string         `db:"shoes_type"`
+	IPAddress      string         `db:"ip_address"`
+	TargetID       uuid.UUID      `db:"target_id"`
+	CloudID        string         `db:"cloud_id"`
+	Deleted        bool           `db:"deleted"`
+	Status         RunnerStatus   `db:"status"`
+	ResourceType   ResourceType   `db:"resource_type"`
+	RunnerUser     sql.NullString `db:"runner_user" json:"runner_user"`
+	RunnerVersion  sql.NullString `db:"runner_version" json:"runner_version"`
+	ProviderURL    sql.NullString `db:"provider_url" json:"provider_url"`
+	RepositoryURL  string         `db:"repository_url"`
+	RequestWebhook string         `db:"request_webhook"`
+	CreatedAt      time.Time      `db:"created_at"`
+	UpdatedAt      time.Time      `db:"updated_at"`
+	DeletedAt      sql.NullTime   `db:"deleted_at"`
 }
 
 // RunnerStatus is status for runner
@@ -206,6 +211,11 @@ const (
 	RunnerStatusCreated        RunnerStatus = "created"
 	RunnerStatusCompleted                   = "completed"
 	RunnerStatusReachHardLimit              = "reach_hard_limit"
+)
+
+const (
+	// DefaultRunnerVersion is default value of actions/runner
+	DefaultRunnerVersion = "v2.275.1"
 )
 
 // RunnerTemporaryMode is mode of temporary runner
@@ -226,4 +236,27 @@ func (rtm RunnerTemporaryMode) StringFlag() string {
 		return "--ephemeral"
 	}
 	return "unknown"
+}
+
+// GetRunnerTemporaryMode get runner version and RunnerTemporaryMode
+func GetRunnerTemporaryMode(runnerVersion sql.NullString) (string, RunnerTemporaryMode, error) {
+	if !runnerVersion.Valid {
+		// not set, return default
+		return DefaultRunnerVersion, RunnerTemporaryOnce, nil
+	}
+
+	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
+	if err != nil {
+		return "", RunnerTemporaryUnknown, fmt.Errorf("failed to parse ephemeral runner version: %w", err)
+	}
+
+	inputVersion, err := version.NewVersion(runnerVersion.String)
+	if err != nil {
+		return "", RunnerTemporaryUnknown, fmt.Errorf("failed to parse input runner version: %w", err)
+	}
+
+	if ephemeralSupportVersion.GreaterThan(inputVersion) {
+		return runnerVersion.String, RunnerTemporaryOnce, nil
+	}
+	return runnerVersion.String, RunnerTemporaryEphemeral, nil
 }

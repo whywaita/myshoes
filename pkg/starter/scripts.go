@@ -4,13 +4,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"database/sql"
 	_ "embed" // TODO:
 	"encoding/base64"
 	"fmt"
 	"text/template"
-
-	"github.com/hashicorp/go-version"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -50,7 +47,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
 	}
-	runnerVersion, runnerTemporaryMode, err := getRunnerVersion(target.RunnerVersion)
+	runnerVersion, runnerTemporaryMode, err := datastore.GetRunnerTemporaryMode(target.RunnerVersion)
 	if err != nil {
 		return "", fmt.Errorf("failed to get runner version: %w", err)
 	}
@@ -88,28 +85,6 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		return "", fmt.Errorf("failed to execute scripts: %w", err)
 	}
 	return buff.String(), nil
-}
-
-func getRunnerVersion(runnerVersion sql.NullString) (string, datastore.RunnerTemporaryMode, error) {
-	if !runnerVersion.Valid {
-		// not set, return default
-		return DefaultRunnerVersion, datastore.RunnerTemporaryOnce, nil
-	}
-
-	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
-	if err != nil {
-		return "", datastore.RunnerTemporaryUnknown, fmt.Errorf("failed to parse ephemeral runner version: %w", err)
-	}
-
-	inputVersion, err := version.NewVersion(runnerVersion.String)
-	if err != nil {
-		return "", datastore.RunnerTemporaryUnknown, fmt.Errorf("failed to parse input runner version: %w", err)
-	}
-
-	if ephemeralSupportVersion.GreaterThan(inputVersion) {
-		return runnerVersion.String, datastore.RunnerTemporaryOnce, nil
-	}
-	return runnerVersion.String, datastore.RunnerTemporaryEphemeral, nil
 }
 
 const templateCompressedScript = `#!/bin/bash

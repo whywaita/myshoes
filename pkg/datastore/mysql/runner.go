@@ -21,8 +21,8 @@ func (m *MySQL) CreateRunner(ctx context.Context, runner datastore.Runner) error
 		return fmt.Errorf("failed to execute INSERT query runners: %w", err)
 	}
 
-	queryDetail := `INSERT INTO runner_detail(runner_id, shoes_type, ip_address, target_id, cloud_id, resource_type, repository_url, request_webhook) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-	if _, err := tx.ExecContext(ctx, queryDetail, runner.UUID.String(), runner.ShoesType, runner.IPAddress, runner.TargetID.String(), runner.CloudID, runner.ResourceType, runner.RepositoryURL, runner.RequestWebhook); err != nil {
+	queryDetail := `INSERT INTO runner_detail(runner_id, shoes_type, ip_address, target_id, cloud_id, resource_type, repository_url, request_webhook, runner_user, runner_version, provider_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	if _, err := tx.ExecContext(ctx, queryDetail, runner.UUID.String(), runner.ShoesType, runner.IPAddress, runner.TargetID.String(), runner.CloudID, runner.ResourceType, runner.RepositoryURL, runner.RequestWebhook, runner.RunnerUser, runner.RunnerVersion, runner.ProviderURL); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("failed to execute INSERT query runner_detail: %w", err)
 	}
@@ -43,7 +43,7 @@ func (m *MySQL) CreateRunner(ctx context.Context, runner datastore.Runner) error
 // ListRunners get a not deleted runners
 func (m *MySQL) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 	var runners []datastore.Runner
-	query := `SELECT runner.runner_id, detail.shoes_type, detail.ip_address, detail.target_id, detail.cloud_id, detail.created_at, detail.updated_at, detail.resource_type, detail.repository_url, detail.request_webhook
+	query := `SELECT runner.runner_id, detail.shoes_type, detail.ip_address, detail.target_id, detail.cloud_id, detail.created_at, detail.updated_at, detail.resource_type, detail.repository_url, detail.request_webhook, detail.runner_user, detail.runner_version, detail.provider_url
  FROM runners_running AS runner JOIN runner_detail AS detail ON runner.runner_id = detail.runner_id`
 	err := m.Conn.SelectContext(ctx, &runners, query)
 	if err != nil {
@@ -61,7 +61,7 @@ func (m *MySQL) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 func (m *MySQL) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
 
-	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook FROM runner_detail WHERE runner_id = ?`
+	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook, runner_user, runner_version, provider_url FROM runner_detail WHERE runner_id = ?`
 	if err := m.Conn.GetContext(ctx, &r, query, id.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound

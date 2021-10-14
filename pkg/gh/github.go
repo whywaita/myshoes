@@ -174,7 +174,7 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 	}
 
 	responseCache.Set(getCacheKey(owner, repo), rs, 1*time.Second)
-	logger.Logf(true, "found %d runners", len(rs))
+	logger.Logf(true, "found %d runners in GitHub", len(rs))
 
 	return rs, nil
 }
