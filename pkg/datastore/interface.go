@@ -228,6 +228,7 @@ const (
 	RunnerTemporaryEphemeral
 )
 
+// StringFlag return flag
 func (rtm RunnerTemporaryMode) StringFlag() string {
 	switch rtm {
 	case RunnerTemporaryOnce:
