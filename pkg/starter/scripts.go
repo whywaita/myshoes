@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/hashicorp/go-version"
+
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 )
@@ -48,7 +50,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
 	}
-	runnerVersion, runnerArg, err := getRunnerVersion(target.RunnerVersion)
+	runnerVersion, runnerTemporaryMode, err := getRunnerVersion(target.RunnerVersion)
 	if err != nil {
 		return "", fmt.Errorf("failed to get runner version: %w", err)
 	}
@@ -74,7 +76,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		RunnerUser:              runnerUser,
 		RunnerVersion:           runnerVersion,
 		RunnerServiceJS:         runnerServiceJs,
-		RunnerArg:               runnerArg,
+		RunnerArg:               runnerTemporaryMode.StringFlag(),
 	}
 
 	t, err := template.New("templateCreateLatestRunnerOnce").Parse(templateCreateLatestRunnerOnce)
@@ -88,28 +90,26 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 	return buff.String(), nil
 }
 
-func getRunnerVersion(runnerVersion sql.NullString) (string, string, error) {
+func getRunnerVersion(runnerVersion sql.NullString) (string, datastore.RunnerTemporaryMode, error) {
 	if !runnerVersion.Valid {
 		// not set, return default
-		return DefaultRunnerVersion, "--once", nil
+		return DefaultRunnerVersion, datastore.RunnerTemporaryOnce, nil
 	}
-	return runnerVersion.String, "--once", nil
 
-	// NOTE(whywaita): --ephemeral is not checked by me. So disable yet.
-	//ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
-	//if err != nil {
-	//	return "", "", fmt.Errorf("failed to parse ephemeral runner version: %w", err)
-	//}
-	//
-	//inputVersion, err := version.NewVersion(runnerVersion.String)
-	//if err != nil {
-	//	return "", "", fmt.Errorf("failed to parse input runner version: %w", err)
-	//}
-	//
-	//if ephemeralSupportVersion.GreaterThan(inputVersion) {
-	//	return runnerVersion.String, "--once", nil
-	//}
-	//return runnerVersion.String, "--ephemeral", nil
+	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
+	if err != nil {
+		return "", datastore.RunnerTemporaryUnknown, fmt.Errorf("failed to parse ephemeral runner version: %w", err)
+	}
+
+	inputVersion, err := version.NewVersion(runnerVersion.String)
+	if err != nil {
+		return "", datastore.RunnerTemporaryUnknown, fmt.Errorf("failed to parse input runner version: %w", err)
+	}
+
+	if ephemeralSupportVersion.GreaterThan(inputVersion) {
+		return runnerVersion.String, datastore.RunnerTemporaryOnce, nil
+	}
+	return runnerVersion.String, datastore.RunnerTemporaryEphemeral, nil
 }
 
 const templateCompressedScript = `#!/bin/bash
@@ -270,8 +270,14 @@ fi
 
 echo
 echo "Configuring ${runner_name} @ $runner_url"
+{{ if eq .RunnerArg "--once" -}}
 echo "./config.sh --unattended --url $runner_url --token *** --name $runner_name --labels myshoes"
 ${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes
+{{ else -}}
+echo "./config.sh --unattended --url $runner_url --token *** --name $runner_name --labels myshoes {{.RunnerArg}}"
+${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes {{.RunnerArg}}
+{{ end }}
+
 
 #---------------------------------------
 # patch once commands
@@ -307,5 +313,10 @@ EOF
 #---------------------------------------
 # run!
 #---------------------------------------
+{{ if eq .RunnerArg "--once" -}}
 echo "./bin/runsvc.sh {{.RunnerArg}}"
-${sudo_prefix}./bin/runsvc.sh {{.RunnerArg}}`
+${sudo_prefix}./bin/runsvc.sh {{.RunnerArg}}
+{{ else -}}
+echo "./bin/runsvc.sh"
+${sudo_prefix}./bin/runsvc.sh
+{{ end }}`

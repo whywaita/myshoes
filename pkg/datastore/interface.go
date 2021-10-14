@@ -207,3 +207,23 @@ const (
 	RunnerStatusCompleted                   = "completed"
 	RunnerStatusReachHardLimit              = "reach_hard_limit"
 )
+
+// RunnerTemporaryMode is mode of temporary runner
+type RunnerTemporaryMode int
+
+// RunnerEphemeralModes variable
+const (
+	RunnerTemporaryUnknown RunnerTemporaryMode = iota
+	RunnerTemporaryOnce
+	RunnerTemporaryEphemeral
+)
+
+func (rtm RunnerTemporaryMode) StringFlag() string {
+	switch rtm {
+	case RunnerTemporaryOnce:
+		return "--once"
+	case RunnerTemporaryEphemeral:
+		return "--ephemeral"
+	}
+	return "unknown"
+}
