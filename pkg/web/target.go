@@ -218,14 +218,25 @@ func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		outputErrorMsg(w, http.StatusBadRequest, "incorrect target id (not found)")
 		return
 	}
-	if err := validateUpdateTarget(oldTarget, &newTarget); err != nil {
+	if err := validateUpdateTarget(*oldTarget, newTarget); err != nil {
 		logger.Logf(false, "input error in validateUpdateTarget: %+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, "request parameter has value of not updatable")
 		return
 	}
 
-	if err := ds.UpdateResourceType(ctx, targetID, inputTarget.ResourceType); err != nil {
-		logger.Logf(false, "failed to ds.UpdateResourceType: %+v", err)
+	updateParam := getWillUpdateTargetVariable(updatableVariable{
+		resourceType:  oldTarget.ResourceType,
+		runnerVersion: oldTarget.RunnerVersion.String,
+		runnerUser:    oldTarget.RunnerUser.String,
+		providerURL:   oldTarget.ProviderURL.String,
+	}, updatableVariable{
+		resourceType:  inputTarget.ResourceType,
+		runnerVersion: inputTarget.RunnerVersion,
+		runnerUser:    inputTarget.RunnerUser,
+		providerURL:   inputTarget.ProviderURL,
+	})
+	if err := ds.UpdateTargetParam(ctx, targetID, updateParam.resourceType, updateParam.runnerVersion, updateParam.runnerUser, updateParam.providerURL); err != nil {
+		logger.Logf(false, "failed to ds.UpdateTargetParam: %+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore update error")
 		return
 	}
@@ -301,12 +312,18 @@ func outputErrorMsg(w http.ResponseWriter, status int, msg string) {
 }
 
 // validateUpdateTarget check input target that can valid input in update.
-func validateUpdateTarget(old, new *datastore.Target) error {
-	for _, t := range []*datastore.Target{old, new} {
+func validateUpdateTarget(old, new datastore.Target) error {
+	oldv := old
+	newv := new
+
+	for _, t := range []*datastore.Target{&oldv, &newv} {
 		t.UUID = uuid.UUID{}
 
 		// can update variables
 		t.ResourceType = datastore.ResourceTypeUnknown
+		t.RunnerVersion = sql.NullString{}
+		t.RunnerUser = sql.NullString{}
+		t.ProviderURL = sql.NullString{}
 
 		// time
 		t.TokenExpiredAt = time.Time{}
@@ -319,9 +336,39 @@ func validateUpdateTarget(old, new *datastore.Target) error {
 		t.GitHubToken = ""
 	}
 
-	if diff := cmp.Diff(old, new); diff != "" {
+	if diff := cmp.Diff(oldv, newv); diff != "" {
 		return fmt.Errorf("mismatch (-want +got):\n%s", diff)
 	}
 
 	return nil
+}
+
+type updatableVariable struct {
+	resourceType  datastore.ResourceType
+	runnerVersion string
+	runnerUser    string
+	providerURL   string
+}
+
+func getWillUpdateTargetVariable(oldParam, newParam updatableVariable) updatableVariable {
+	var result updatableVariable
+
+	if newParam.resourceType == datastore.ResourceTypeUnknown {
+		result.resourceType = oldParam.resourceType
+	} else {
+		result.resourceType = newParam.resourceType
+	}
+
+	result.runnerVersion = getWillUpdateTargetVariableString(oldParam.runnerVersion, newParam.runnerVersion)
+	result.runnerUser = getWillUpdateTargetVariableString(oldParam.runnerUser, newParam.runnerUser)
+	result.providerURL = getWillUpdateTargetVariableString(oldParam.providerURL, newParam.providerURL)
+
+	return result
+}
+
+func getWillUpdateTargetVariableString(old, new string) string {
+	if strings.EqualFold(new, "") {
+		return old
+	}
+	return new
 }

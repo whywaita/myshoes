@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sync"
 	"time"
@@ -141,8 +142,8 @@ func (m *Memory) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken s
 	return nil
 }
 
-// UpdateResourceType update resource_type in target
-func (m *Memory) UpdateResourceType(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType) error {
+// UpdateTargetParam update parameter of target
+func (m *Memory) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType, newRunnerVersion, newRunnerUser, newProviderURL string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -151,6 +152,18 @@ func (m *Memory) UpdateResourceType(ctx context.Context, targetID uuid.UUID, new
 		return fmt.Errorf("not found")
 	}
 	t.ResourceType = newResourceType
+	t.RunnerVersion = sql.NullString{
+		String: newRunnerVersion,
+		Valid:  true,
+	}
+	t.RunnerUser = sql.NullString{
+		String: newRunnerUser,
+		Valid:  true,
+	}
+	t.ProviderURL = sql.NullString{
+		String: newProviderURL,
+		Valid:  true,
+	}
 
 	m.targets[targetID] = t
 	return nil

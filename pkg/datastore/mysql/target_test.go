@@ -22,6 +22,7 @@ var testScopeOrg = "octocat"
 var testScopeRepo = "octocat/hello-world"
 var testGitHubToken = "this-code-is-github-token"
 var testRunnerVersion = "v999.99.9"
+var testRunnerUser = "testing-super-user"
 var testProviderURL = "/shoes-mock"
 var testTime = time.Date(2037, 9, 3, 0, 0, 0, 0, time.UTC)
 
@@ -702,24 +703,67 @@ func TestMySQL_UpdateToken(t *testing.T) {
 	}
 }
 
-func TestMySQL_UpdateResourceType(t *testing.T) {
+func TestMySQL_UpdateTargetParam(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
 	defer teardown()
 	testDB, _ := testutils.GetTestDB()
 
+	type input struct {
+		resourceType  datastore.ResourceType
+		runnerVersion string
+		runnerUser    string
+		providerURL   string
+	}
+
 	tests := []struct {
-		input datastore.ResourceType
+		input input
 		want  *datastore.Target
 		err   bool
 	}{
 		{
-			input: datastore.ResourceTypeNano,
+			input: input{
+				resourceType:  datastore.ResourceTypeLarge,
+				runnerVersion: "",
+				runnerUser:    "",
+				providerURL:   "",
+			},
+			want: &datastore.Target{
+				Scope:        testScopeRepo,
+				GitHubToken:  testGitHubToken,
+				ResourceType: datastore.ResourceTypeLarge,
+				RunnerVersion: sql.NullString{
+					String: "",
+					Valid:  false,
+				},
+				ProviderURL: sql.NullString{
+					String: "",
+					Valid:  false,
+				},
+				Status: datastore.TargetStatusActive,
+				StatusDescription: sql.NullString{
+					String: "",
+					Valid:  false,
+				},
+			},
+			err: false,
+		},
+		{
+			input: input{
+				resourceType:  datastore.ResourceTypeLarge,
+				runnerVersion: testRunnerVersion,
+				runnerUser:    testRunnerUser,
+				providerURL:   testProviderURL,
+			},
 			want: &datastore.Target{
 				Scope:        testScopeRepo,
 				GitHubToken:  testGitHubToken,
 				ResourceType: datastore.ResourceTypeLarge,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
+					Valid:  true,
+				},
+				RunnerUser: sql.NullString{
+					String: testRunnerUser,
 					Valid:  true,
 				},
 				ProviderURL: sql.NullString{
@@ -735,7 +779,12 @@ func TestMySQL_UpdateResourceType(t *testing.T) {
 			err: false,
 		},
 		{
-			input: datastore.ResourceType4XLarge,
+			input: input{
+				resourceType:  datastore.ResourceTypeLarge,
+				runnerVersion: testRunnerVersion,
+				runnerUser:    testRunnerUser,
+				providerURL:   "",
+			},
 			want: &datastore.Target{
 				Scope:        testScopeRepo,
 				GitHubToken:  testGitHubToken,
@@ -744,9 +793,13 @@ func TestMySQL_UpdateResourceType(t *testing.T) {
 					String: testRunnerVersion,
 					Valid:  true,
 				},
-				ProviderURL: sql.NullString{
-					String: testProviderURL,
+				RunnerUser: sql.NullString{
+					String: testRunnerUser,
 					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: "",
+					Valid:  false,
 				},
 				Status: datastore.TargetStatusActive,
 				StatusDescription: sql.NullString{
@@ -765,20 +818,24 @@ func TestMySQL_UpdateResourceType(t *testing.T) {
 			Scope:          testScopeRepo,
 			GitHubToken:    testGitHubToken,
 			TokenExpiredAt: testTime,
-			ResourceType:   test.input,
+			ResourceType:   datastore.ResourceTypeNano,
 			RunnerVersion: sql.NullString{
-				String: testRunnerVersion,
-				Valid:  true,
+				String: "",
+				Valid:  false,
+			},
+			RunnerUser: sql.NullString{
+				String: "",
+				Valid:  false,
 			},
 			ProviderURL: sql.NullString{
-				String: testProviderURL,
+				String: "test-default-string",
 				Valid:  true,
 			},
 		}); err != nil {
 			t.Fatalf("failed to create target: %+v", err)
 		}
 
-		if err := testDatastore.UpdateResourceType(context.Background(), tID, test.want.ResourceType); err != nil {
+		if err := testDatastore.UpdateTargetParam(context.Background(), tID, test.input.resourceType, test.input.runnerVersion, test.input.runnerUser, test.input.providerURL); err != nil {
 			t.Fatalf("failed to UpdateResourceTyoe: %+v", err)
 		}
 

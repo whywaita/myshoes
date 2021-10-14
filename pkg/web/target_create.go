@@ -86,7 +86,18 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 			outputErrorMsg(w, http.StatusInternalServerError, "datastore recreate error")
 			return
 		}
-		if err := ds.UpdateResourceType(ctx, target.UUID, t.ResourceType); err != nil {
+		updateParam := getWillUpdateTargetVariable(updatableVariable{
+			resourceType:  target.ResourceType,
+			runnerVersion: target.RunnerVersion.String,
+			runnerUser:    target.RunnerUser.String,
+			providerURL:   target.ProviderURL.String,
+		}, updatableVariable{
+			resourceType:  inputTarget.ResourceType,
+			runnerVersion: inputTarget.RunnerVersion,
+			runnerUser:    inputTarget.RunnerUser,
+			providerURL:   inputTarget.ProviderURL,
+		})
+		if err := ds.UpdateTargetParam(ctx, target.UUID, updateParam.resourceType, updateParam.runnerVersion, updateParam.runnerUser, updateParam.providerURL); err != nil {
 			logger.Logf(false, "failed to update resource type in recreating target: %+v", err)
 			outputErrorMsg(w, http.StatusInternalServerError, "update resource type error")
 			return

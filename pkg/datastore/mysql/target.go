@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -109,12 +110,30 @@ func (m *MySQL) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken st
 	return nil
 }
 
-// UpdateResourceType update resource type in target
-func (m *MySQL) UpdateResourceType(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType) error {
-	query := `UPDATE targets SET resource_type = ? WHERE uuid = ?`
-	if _, err := m.Conn.ExecContext(ctx, query, newResourceType, targetID.String()); err != nil {
+// UpdateTargetParam update parameter of target
+func (m *MySQL) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType, newRunnerVersion, newRunnerUser, newProviderURL string) error {
+	newRV := toSQLNullString(newRunnerVersion)
+	newRU := toSQLNullString(newRunnerUser)
+	newPU := toSQLNullString(newProviderURL)
+
+	query := `UPDATE targets SET resource_type = ?, runner_version = ?, runner_user = ?, provider_url = ? WHERE uuid = ?`
+	if _, err := m.Conn.ExecContext(ctx, query, newResourceType, newRV, newRU, newPU, targetID.String()); err != nil {
 		return fmt.Errorf("failed to execute UPDATE query: %w", err)
 	}
 
 	return nil
+}
+
+func toSQLNullString(input string) sql.NullString {
+	if strings.EqualFold(input, "") {
+		return sql.NullString{
+			Valid:  false,
+			String: "",
+		}
+	}
+
+	return sql.NullString{
+		Valid:  true,
+		String: input,
+	}
 }
