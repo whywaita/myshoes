@@ -710,9 +710,9 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 
 	type input struct {
 		resourceType  datastore.ResourceType
-		runnerVersion string
-		runnerUser    string
-		providerURL   string
+		runnerVersion sql.NullString
+		runnerUser    sql.NullString
+		providerURL   sql.NullString
 	}
 
 	tests := []struct {
@@ -722,16 +722,29 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 	}{
 		{
 			input: input{
-				resourceType:  datastore.ResourceTypeLarge,
-				runnerVersion: "",
-				runnerUser:    "",
-				providerURL:   "",
+				resourceType: datastore.ResourceTypeLarge,
+				runnerVersion: sql.NullString{
+					String: "",
+					Valid:  false,
+				},
+				runnerUser: sql.NullString{
+					String: "",
+					Valid:  false,
+				},
+				providerURL: sql.NullString{
+					String: "",
+					Valid:  false,
+				},
 			},
 			want: &datastore.Target{
 				Scope:        testScopeRepo,
 				GitHubToken:  testGitHubToken,
 				ResourceType: datastore.ResourceTypeLarge,
 				RunnerVersion: sql.NullString{
+					String: "",
+					Valid:  false,
+				},
+				RunnerUser: sql.NullString{
 					String: "",
 					Valid:  false,
 				},
@@ -749,10 +762,19 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 		},
 		{
 			input: input{
-				resourceType:  datastore.ResourceTypeLarge,
-				runnerVersion: testRunnerVersion,
-				runnerUser:    testRunnerUser,
-				providerURL:   testProviderURL,
+				resourceType: datastore.ResourceTypeLarge,
+				runnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				runnerUser: sql.NullString{
+					String: testRunnerUser,
+					Valid:  true,
+				},
+				providerURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
 			},
 			want: &datastore.Target{
 				Scope:        testScopeRepo,
@@ -780,10 +802,19 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 		},
 		{
 			input: input{
-				resourceType:  datastore.ResourceTypeLarge,
-				runnerVersion: testRunnerVersion,
-				runnerUser:    testRunnerUser,
-				providerURL:   "",
+				resourceType: datastore.ResourceTypeLarge,
+				runnerVersion: sql.NullString{
+					String: testRunnerVersion,
+					Valid:  true,
+				},
+				runnerUser: sql.NullString{
+					String: testRunnerUser,
+					Valid:  true,
+				},
+				providerURL: sql.NullString{
+					String: "",
+					Valid:  false,
+				},
 			},
 			want: &datastore.Target{
 				Scope:        testScopeRepo,

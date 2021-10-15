@@ -40,7 +40,7 @@ type Datastore interface {
 	UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus TargetStatus, description string) error
 	UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error
 
-	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newRunnerVersion, newRunnerUser, newProviderURL string) error
+	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newRunnerVersion, newRunnerUser, newProviderURL sql.NullString) error
 
 	EnqueueJob(ctx context.Context, job Job) error
 	ListJobs(ctx context.Context) ([]Job, error)
