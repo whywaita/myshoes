@@ -206,6 +206,70 @@ func Test_handleTargetCreate_recreated(t *testing.T) {
 	}
 }
 
+func Test_handleTargetCreate_recreated_update(t *testing.T) {
+	testURL := testutils.GetTestURL()
+	testDatastore, teardown := testutils.GetTestDatastore()
+	defer teardown()
+
+	setStubFunctions()
+
+	input := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`
+
+	// first create
+	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	content, code := parseResponse(resp)
+	if code != http.StatusCreated {
+		t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
+	}
+	var gotContent web.UserTarget
+	if err := json.Unmarshal(content, &gotContent); err != nil {
+		t.Fatalf("failed to unmarshal resoponse content: %+v", err)
+	}
+
+	u := gotContent.UUID
+
+	// first delete
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/target/%s", testURL, u.String()), nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %+v", err)
+	}
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	_, code = parseResponse(resp)
+	if code != http.StatusNoContent {
+		t.Fatalf("must be response statuscode is 204, but got %d: %+v", code, string(content))
+	}
+
+	// second create
+	secondInput := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu", "runner_version": "v0.000.1"}`
+
+	resp, err = http.Post(testURL+"/target", "application/json", bytes.NewBufferString(secondInput))
+	if err != nil {
+		t.Fatalf("failed to POST request: %+v", err)
+	}
+	content, code = parseResponse(resp)
+	if code != http.StatusCreated {
+		t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
+	}
+
+	got, err := testDatastore.GetTarget(context.Background(), u)
+	if err != nil {
+		t.Fatalf("failed to get created target: %+v", err)
+	}
+	if got.Status != datastore.TargetStatusActive {
+		t.Fatalf("must be status is active when recreated")
+	}
+	if got.RunnerVersion.String != "v0.000.1" {
+		t.Fatalf("must be update runner_version in second createm")
+	}
+}
+
 func Test_handleTargetList(t *testing.T) {
 	testURL := testutils.GetTestURL()
 	_, teardown := testutils.GetTestDatastore()
@@ -350,41 +414,81 @@ func Test_handleTargetUpdate(t *testing.T) {
 
 	setStubFunctions()
 
-	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu"}`
-
-	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
-	if err != nil {
-		t.Fatalf("failed to POST request: %+v", err)
-	}
-	content, statusCode := parseResponse(resp)
-	if statusCode != http.StatusCreated {
-		t.Fatalf("must be response statuscode is 201, but got %d: %+v", resp.StatusCode, string(content))
-	}
-	var respTarget web.UserTarget
-	if err := json.Unmarshal(content, &respTarget); err != nil {
-		t.Fatalf("failed to unmarshal response JSON: %+v", err)
-	}
-	targetUUID := respTarget.UUID
-
 	tests := []struct {
 		input string
 		want  *web.UserTarget
 		err   bool
 	}{
-		{
+		{ // Update a few values
 			input: `{"scope": "repo", "resource_type": "nano", "runner_user": "ubuntu"}`,
 			want: &web.UserTarget{
-				UUID:           targetUUID,
+				UUID:           uuid.UUID{},
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
 				RunnerUser:     "ubuntu",
+				RunnerVersion:  "",
+				ProviderURL:    "https://example.com/default-shoes",
+				Status:         datastore.TargetStatusActive,
+			},
+		},
+		{ // Update all values
+			input: `{"scope": "repo", "resource_type": "micro", "runner_user": "super-user", "runner_version": "v9.999.9", "provider_url": "https://example.com/shoes-provider"}`,
+			want: &web.UserTarget{
+				UUID:           uuid.UUID{},
+				Scope:          "repo",
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeMicro.String(),
+				RunnerUser:     "super-user",
+				RunnerVersion:  "v9.999.9",
+				ProviderURL:    "https://example.com/shoes-provider",
+				Status:         datastore.TargetStatusActive,
+			},
+		},
+		{ // Update value only one, other value is not update
+			input: `{"scope": "repo", "resource_type": "nano"}`,
+			want: &web.UserTarget{
+				UUID:           uuid.UUID{},
+				Scope:          "repo",
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano.String(),
+				RunnerUser:     "ubuntu",
+				RunnerVersion:  "",
+				ProviderURL:    "https://example.com/default-shoes",
+				Status:         datastore.TargetStatusActive,
+			},
+		},
+		{ // Remove provider_url, Set blank
+			input: `{"scope": "repo", "resource_type": "nano" ,"provider_url": ""}`,
+			want: &web.UserTarget{
+				UUID:           uuid.UUID{},
+				Scope:          "repo",
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano.String(),
+				RunnerUser:     "ubuntu",
+				RunnerVersion:  "",
+				ProviderURL:    "",
 				Status:         datastore.TargetStatusActive,
 			},
 		},
 	}
 
 	for _, test := range tests {
+		target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu", "provider_url": "https://example.com/default-shoes"}`
+		respCreate, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
+		if err != nil {
+			t.Fatalf("failed to POST request: %+v", err)
+		}
+		contentCreate, statusCode := parseResponse(respCreate)
+		if statusCode != http.StatusCreated {
+			t.Fatalf("must be response statuscode is 201, but got %d: %+v", respCreate.StatusCode, string(contentCreate))
+		}
+		var respTarget web.UserTarget
+		if err := json.Unmarshal(contentCreate, &respTarget); err != nil {
+			t.Fatalf("failed to unmarshal response JSON: %+v", err)
+		}
+		targetUUID := respTarget.UUID
+
 		resp, err := http.Post(fmt.Sprintf("%s/target/%s", testURL, targetUUID.String()), "application/json", bytes.NewBufferString(test.input))
 		if !test.err && err != nil {
 			t.Fatalf("failed to POST request: %+v", err)
@@ -399,12 +503,15 @@ func Test_handleTargetUpdate(t *testing.T) {
 			t.Fatalf("failed to unmarshal resoponse content: %+v", err)
 		}
 
+		got.UUID = uuid.UUID{}
 		got.CreatedAt = time.Time{}
 		got.UpdatedAt = time.Time{}
 
 		if diff := cmp.Diff(test.want, &got); diff != "" {
 			t.Errorf("mismatch (-want +got):\n%s", diff)
 		}
+
+		teardown()
 	}
 }
 

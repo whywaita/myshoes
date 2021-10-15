@@ -17,30 +17,11 @@ import (
 )
 
 var testRunnerID = uuid.FromStringOrNil("7943e412-c0ae-4068-ab24-3e71a13fbe53")
-var testRunner = datastore.Runner{
-	UUID:           testRunnerID,
-	ShoesType:      "shoes-test",
-	TargetID:       testTargetID,
-	CloudID:        "mycloud-uuid",
-	ResourceType:   datastore.ResourceTypeNano,
-	RepositoryURL:  "https://github.com/octocat/Hello-World",
-	RequestWebhook: "{}",
-}
 
 func TestMySQL_CreateRunner(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
 	defer teardown()
 	testDB, _ := testutils.GetTestDB()
-
-	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:           testTargetID,
-		Scope:          testScopeRepo,
-		GitHubToken:    testGitHubToken,
-		TokenExpiredAt: testTime,
-		ResourceType:   datastore.ResourceTypeNano,
-	}); err != nil {
-		t.Fatalf("failed to create target: %+v", err)
-	}
 
 	tests := []struct {
 		input datastore.Runner
@@ -48,13 +29,84 @@ func TestMySQL_CreateRunner(t *testing.T) {
 		err   bool
 	}{
 		{
-			input: testRunner,
-			want:  &testRunner,
-			err:   false,
+			input: datastore.Runner{
+				UUID:           testRunnerID,
+				ShoesType:      "shoes-test",
+				TargetID:       testTargetID,
+				CloudID:        "mycloud-uuid",
+				ResourceType:   datastore.ResourceTypeNano,
+				RepositoryURL:  "https://github.com/octocat/Hello-World",
+				RequestWebhook: "{}",
+			},
+			want: &datastore.Runner{
+				UUID:           testRunnerID,
+				ShoesType:      "shoes-test",
+				TargetID:       testTargetID,
+				CloudID:        "mycloud-uuid",
+				ResourceType:   datastore.ResourceTypeNano,
+				RepositoryURL:  "https://github.com/octocat/Hello-World",
+				RequestWebhook: "{}",
+			},
+			err: false,
+		},
+		{
+			input: datastore.Runner{
+				UUID:         testRunnerID,
+				ShoesType:    "shoes-test",
+				TargetID:     testTargetID,
+				CloudID:      "mycloud-uuid",
+				ResourceType: datastore.ResourceTypeNano,
+				RunnerUser: sql.NullString{
+					String: "runner",
+					Valid:  true,
+				},
+				RunnerVersion: sql.NullString{
+					String: "v0.0.0",
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: "./shoes-test",
+					Valid:  true,
+				},
+				RepositoryURL:  "https://github.com/octocat/Hello-World",
+				RequestWebhook: "{}",
+			},
+			want: &datastore.Runner{
+				UUID:         testRunnerID,
+				ShoesType:    "shoes-test",
+				TargetID:     testTargetID,
+				CloudID:      "mycloud-uuid",
+				ResourceType: datastore.ResourceTypeNano,
+				RunnerUser: sql.NullString{
+					String: "runner",
+					Valid:  true,
+				},
+				RunnerVersion: sql.NullString{
+					String: "v0.0.0",
+					Valid:  true,
+				},
+				ProviderURL: sql.NullString{
+					String: "./shoes-test",
+					Valid:  true,
+				},
+				RepositoryURL:  "https://github.com/octocat/Hello-World",
+				RequestWebhook: "{}",
+			},
+			err: false,
 		},
 	}
 
 	for _, test := range tests {
+		if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+			UUID:           testTargetID,
+			Scope:          testScopeRepo,
+			GitHubToken:    testGitHubToken,
+			TokenExpiredAt: testTime,
+			ResourceType:   datastore.ResourceTypeNano,
+		}); err != nil {
+			t.Fatalf("failed to create target: %+v", err)
+		}
+
 		err := testDatastore.CreateRunner(context.Background(), test.input)
 		if !test.err && err != nil {
 			t.Fatalf("failed to create runner: %+v", err)
@@ -71,6 +123,8 @@ func TestMySQL_CreateRunner(t *testing.T) {
 		if diff := cmp.Diff(test.want, got); diff != "" {
 			t.Errorf("mismatch (-want +got):\n%s", diff)
 		}
+
+		teardown()
 	}
 }
 
@@ -95,10 +149,26 @@ func TestMySQL_ListRunners(t *testing.T) {
 	}{
 		{
 			input: []datastore.Runner{
-				testRunner,
+				{
+					UUID:           testRunnerID,
+					ShoesType:      "shoes-test",
+					TargetID:       testTargetID,
+					CloudID:        "mycloud-uuid",
+					ResourceType:   datastore.ResourceTypeNano,
+					RepositoryURL:  "https://github.com/octocat/Hello-World",
+					RequestWebhook: "{}",
+				},
 			},
 			want: []datastore.Runner{
-				testRunner,
+				{
+					UUID:           testRunnerID,
+					ShoesType:      "shoes-test",
+					TargetID:       testTargetID,
+					CloudID:        "mycloud-uuid",
+					ResourceType:   datastore.ResourceTypeNano,
+					RepositoryURL:  "https://github.com/octocat/Hello-World",
+					RequestWebhook: "{}",
+				},
 			},
 			err: false,
 		},
@@ -147,7 +217,15 @@ func TestMySQL_ListRunnersNotReturnDeleted(t *testing.T) {
 	u := "00000000-0000-0000-0000-00000000000%d"
 
 	for i := 0; i < 3; i++ {
-		input := testRunner
+		input := datastore.Runner{
+			UUID:           testRunnerID,
+			ShoesType:      "shoes-test",
+			TargetID:       testTargetID,
+			CloudID:        "mycloud-uuid",
+			ResourceType:   datastore.ResourceTypeNano,
+			RepositoryURL:  "https://github.com/octocat/Hello-World",
+			RequestWebhook: "{}",
+		}
 		input.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
 		err := testDatastore.CreateRunner(context.Background(), input)
 		if err != nil {
@@ -171,7 +249,15 @@ func TestMySQL_ListRunnersNotReturnDeleted(t *testing.T) {
 
 	var want []datastore.Runner
 	for i := 1; i < 3; i++ {
-		r := testRunner
+		r := datastore.Runner{
+			UUID:           testRunnerID,
+			ShoesType:      "shoes-test",
+			TargetID:       testTargetID,
+			CloudID:        "mycloud-uuid",
+			ResourceType:   datastore.ResourceTypeNano,
+			RepositoryURL:  "https://github.com/octocat/Hello-World",
+			RequestWebhook: "{}",
+		}
 		r.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
 		want = append(want, r)
 	}
@@ -196,7 +282,15 @@ func TestMySQL_GetRunner(t *testing.T) {
 		t.Fatalf("failed to create target: %+v", err)
 	}
 
-	if err := testDatastore.CreateRunner(context.Background(), testRunner); err != nil {
+	if err := testDatastore.CreateRunner(context.Background(), datastore.Runner{
+		UUID:           testRunnerID,
+		ShoesType:      "shoes-test",
+		TargetID:       testTargetID,
+		CloudID:        "mycloud-uuid",
+		ResourceType:   datastore.ResourceTypeNano,
+		RepositoryURL:  "https://github.com/octocat/Hello-World",
+		RequestWebhook: "{}",
+	}); err != nil {
 		t.Fatalf("failed to create runner: %+v", err)
 	}
 
@@ -207,8 +301,16 @@ func TestMySQL_GetRunner(t *testing.T) {
 	}{
 		{
 			input: testRunnerID,
-			want:  &testRunner,
-			err:   false,
+			want: &datastore.Runner{
+				UUID:           testRunnerID,
+				ShoesType:      "shoes-test",
+				TargetID:       testTargetID,
+				CloudID:        "mycloud-uuid",
+				ResourceType:   datastore.ResourceTypeNano,
+				RepositoryURL:  "https://github.com/octocat/Hello-World",
+				RequestWebhook: "{}",
+			},
+			err: false,
 		},
 	}
 
@@ -243,11 +345,27 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 		t.Fatalf("failed to create target: %+v", err)
 	}
 
-	if err := testDatastore.CreateRunner(context.Background(), testRunner); err != nil {
+	if err := testDatastore.CreateRunner(context.Background(), datastore.Runner{
+		UUID:           testRunnerID,
+		ShoesType:      "shoes-test",
+		TargetID:       testTargetID,
+		CloudID:        "mycloud-uuid",
+		ResourceType:   datastore.ResourceTypeNano,
+		RepositoryURL:  "https://github.com/octocat/Hello-World",
+		RequestWebhook: "{}",
+	}); err != nil {
 		t.Fatalf("failed to create runner: %+v", err)
 	}
 
-	deleted := testRunner
+	deleted := datastore.Runner{
+		UUID:           testRunnerID,
+		ShoesType:      "shoes-test",
+		TargetID:       testTargetID,
+		CloudID:        "mycloud-uuid",
+		ResourceType:   datastore.ResourceTypeNano,
+		RepositoryURL:  "https://github.com/octocat/Hello-World",
+		RequestWebhook: "{}",
+	}
 
 	tests := []struct {
 		input uuid.UUID
@@ -291,7 +409,7 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 
 func getRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
-	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook FROM runner_detail WHERE runner_id = ?`
+	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook, runner_user, runner_version, provider_url FROM runner_detail WHERE runner_id = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)

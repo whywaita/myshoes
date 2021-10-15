@@ -21,8 +21,6 @@ import (
 )
 
 var (
-	// DefaultRunnerVersion is default value of actions/runner
-	DefaultRunnerVersion = "v2.275.1"
 	// CountRunning is count of running semaphore
 	CountRunning = 0
 	// CountWaiting is count of waiting job
@@ -195,6 +193,9 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 		TargetID:       job.TargetID,
 		CloudID:        cloudID,
 		ResourceType:   target.ResourceType,
+		RunnerUser:     target.RunnerUser,
+		RunnerVersion:  target.RunnerVersion,
+		ProviderURL:    target.ProviderURL,
 		RepositoryURL:  job.RepoURL(),
 		RequestWebhook: job.CheckEventJSON,
 	}
