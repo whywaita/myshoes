@@ -225,16 +225,16 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 // bung is start runner, like a pistol! :)
 func (s *Starter) bung(ctx context.Context, jobUUID uuid.UUID, target datastore.Target) (string, string, string, error) {
 	logger.Logf(false, "start create instance (job: %s)", jobUUID)
+	script, err := s.getSetupScript(ctx, target)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to get setup scripts: %w", err)
+	}
+
 	client, teardown, err := shoes.GetClient()
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to get plugin client: %w", err)
 	}
 	defer teardown()
-
-	script, err := s.getSetupScript(ctx, target)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to get setup scripts: %w", err)
-	}
 
 	runnerName := runner.ToName(jobUUID.String())
 	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType)
