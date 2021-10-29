@@ -12,7 +12,7 @@ import (
 
 // removeRunnerModeEphemeral remove runner that created by --ephemeral flag.
 // --ephemeral flag is delete self-hosted runner when end of job. So, The origin list of runner from datastore.
-func (m *Manager) removeRunnerModeEphemeral(ctx context.Context, t *datastore.Target, runner datastore.Runner) error {
+func (m *Manager) removeRunnerModeEphemeral(ctx context.Context, t datastore.Target, runner datastore.Runner) error {
 	owner, repo := t.OwnerRepo()
 	client, err := gh.NewClient(ctx, t.GitHubToken, t.GHEDomain.String)
 	if err != nil {
