@@ -20,8 +20,19 @@ func (m *Manager) removeRunnerModeOnce(ctx context.Context, t *datastore.Target,
 	}
 
 	ghRunner, err := gh.ExistGitHubRunner(ctx, client, owner, repo, ToName(runner.UUID.String()))
-	if err != nil {
-		return fmt.Errorf("failed to get runner from GitHub (runner: %s): %w", runner.UUID.String(), err)
+	switch {
+	case errors.Is(err, gh.ErrNotFound):
+		logger.Logf(false, "NotFound in GitHub, so will delete in datastore without GitHub (runner: %s)", runner.UUID.String())
+		if err := m.deleteRunner(ctx, runner, StatusWillDelete); err != nil {
+			if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, ""); err != nil {
+				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
+			}
+
+			return fmt.Errorf("failed to delete runner: %w", err)
+		}
+		return nil
+	case err != nil:
+		return fmt.Errorf("failed to check runner exist in GitHub (runner: %s): %w", runner.UUID, err)
 	}
 
 	if err := sanitizeGitHubRunner(*ghRunner, runner); err != nil {
