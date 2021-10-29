@@ -57,6 +57,23 @@ func (m *MySQL) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 	return runners, nil
 }
 
+// ListRunnersByTargetID get a not deleted runners that has target_id
+func (m *MySQL) ListRunnersByTargetID(ctx context.Context, targetID uuid.UUID) ([]datastore.Runner, error) {
+	var runners []datastore.Runner
+	query := `SELECT runner.runner_id, detail.shoes_type, detail.ip_address, detail.target_id, detail.cloud_id, detail.created_at, detail.updated_at, detail.resource_type, detail.repository_url, detail.request_webhook, detail.runner_user, detail.runner_version, detail.provider_url
+ FROM runners_running AS runner JOIN runner_detail AS detail ON runner.runner_id = detail.runner_id WHERE detail.target_id = ?`
+	err := m.Conn.SelectContext(ctx, &runners, query, targetID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, datastore.ErrNotFound
+		}
+
+		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
+	}
+
+	return runners, nil
+}
+
 // GetRunner get a runner
 func (m *MySQL) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner

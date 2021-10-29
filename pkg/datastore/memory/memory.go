@@ -223,6 +223,21 @@ func (m *Memory) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 	return runners, nil
 }
 
+// ListRunnersByTargetID get a not deleted runners that has target_id
+func (m *Memory) ListRunnersByTargetID(ctx context.Context, targetID uuid.UUID) ([]datastore.Runner, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	var runners []datastore.Runner
+	for _, r := range m.runners {
+		if uuid.Equal(r.TargetID, targetID) {
+			runners = append(runners, r)
+		}
+	}
+
+	return runners, nil
+}
+
 // GetRunner get a runner
 func (m *Memory) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
 	m.mu.Lock()

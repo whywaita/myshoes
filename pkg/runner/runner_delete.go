@@ -40,7 +40,7 @@ func (m *Manager) do(ctx context.Context) error {
 }
 
 func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
-	runners, err := m.ds.ListRunners(ctx)
+	runners, err := m.ds.ListRunnersByTargetID(ctx, t.UUID)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve list of running runner: %w", err)
 	}
