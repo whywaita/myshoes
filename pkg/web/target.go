@@ -140,7 +140,7 @@ func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 
 	var targets []UserTarget
 	for _, t := range ts {
-		ut := sanitizeTarget(&t)
+		ut := sanitizeTarget(t)
 		targets = append(targets, ut)
 	}
 
@@ -168,7 +168,7 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 		return
 	}
 
-	ut := sanitizeTarget(target)
+	ut := sanitizeTarget(*target)
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -176,7 +176,7 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 	return
 }
 
-func sanitizeTarget(t *datastore.Target) UserTarget {
+func sanitizeTarget(t datastore.Target) UserTarget {
 	ut := UserTarget{
 		UUID:              t.UUID,
 		Scope:             t.Scope,
@@ -247,7 +247,7 @@ func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore get error")
 		return
 	}
-	ut := sanitizeTarget(updatedTarget)
+	ut := sanitizeTarget(*updatedTarget)
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusOK)

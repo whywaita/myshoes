@@ -112,7 +112,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore get error")
 		return
 	}
-	ut := sanitizeTarget(createdTarget)
+	ut := sanitizeTarget(*createdTarget)
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusCreated)

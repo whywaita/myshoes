@@ -31,7 +31,7 @@ func (m *Manager) do(ctx context.Context) error {
 	logger.Logf(true, "found %d targets in datastore", len(targets))
 	for _, target := range targets {
 		logger.Logf(true, "start to search runner in %s", target.RepoURL())
-		if err := m.removeRunners(ctx, &target); err != nil {
+		if err := m.removeRunners(ctx, target); err != nil {
 			logger.Logf(false, "failed to delete runners (target: %s): %+v", target.RepoURL(), err)
 		}
 	}
@@ -39,8 +39,8 @@ func (m *Manager) do(ctx context.Context) error {
 	return nil
 }
 
-func (m *Manager) removeRunners(ctx context.Context, t *datastore.Target) error {
-	runners, err := m.ds.ListRunners(ctx)
+func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
+	runners, err := m.ds.ListRunnersByTargetID(ctx, t.UUID)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve list of running runner: %w", err)
 	}
@@ -78,7 +78,7 @@ func (m *Manager) removeRunners(ctx context.Context, t *datastore.Target) error 
 	return nil
 }
 
-func isRegisteredRunnerZeroInGitHub(ctx context.Context, t *datastore.Target) (bool, error) {
+func isRegisteredRunnerZeroInGitHub(ctx context.Context, t datastore.Target) (bool, error) {
 	owner, repo := t.OwnerRepo()
 	client, err := gh.NewClient(ctx, t.GitHubToken, t.GHEDomain.String)
 	if err != nil {
