@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/patrickmn/go-cache"
-
-	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v35/github"
+	"github.com/patrickmn/go-cache"
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/logger"
 	"golang.org/x/oauth2"
