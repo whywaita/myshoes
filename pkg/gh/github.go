@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gregjones/httpcache"
+
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v35/github"
 	"github.com/patrickmn/go-cache"
@@ -50,7 +52,7 @@ func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Cl
 // header is "Authorization: Bearer YOUR_JWT"
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-a-github-app
 func NewClientGitHubApps(gheDomain string, appID int64, appPEM []byte) (*github.Client, error) {
-	tr := http.DefaultTransport
+	tr := httpcache.NewMemoryCacheTransport()
 	itr, err := ghinstallation.NewAppsTransport(tr, appID, appPEM)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Apps transport: %w", err)
@@ -71,7 +73,7 @@ func NewClientGitHubApps(gheDomain string, appID int64, appPEM []byte) (*github.
 // header is "Authorization: token YOUR_INSTALLATION_ACCESS_TOKEN"
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-an-installation
 func NewClientInstallation(gheDomain string, installationID int64, appID int64, appPEM []byte) (*github.Client, error) {
-	tr := http.DefaultTransport
+	tr := httpcache.NewMemoryCacheTransport()
 	itr, err := ghinstallation.New(tr, appID, installationID, appPEM)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Apps transport: %w", err)
@@ -93,7 +95,7 @@ func CheckSignature(installationID int64) error {
 	appID := config.Config.GitHub.AppID
 	pem := config.Config.GitHub.PEMByte
 
-	tr := http.DefaultTransport
+	tr := httpcache.NewMemoryCacheTransport()
 	_, err := ghinstallation.New(tr, appID, installationID, pem)
 	if err != nil {
 		return fmt.Errorf("failed to create GitHub installation: %w", err)
