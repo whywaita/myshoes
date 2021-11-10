@@ -7,6 +7,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.6
 	github.com/google/go-github/v35 v35.2.0
+	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hashicorp/go-plugin v1.4.0
 	github.com/hashicorp/go-version v1.3.0
 	github.com/jmoiron/sqlx v1.2.0
