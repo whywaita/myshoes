@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gregjones/httpcache"
-
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v35/github"
+	"github.com/gregjones/httpcache"
 	"github.com/patrickmn/go-cache"
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -40,12 +39,17 @@ func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Cl
 			AccessToken: personalToken,
 		})
 	tc := oauth2.NewClient(ctx, ts)
-
-	if gheDomain == "" {
-		return github.NewClient(tc), nil
+	httpcacheTransport := &httpcache.Transport{
+		Transport:           tc.Transport,
+		Cache:               httpcache.NewMemoryCache(),
+		MarkCachedResponses: true,
 	}
 
-	return github.NewEnterpriseClient(gheDomain, gheDomain, tc)
+	if gheDomain == "" {
+		return github.NewClient(&http.Client{Transport: httpcacheTransport}), nil
+	}
+
+	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: httpcacheTransport})
 }
 
 // NewClientGitHubApps create a client of GitHub using Private Key from GitHub Apps
