@@ -34,23 +34,22 @@ func init() {
 
 // NewClient create a client of GitHub
 func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Client, error) {
-	transport := &oauth2.Transport{
+	oauth2Transport := &oauth2.Transport{
 		Source: oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: personalToken},
 		),
 	}
-
-	httpcacheTransport := &httpcache.Transport{
-		Transport:           transport,
+	transport := &httpcache.Transport{
+		Transport:           oauth2Transport,
 		Cache:               httpcache.NewMemoryCache(),
 		MarkCachedResponses: true,
 	}
 
 	if gheDomain == "" {
-		return github.NewClient(&http.Client{Transport: httpcacheTransport}), nil
+		return github.NewClient(&http.Client{Transport: transport}), nil
 	}
 
-	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: httpcacheTransport})
+	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: transport})
 }
 
 // NewClientGitHubApps create a client of GitHub using Private Key from GitHub Apps
@@ -166,15 +165,10 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 
 	var rs []*github.Runner
 	for {
+		logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d", opts.Page, len(rs))
 		runners, resp, err := listRunners(ctx, client, owner, repo, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list runners: %w", err)
-		}
-
-		if resp.StatusCode == http.StatusNotModified {
-			logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d (NotModified)", opts.Page, len(rs))
-		} else {
-			logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d", opts.Page, len(rs))
 		}
 
 		rs = append(rs, runners.Runners...)
