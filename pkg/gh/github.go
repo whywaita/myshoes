@@ -34,13 +34,14 @@ func init() {
 
 // NewClient create a client of GitHub
 func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Client, error) {
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{
-			AccessToken: personalToken,
-		})
-	tc := oauth2.NewClient(ctx, ts)
+	transport := &oauth2.Transport{
+		Source: oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: personalToken},
+		),
+	}
+
 	httpcacheTransport := &httpcache.Transport{
-		Transport:           tc.Transport,
+		Transport:           transport,
 		Cache:               httpcache.NewMemoryCache(),
 		MarkCachedResponses: true,
 	}
@@ -73,7 +74,7 @@ func NewClientGitHubApps(gheDomain string, appID int64, appPEM []byte) (*github.
 	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: itr})
 }
 
-// NewClientInstallation create a client of Github using installation ID from GitHub Apps
+// NewClientInstallation create a client of GitHub using installation ID from GitHub Apps
 // header is "Authorization: token YOUR_INSTALLATION_ACCESS_TOKEN"
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-an-installation
 func NewClientInstallation(gheDomain string, installationID int64, appID int64, appPEM []byte) (*github.Client, error) {
@@ -108,7 +109,7 @@ func CheckSignature(installationID int64) error {
 	return nil
 }
 
-// ExistGitHubRepository check exist of github repository
+// ExistGitHubRepository check exist of GitHub repository
 func ExistGitHubRepository(scope, gheDomain string, githubPersonalToken string) error {
 	repoURL, err := getRepositoryURL(scope, gheDomain)
 	if err != nil {
@@ -136,7 +137,7 @@ func ExistGitHubRepository(scope, gheDomain string, githubPersonalToken string) 
 	return fmt.Errorf("invalid response code (%d)", resp.StatusCode)
 }
 
-// ExistGitHubRunner check exist registered of github runner
+// ExistGitHubRunner check exist registered of GitHub runner
 func ExistGitHubRunner(ctx context.Context, client *github.Client, owner, repo, runnerName string) (*github.Runner, error) {
 	runners, err := ListRunners(ctx, client, owner, repo)
 	if err != nil {
@@ -165,10 +166,15 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 
 	var rs []*github.Runner
 	for {
-		logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d", opts.Page, len(rs))
 		runners, resp, err := listRunners(ctx, client, owner, repo, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list runners: %w", err)
+		}
+
+		if resp.StatusCode == http.StatusNotModified {
+			logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d (NotModified)", opts.Page, len(rs))
+		} else {
+			logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d", opts.Page, len(rs))
 		}
 
 		rs = append(rs, runners.Runners...)
