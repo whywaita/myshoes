@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gregjones/httpcache"
-
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v35/github"
+	"github.com/gregjones/httpcache"
 	"github.com/patrickmn/go-cache"
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -35,17 +34,22 @@ func init() {
 
 // NewClient create a client of GitHub
 func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Client, error) {
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{
-			AccessToken: personalToken,
-		})
-	tc := oauth2.NewClient(ctx, ts)
-
-	if gheDomain == "" {
-		return github.NewClient(tc), nil
+	oauth2Transport := &oauth2.Transport{
+		Source: oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: personalToken},
+		),
+	}
+	transport := &httpcache.Transport{
+		Transport:           oauth2Transport,
+		Cache:               httpcache.NewMemoryCache(),
+		MarkCachedResponses: true,
 	}
 
-	return github.NewEnterpriseClient(gheDomain, gheDomain, tc)
+	if gheDomain == "" {
+		return github.NewClient(&http.Client{Transport: transport}), nil
+	}
+
+	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: transport})
 }
 
 // NewClientGitHubApps create a client of GitHub using Private Key from GitHub Apps
@@ -69,7 +73,7 @@ func NewClientGitHubApps(gheDomain string, appID int64, appPEM []byte) (*github.
 	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: itr})
 }
 
-// NewClientInstallation create a client of Github using installation ID from GitHub Apps
+// NewClientInstallation create a client of GitHub using installation ID from GitHub Apps
 // header is "Authorization: token YOUR_INSTALLATION_ACCESS_TOKEN"
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-an-installation
 func NewClientInstallation(gheDomain string, installationID int64, appID int64, appPEM []byte) (*github.Client, error) {
@@ -104,7 +108,7 @@ func CheckSignature(installationID int64) error {
 	return nil
 }
 
-// ExistGitHubRepository check exist of github repository
+// ExistGitHubRepository check exist of GitHub repository
 func ExistGitHubRepository(scope, gheDomain string, githubPersonalToken string) error {
 	repoURL, err := getRepositoryURL(scope, gheDomain)
 	if err != nil {
@@ -132,7 +136,7 @@ func ExistGitHubRepository(scope, gheDomain string, githubPersonalToken string) 
 	return fmt.Errorf("invalid response code (%d)", resp.StatusCode)
 }
 
-// ExistGitHubRunner check exist registered of github runner
+// ExistGitHubRunner check exist registered of GitHub runner
 func ExistGitHubRunner(ctx context.Context, client *github.Client, owner, repo, runnerName string) (*github.Runner, error) {
 	runners, err := ListRunners(ctx, client, owner, repo)
 	if err != nil {
