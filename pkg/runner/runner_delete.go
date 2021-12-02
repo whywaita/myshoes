@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/whywaita/myshoes/pkg/gh"
-
 	"github.com/google/go-github/v35/github"
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
 	"github.com/whywaita/myshoes/pkg/shoes"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Runner is a runner implement
@@ -173,7 +174,11 @@ func (m *Manager) deleteRunner(ctx context.Context, runner datastore.Runner, run
 	defer teardown()
 
 	if err := client.DeleteInstance(ctx, runner.CloudID); err != nil {
-		return fmt.Errorf("failed to delete instance: %w", err)
+		if status.Code(err) == codes.NotFound {
+			logger.Logf(true, "%s is not found, will ignore from shoes", runner.UUID)
+		} else {
+			return fmt.Errorf("failed to delete instance: %w", err)
+		}
 	}
 
 	now := time.Now().UTC()
