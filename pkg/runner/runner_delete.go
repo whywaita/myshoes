@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -174,7 +175,7 @@ func (m *Manager) deleteRunner(ctx context.Context, runner datastore.Runner, run
 	defer teardown()
 
 	if err := client.DeleteInstance(ctx, runner.CloudID); err != nil {
-		if status.Code(err) == codes.NotFound {
+		if status.Code(errors.Unwrap(err)) == codes.NotFound {
 			logger.Logf(true, "%s is not found, will ignore from shoes", runner.UUID)
 		} else {
 			return fmt.Errorf("failed to delete instance: %w", err)
