@@ -10,7 +10,7 @@
 
 Auto scaling self-hosted runner :runner: (like GitHub-hosted) for GitHub Actions!
 
-# features
+## Features
 
 - Auto-scaling and runner with your cloud-provider
     - your infrastructure (private cloud, homelab...)
@@ -22,13 +22,15 @@ Auto scaling self-hosted runner :runner: (like GitHub-hosted) for GitHub Actions
     - using special hardware
         - Graphics Processing Unit (GPU)
         - Field Programmable Gate Array (FPGA)
+    - And more in [whywaita/myshoes-providers](https://github.com/whywaita/myshoes-providers)
 
 ## Setup (only once)
 
-Please check [setup.md](./docs/setup.md)
+Please see [Documents](./docs).
 
-## Known issue
+## Publications
 
-- sometimes occurred race condition if running multi jobs
-  - GitHub Action's runner has a problem like a race condition.
-  - related PullRequest: https://github.com/actions/runner/pull/660
+### Talk
+
+- [Development myshoes and Provide Cycloud-hosted runner -- GitHub Actions with your shoes. (en)](https://www.slideshare.net/whywaita/development-myshoes-and-provide-cycloudhosted-runner-github-actions-with-your-shoes)
+- [Development OSS CI/CD platform in CyberAgent (ja)](https://www.slideshare.net/whywaita/cyberagent-oss-cicd-myshoes-cicd2021)
