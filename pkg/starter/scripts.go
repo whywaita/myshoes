@@ -132,9 +132,6 @@ if [ $(id -u) -eq 0 ]; then  # if root
 sudo_prefix="sudo -E -u ${RUNNER_USER} "
 fi
 
-export HOME="/home/${RUNNER_USER}"
-export AGENT_TOOLSDIRECTORY="/opt/hostedtoolcache"
-
 echo "Configuring runner @ ${runner_scope}"
 
 #---------------------------------------
