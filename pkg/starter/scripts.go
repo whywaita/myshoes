@@ -146,6 +146,14 @@ function fatal()
    exit 1
 }
 
+function configure_environment()
+{
+	export HOME="/home/${RUNNER_USER}"
+	if [ "${runner_plat}" = "osx" ]; then
+		export HOME="/Users/${RUNNER_USER}"
+	fi
+}
+
 function install_jq()
 {
     echo "jq is not installed, will be install jq."
@@ -208,6 +216,7 @@ which jq || fatal "jq required.  Please install in PATH with apt-get, brew, etc"
 which docker || install_docker
 which docker || fatal "docker required.  Please install in PATH with apt-get, brew, etc"
 
+configure_environment
 
 cd ${RUNNER_BASE_DIRECTORY}
 ${sudo_prefix}mkdir -p runner
