@@ -30,9 +30,14 @@ var (
 		"waiting queue in starter",
 		[]string{"starter"}, nil,
 	)
-	memoryGitHubRateLimit = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, memoryName, "github_rate_limit"),
-		"The number of rate limit",
+	memoryGitHubRateLimitRemaining = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "github_rate_limit_remaining"),
+		"The number of rate limit remaining",
+		[]string{"scope"}, nil,
+	)
+	memoryGitHubRateLimitLimiting = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "github_rate_limit_limiting"),
+		"The number of rate limit max",
 		[]string{"scope"}, nil,
 	)
 )
@@ -82,10 +87,17 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 }
 
 func scrapeGitHubValues(ch chan<- prometheus.Metric) error {
-	rateLimitCount := gh.GetRateLimit()
-	for scope, count := range rateLimitCount {
+	rateLimitRemain := gh.GetRateLimitRemain()
+	for scope, remain := range rateLimitRemain {
 		ch <- prometheus.MustNewConstMetric(
-			memoryGitHubRateLimit, prometheus.GaugeValue, float64(count), scope,
+			memoryGitHubRateLimitRemaining, prometheus.GaugeValue, float64(remain), scope,
+		)
+	}
+
+	rateLimitLimit := gh.GetRateLimitLimit()
+	for scope, limit := range rateLimitLimit {
+		ch <- prometheus.MustNewConstMetric(
+			memoryGitHubRateLimitLimiting, prometheus.GaugeValue, float64(limit), scope,
 		)
 	}
 

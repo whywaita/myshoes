@@ -27,15 +27,18 @@ var (
 	// ResponseCache is cache variable
 	responseCache *cache.Cache
 
-	// rateLimitCount is count of Rate limit, for metrics
-	rateLimitCount = sync.Map{}
+	// rateLimitRemain is remaining of Rate limit, for metrics
+	rateLimitRemain = sync.Map{}
+	// rateLimitLimit is limit of Rate limit, for metrics
+	rateLimitLimit = sync.Map{}
 )
 
 func init() {
 	c := cache.New(5*time.Minute, 10*time.Minute)
 	responseCache = c
 
-	rateLimitCount = sync.Map{}
+	rateLimitRemain = sync.Map{}
+	rateLimitLimit = sync.Map{}
 }
 
 // NewClient create a client of GitHub

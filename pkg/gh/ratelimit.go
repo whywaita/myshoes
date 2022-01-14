@@ -8,13 +8,13 @@ import (
 )
 
 func storeRateLimit(scope string, rateLimit github.Rate) {
-	fmt.Printf("%+v\n", rateLimit)
-	if rateLimit.Limit == 0 && rateLimit.Reset.IsZero() {
-		// Not configure rate limit, don't need to store
+	if rateLimit.Reset.IsZero() {
+		// Not configure rate limit, don't need to store (e.g. GHES)
 		return
 	}
 
-	rateLimitCount.Store(scope, rateLimit.Limit)
+	rateLimitLimit.Store(scope, rateLimit.Limit)
+	rateLimitRemain.Store(scope, rateLimit.Remaining)
 }
 
 func getRateLimitKey(org, repo string) string {
@@ -24,12 +24,38 @@ func getRateLimitKey(org, repo string) string {
 	return fmt.Sprintf("%s/%s", org, repo)
 }
 
-// GetRateLimit get a list of rate limit
-func GetRateLimit() map[string]int {
+// GetRateLimitRemain get a list of rate limit remaining
+// key: scope, value: remain
+func GetRateLimitRemain() map[string]int {
 	m := map[string]int{}
 	mu := sync.Mutex{}
 
-	rateLimitCount.Range(func(key, value interface{}) bool {
+	rateLimitRemain.Range(func(key, value interface{}) bool {
+		k, ok := key.(string)
+		if !ok {
+			return false
+		}
+		v, ok := value.(int)
+		if !ok {
+			return false
+		}
+
+		mu.Lock()
+		m[k] = v
+		mu.Unlock()
+		return true
+	})
+
+	return m
+}
+
+// GetRateLimitLimit get a list of rate limit
+// key: scope, value: remain
+func GetRateLimitLimit() map[string]int {
+	m := map[string]int{}
+	mu := sync.Mutex{}
+
+	rateLimitLimit.Range(func(key, value interface{}) bool {
 		k, ok := key.(string)
 		if !ok {
 			return false
