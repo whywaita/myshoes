@@ -38,7 +38,7 @@ func (m *Manager) doTargetToken(ctx context.Context) error {
 			logger.Logf(false, "failed to create client of GitHub installation: %+v", err)
 			continue
 		}
-		token, expiredAt, err := gh.GenerateGitHubAppsToken(ctx, clientApps, installationID)
+		token, expiredAt, err := gh.GenerateGitHubAppsToken(ctx, clientApps, installationID, target.Scope)
 		if err != nil {
 			logger.Logf(false, "failed to get Apps Token: %+v", err)
 			continue

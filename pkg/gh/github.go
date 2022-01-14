@@ -176,7 +176,7 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list runners: %w", err)
 		}
-		storeRateLimit(owner, repo, resp.Rate.Limit)
+		storeRateLimit(getRateLimitKey(owner, repo), resp.Rate.Limit)
 
 		rs = append(rs, runners.Runners...)
 		if resp.NextPage == 0 {

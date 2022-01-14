@@ -5,8 +5,8 @@ import (
 	"sync"
 )
 
-func storeRateLimit(org, repo string, rateLimit int) {
-	rateLimitCount.Store(getRateLimitKey(org, repo), rateLimit)
+func storeRateLimit(scope string, rateLimit int) {
+	rateLimitCount.Store(scope, rateLimit)
 }
 
 func getRateLimitKey(org, repo string) string {
