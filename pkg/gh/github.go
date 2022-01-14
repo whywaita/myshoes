@@ -186,11 +186,11 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 
 	var rs []*github.Runner
 	for {
+		logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d", opts.Page, len(rs))
 		runners, resp, err := listRunners(ctx, client, owner, repo, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list runners: %w", err)
 		}
-		logger.Logf(true, "get runners from GitHub, page: %d, now all runners: %d (status code: %d)", opts.Page, len(rs), resp.StatusCode)
 		storeRateLimit(getRateLimitKey(owner, repo), resp.Rate)
 
 		rs = append(rs, runners.Runners...)
