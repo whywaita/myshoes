@@ -27,7 +27,7 @@ func GenerateGitHubAppsToken(ctx context.Context, clientApps *github.Client, ins
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate token from API: %w", err)
 	}
-	storeRateLimit(scope, resp.Rate.Limit)
+	storeRateLimit(scope, resp.Rate)
 	return *token.Token, token.ExpiresAt, nil
 }
 

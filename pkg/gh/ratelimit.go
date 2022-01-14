@@ -3,10 +3,18 @@ package gh
 import (
 	"fmt"
 	"sync"
+
+	"github.com/google/go-github/v35/github"
 )
 
-func storeRateLimit(scope string, rateLimit int) {
-	rateLimitCount.Store(scope, rateLimit)
+func storeRateLimit(scope string, rateLimit github.Rate) {
+	fmt.Printf("%+v\n", rateLimit)
+	if rateLimit.Limit == 0 && rateLimit.Reset.IsZero() {
+		// Not configure rate limit, don't need to store
+		return
+	}
+
+	rateLimitCount.Store(scope, rateLimit.Limit)
 }
 
 func getRateLimitKey(org, repo string) string {
