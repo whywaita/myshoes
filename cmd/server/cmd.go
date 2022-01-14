@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whywaita/myshoes/pkg/logger"
-
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/datastore/mysql"
+	"github.com/whywaita/myshoes/pkg/gh"
+	"github.com/whywaita/myshoes/pkg/logger"
 	"github.com/whywaita/myshoes/pkg/runner"
 	"github.com/whywaita/myshoes/pkg/starter"
 	"github.com/whywaita/myshoes/pkg/starter/safety/unlimited"
@@ -22,6 +22,9 @@ import (
 
 func init() {
 	config.Load()
+	if err := gh.InitializeCache(config.Config.GitHub.AppID, config.Config.GitHub.PEMByte); err != nil {
+		log.Panicf("failed to create a cache: %+v", err)
+	}
 }
 
 func main() {

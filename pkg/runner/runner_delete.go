@@ -82,7 +82,7 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 
 func isRegisteredRunnerZeroInGitHub(ctx context.Context, t datastore.Target) (bool, error) {
 	owner, repo := t.OwnerRepo()
-	client, err := gh.NewClient(ctx, t.GitHubToken, t.GHEDomain.String)
+	client, err := gh.NewClient(t.GitHubToken, t.GHEDomain.String)
 	if err != nil {
 		return false, fmt.Errorf("failed to create github client: %w", err)
 	}
