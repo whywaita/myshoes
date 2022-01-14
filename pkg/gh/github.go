@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
@@ -25,11 +26,16 @@ var (
 
 	// ResponseCache is cache variable
 	responseCache *cache.Cache
+
+	// rateLimitCount is count of Rate limit, for metrics
+	rateLimitCount = sync.Map{}
 )
 
 func init() {
 	c := cache.New(5*time.Minute, 10*time.Minute)
 	responseCache = c
+
+	rateLimitCount = sync.Map{}
 }
 
 // NewClient create a client of GitHub
@@ -170,6 +176,7 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list runners: %w", err)
 		}
+		storeRateLimit(owner, repo, resp.Rate.Limit)
 
 		rs = append(rs, runners.Runners...)
 		if resp.NextPage == 0 {
