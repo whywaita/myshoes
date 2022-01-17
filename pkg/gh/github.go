@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/gregjones/httpcache"
+	"github.com/m4ns0ur/httpcache"
 )
 
 var (
