@@ -8,6 +8,7 @@ import (
 
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/starter"
 )
 
@@ -29,6 +30,16 @@ var (
 		"waiting queue in starter",
 		[]string{"starter"}, nil,
 	)
+	memoryGitHubRateLimitRemaining = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "github_rate_limit_remaining"),
+		"The number of rate limit remaining",
+		[]string{"scope"}, nil,
+	)
+	memoryGitHubRateLimitLimiting = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "github_rate_limit_limiting"),
+		"The number of rate limit max",
+		[]string{"scope"}, nil,
+	)
 )
 
 // ScraperMemory is scraper implement for memory
@@ -49,6 +60,9 @@ func (ScraperMemory) Scrape(ctx context.Context, ds datastore.Datastore, ch chan
 	if err := scrapeStarterValues(ch); err != nil {
 		return fmt.Errorf("failed to scrape starter values: %w", err)
 	}
+	if err := scrapeGitHubValues(ch); err != nil {
+		return fmt.Errorf("failed to scrape GitHub values: %w", err)
+	}
 
 	return nil
 }
@@ -68,6 +82,24 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 		memoryStarterQueueRunning, prometheus.GaugeValue, float64(countRunning), labelStarter)
 	ch <- prometheus.MustNewConstMetric(
 		memoryStarterQueueWaiting, prometheus.GaugeValue, float64(countWaiting), labelStarter)
+
+	return nil
+}
+
+func scrapeGitHubValues(ch chan<- prometheus.Metric) error {
+	rateLimitRemain := gh.GetRateLimitRemain()
+	for scope, remain := range rateLimitRemain {
+		ch <- prometheus.MustNewConstMetric(
+			memoryGitHubRateLimitRemaining, prometheus.GaugeValue, float64(remain), scope,
+		)
+	}
+
+	rateLimitLimit := gh.GetRateLimitLimit()
+	for scope, limit := range rateLimitLimit {
+		ch <- prometheus.MustNewConstMetric(
+			memoryGitHubRateLimitLimiting, prometheus.GaugeValue, float64(limit), scope,
+		)
+	}
 
 	return nil
 }

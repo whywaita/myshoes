@@ -47,7 +47,7 @@ func setStubFunctions() {
 		return testInstallationID, nil
 	}
 
-	web.GHGenerateGitHubAppsToken = func(ctx context.Context, clientInstallation *github.Client, installationID int64) (string, *time.Time, error) {
+	web.GHGenerateGitHubAppsToken = func(ctx context.Context, clientInstallation *github.Client, installationID int64, scope string) (string, *time.Time, error) {
 		return testGitHubAppToken, &testTime, nil
 	}
 

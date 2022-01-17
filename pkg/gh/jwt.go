@@ -22,11 +22,12 @@ var (
 
 // GenerateGitHubAppsToken generate token of GitHub Apps using private key
 // clientApps needs to response of `NewClientGitHubApps()`
-func GenerateGitHubAppsToken(ctx context.Context, clientApps *github.Client, installationID int64) (string, *time.Time, error) {
-	token, _, err := clientApps.Apps.CreateInstallationToken(ctx, installationID, nil)
+func GenerateGitHubAppsToken(ctx context.Context, clientApps *github.Client, installationID int64, scope string) (string, *time.Time, error) {
+	token, resp, err := clientApps.Apps.CreateInstallationToken(ctx, installationID, nil)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate token from API: %w", err)
 	}
+	storeRateLimit(scope, resp.Rate)
 	return *token.Token, token.ExpiresAt, nil
 }
 
@@ -97,7 +98,7 @@ func IsInstalledGitHubApp(ctx context.Context, gheDomain, inputScope string) (in
 }
 
 func isInstalledGitHubAppSelected(ctx context.Context, gheDomain, inputScope string, installationID int64) error {
-	lr, err := GHlistAppsInstalledRepo(ctx, gheDomain, installationID)
+	lr, err := GHlistAppsInstalledRepo(ctx, gheDomain, installationID, inputScope)
 	if err != nil {
 		return fmt.Errorf("failed to get list of installed repositories: %w", err)
 	}
@@ -123,12 +124,12 @@ func isInstalledGitHubAppSelected(ctx context.Context, gheDomain, inputScope str
 	return fmt.Errorf("not found")
 }
 
-func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID int64) (*github.ListRepositories, error) {
+func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID int64, inputScope string) (*github.ListRepositories, error) {
 	clientApps, err := NewClientGitHubApps(gheDomain, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create github.Client from installationID: %w", err)
 	}
-	token, _, err := GenerateGitHubAppsToken(ctx, clientApps, installationID)
+	token, _, err := GenerateGitHubAppsToken(ctx, clientApps, installationID, inputScope)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate GitHub Apps Token: %w", err)
 	}
