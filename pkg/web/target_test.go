@@ -51,7 +51,7 @@ func setStubFunctions() {
 		return testGitHubAppToken, &testTime, nil
 	}
 
-	web.GHNewClientApps = func(gheDomain string, appID int64, appPEM []byte) (*github.Client, error) {
+	web.GHNewClientApps = func(gheDomain string) (*github.Client, error) {
 		return &github.Client{}, nil
 	}
 }

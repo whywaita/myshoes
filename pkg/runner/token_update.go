@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -28,16 +27,18 @@ func (m *Manager) doTargetToken(ctx context.Context) error {
 
 		// do refresh
 		logger.Logf(true, "%s need to update GitHub token, will be update", target.UUID)
+
+		clientApps, err := gh.NewClientGitHubApps(target.GHEDomain.String)
+		if err != nil {
+			logger.Logf(false, "failed to create a client from Apps: %+v", err)
+			continue
+		}
 		installationID, err := gh.IsInstalledGitHubApp(ctx, target.GHEDomain.String, target.Scope)
 		if err != nil {
 			logger.Logf(false, "failed to get installationID: %+v", err)
 			continue
 		}
-		clientApps, err := gh.NewClientGitHubApps(target.GHEDomain.String, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
-		if err != nil {
-			logger.Logf(false, "failed to create client of GitHub installation: %+v", err)
-			continue
-		}
+		// TODO: replace to ghinstallation.AppTransport
 		token, expiredAt, err := gh.GenerateGitHubAppsToken(ctx, clientApps, installationID, target.Scope)
 		if err != nil {
 			logger.Logf(false, "failed to get Apps Token: %+v", err)

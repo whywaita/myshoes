@@ -97,6 +97,8 @@ func (s *Starter) dispatcher(ctx context.Context, ch chan datastore.Job) error {
 func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 	sem := semaphore.NewWeighted(config.Config.MaxConnectionsToBackend)
 
+	// client := *github.Client
+
 	// Processor
 	for {
 		select {
@@ -264,7 +266,7 @@ func deleteInstance(ctx context.Context, cloudID string) error {
 
 // checkRegisteredRunner check to register runner to GitHub
 func (s *Starter) checkRegisteredRunner(ctx context.Context, cloudID string, target datastore.Target) error {
-	client, err := gh.NewClient(ctx, target.GitHubToken, target.GHEDomain.String)
+	client, err := gh.NewClient(target.GitHubToken, target.GHEDomain.String)
 	if err != nil {
 		return fmt.Errorf("failed to create github client: %w", err)
 	}
