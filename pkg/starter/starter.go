@@ -97,8 +97,6 @@ func (s *Starter) dispatcher(ctx context.Context, ch chan datastore.Job) error {
 func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 	sem := semaphore.NewWeighted(config.Config.MaxConnectionsToBackend)
 
-	// client := *github.Client
-
 	// Processor
 	for {
 		select {
