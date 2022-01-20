@@ -9,10 +9,12 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v35/github"
 	"github.com/gregjones/httpcache"
+	"github.com/patrickmn/go-cache"
 	"github.com/whywaita/myshoes/pkg/logger"
 	"golang.org/x/oauth2"
 )
@@ -20,6 +22,9 @@ import (
 var (
 	// ErrNotFound is error for not found
 	ErrNotFound = fmt.Errorf("not found")
+
+	// ResponseCache is cache variable
+	responseCache = cache.New(5*time.Minute, 10*time.Minute)
 
 	// rateLimitRemain is remaining of Rate limit, for metrics
 	rateLimitRemain = sync.Map{}
@@ -179,6 +184,10 @@ func ExistGitHubRunner(ctx context.Context, client *github.Client, owner, repo, 
 
 // ListRunners get runners that registered repository or org
 func ListRunners(ctx context.Context, client *github.Client, owner, repo string) ([]*github.Runner, error) {
+	if cachedRs, found := responseCache.Get(getCacheKey(owner, repo)); found {
+		return cachedRs.([]*github.Runner), nil
+	}
+
 	var opts = &github.ListOptions{
 		Page:    0,
 		PerPage: 10,
@@ -200,9 +209,14 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 		opts.Page = resp.NextPage
 	}
 
+	responseCache.Set(getCacheKey(owner, repo), rs, 1*time.Second)
 	logger.Logf(true, "found %d runners in GitHub", len(rs))
 
 	return rs, nil
+}
+
+func getCacheKey(owner, repo string) string {
+	return fmt.Sprintf("owner-%s-repo-%s", owner, repo)
 }
 
 func listRunners(ctx context.Context, client *github.Client, owner, repo string, opts *github.ListOptions) (*github.Runners, *github.Response, error) {
