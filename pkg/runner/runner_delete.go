@@ -68,6 +68,7 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 
 	sem := semaphore.NewWeighted(config.Config.MaxConcurrencyDeleting)
 	var eg errgroup.Group
+	ConcurrencyDeleting = 0
 
 	for _, runner := range runners {
 		runner := runner
