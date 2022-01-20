@@ -173,6 +173,11 @@ func ExistGitHubRunner(ctx context.Context, client *github.Client, owner, repo, 
 		return nil, fmt.Errorf("failed to get list of runners: %w", err)
 	}
 
+	return ExistGitHubRunnerWithRunner(runners, runnerName)
+}
+
+// ExistGitHubRunnerWithRunner check exist registered of GitHub runner from a list of runner
+func ExistGitHubRunnerWithRunner(runners []*github.Runner, runnerName string) (*github.Runner, error) {
 	for _, r := range runners {
 		if strings.EqualFold(r.GetName(), runnerName) {
 			return r, nil
