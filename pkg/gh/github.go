@@ -13,7 +13,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v35/github"
-	"github.com/gregjones/httpcache"
+	"github.com/m4ns0ur/httpcache"
 	"github.com/patrickmn/go-cache"
 	"github.com/whywaita/myshoes/pkg/logger"
 	"golang.org/x/oauth2"
