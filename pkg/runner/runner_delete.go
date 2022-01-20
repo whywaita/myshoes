@@ -98,6 +98,10 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 }
 
 func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner datastore.Runner, ghRunners []*github.Runner) error {
+	if err := sanitizeRunnerMustRunningTime(runner); errors.Is(err, ErrNotWillDeleteRunner) {
+		return nil
+	}
+
 	_, mode, err := datastore.GetRunnerTemporaryMode(runner.RunnerVersion)
 	if err != nil {
 		return fmt.Errorf("failed to get runner temporary mode: %w", err)
@@ -134,8 +138,8 @@ func isRegisteredRunnerZeroInGitHub(ctx context.Context, t datastore.Target) (bo
 	return false, ghRunners, nil
 }
 
-// Error values
 var (
+	// ErrNotWillDeleteRunner is error message for "not will delete runner"
 	ErrNotWillDeleteRunner = fmt.Errorf("not will delete runner")
 )
 
@@ -149,13 +153,13 @@ var (
 func sanitizeGitHubRunner(ghRunner github.Runner, dsRunner datastore.Runner) error {
 	switch ghRunner.GetStatus() {
 	case StatusWillDelete:
-		if err := sanitizeRunner(&dsRunner, MustRunningTime); err != nil {
+		if err := sanitizeRunner(dsRunner, MustRunningTime); err != nil {
 			logger.Logf(false, "%s is offline and not running %s, so not will delete (created_at: %s, now: %s)", dsRunner.UUID, MustRunningTime, dsRunner.CreatedAt, time.Now().UTC())
 			return fmt.Errorf("failed to sanitize will delete runner: %w", err)
 		}
 		return nil
 	case StatusSleep:
-		if err := sanitizeRunner(&dsRunner, MustGoalTime); err != nil {
+		if err := sanitizeRunner(dsRunner, MustGoalTime); err != nil {
 			logger.Logf(false, "%s is idle and not running %s, so not will delete (created_at: %s, now: %s)", dsRunner.UUID, MustGoalTime, dsRunner.CreatedAt, time.Now().UTC())
 			return fmt.Errorf("failed to sanitize idle runner: %w", err)
 		}
@@ -165,7 +169,11 @@ func sanitizeGitHubRunner(ghRunner github.Runner, dsRunner datastore.Runner) err
 	return ErrNotWillDeleteRunner
 }
 
-func sanitizeRunner(runner *datastore.Runner, needTime time.Duration) error {
+func sanitizeRunnerMustRunningTime(runner datastore.Runner) error {
+	return sanitizeRunner(runner, MustRunningTime)
+}
+
+func sanitizeRunner(runner datastore.Runner, needTime time.Duration) error {
 	spent := runner.CreatedAt.Add(needTime)
 	now := time.Now().UTC()
 	if !spent.Before(now) {
