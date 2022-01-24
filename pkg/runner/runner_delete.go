@@ -76,6 +76,7 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("failed to Acquire: %w", err)
 		}
+		ConcurrencyDeleting++
 
 		eg.Go(func() error {
 			defer func() {
@@ -83,7 +84,6 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 				ConcurrencyDeleting--
 			}()
 
-			ConcurrencyDeleting++
 			if err := m.removeRunner(ctx, t, runner, ghRunners); err != nil {
 				logger.Logf(false, "failed to delete runner: %+v", err)
 			}
