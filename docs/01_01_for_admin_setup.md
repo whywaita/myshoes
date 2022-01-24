@@ -99,5 +99,9 @@ $ ./myshoes
 - `MAX_CONCURRENCY_DELETING`
   - default: 1
   - The number of max concurrency of deleting
+- `ENDPOINT_ACTIONS_RUNNER_RELEASE`
+  - default: `https://github.com`
+  - The endpoint of GitHub Release for `actions/runner`
+  - Set for private cache or No internet environment
 
 and more some env values from [shoes provider](https://github.com/whywaita/myshoes-providers).

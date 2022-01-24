@@ -68,11 +68,11 @@ func Load() {
 	if pluginPath == "" {
 		log.Panicf("%s must be set", EnvShoesPluginPath)
 	}
-	fp, err := fetch(pluginPath)
+	fp, err := fetchPlugin(pluginPath)
 	if err != nil {
 		log.Panicf("failed to fetch plugin binary: %+v", err)
 	}
-	absPath, err := checkBinary(fp)
+	absPath, err := checkPluginBinary(fp)
 	if err != nil {
 		log.Panicf("failed to check plugin binary: %+v", err)
 	}
@@ -107,9 +107,42 @@ func Load() {
 		}
 		Config.MaxConcurrencyDeleting = numberCD
 	}
+
+	earr := "https://github.com"
+	if os.Getenv(EnvEndpointActionsRunnerRelease) != "" {
+		if err := isExistDefaultActionsRunnerRelease(os.Getenv(EnvEndpointActionsRunnerRelease)); err != nil {
+			log.Panicf("failed to retrieve release of default runner version from %s configured %s", os.Getenv(EnvEndpointActionsRunnerRelease), EnvEndpointActionsRunnerRelease)
+		}
+
+		earr = os.Getenv(EnvEndpointActionsRunnerRelease)
+	}
+	Config.EndpointActionsRunnerRelease = earr
 }
 
-func checkBinary(p string) (string, error) {
+func isExistDefaultActionsRunnerRelease(endpointActionsRunner string) error {
+	releaseURL, err := getReleaseURL(endpointActionsRunner)
+	if err != nil {
+		return fmt.Errorf("failed to get release url: %w", err)
+	}
+
+	if _, err := http.Get(releaseURL.String()); err != nil {
+		return fmt.Errorf("failed to GET request: %w", err)
+	}
+	return nil
+}
+
+func getReleaseURL(endpointActionsRunner string) (*url.URL, error) {
+	filename := fmt.Sprintf("actions-runner-%s-x64-%s.tar.gz", "linux", DefaultRunnerVersion)
+	u, err := url.Parse(endpointActionsRunner)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse endpoint of actions/runner releases: %w", err)
+	}
+
+	u.Path = filepath.Join(u.Path, "actions", "runner", "releases", "download", DefaultRunnerVersion, filename)
+	return u, nil
+}
+
+func checkPluginBinary(p string) (string, error) {
 	if _, err := os.Stat(p); err != nil {
 		return "", fmt.Errorf("failed to stat file: %w", err)
 	}
@@ -131,9 +164,9 @@ func checkBinary(p string) (string, error) {
 	return apath, nil
 }
 
-// fetch retrieve plugin binaries.
+// fetchPlugin retrieve plugin binaries.
 // return saved file path.
-func fetch(p string) (string, error) {
+func fetchPlugin(p string) (string, error) {
 	_, err := os.Stat(p)
 	if err == nil {
 		// this is file path!
@@ -146,15 +179,15 @@ func fetch(p string) (string, error) {
 	}
 	switch u.Scheme {
 	case "http", "https":
-		return fetchHTTP(u)
+		return fetchPluginHTTP(u)
 	default:
 		return "", fmt.Errorf("unsupported fetch schema")
 	}
 }
 
-// fetchHTTP fetch plugin binary over HTTP(s).
+// fetchPluginHTTP fetch plugin binary over HTTP(s).
 // save to current directory.
-func fetchHTTP(u *url.URL) (string, error) {
+func fetchPluginHTTP(u *url.URL) (string, error) {
 	log.Printf("fetch plugin binary from %s\n", u.String())
 	pwd, err := os.Getwd()
 	if err != nil {

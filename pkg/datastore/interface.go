@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/whywaita/myshoes/internal/config"
 	"net/url"
 	"strings"
 	"time"
@@ -214,11 +215,6 @@ const (
 	RunnerStatusReachHardLimit              = "reach_hard_limit"
 )
 
-const (
-	// DefaultRunnerVersion is default value of actions/runner
-	DefaultRunnerVersion = "v2.275.1"
-)
-
 // RunnerTemporaryMode is mode of temporary runner
 type RunnerTemporaryMode int
 
@@ -244,7 +240,7 @@ func (rtm RunnerTemporaryMode) StringFlag() string {
 func GetRunnerTemporaryMode(runnerVersion sql.NullString) (string, RunnerTemporaryMode, error) {
 	if !runnerVersion.Valid {
 		// not set, return default
-		return DefaultRunnerVersion, RunnerTemporaryOnce, nil
+		return config.DefaultRunnerVersion, RunnerTemporaryOnce, nil
 	}
 
 	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")

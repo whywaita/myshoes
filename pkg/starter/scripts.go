@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/whywaita/myshoes/internal/config"
+
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 )
@@ -74,6 +76,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		RunnerVersion:           runnerVersion,
 		RunnerServiceJS:         runnerServiceJs,
 		RunnerArg:               runnerTemporaryMode.StringFlag(),
+		EndpointActionsRelease:  config.Config.EndpointActionsRunnerRelease,
 	}
 
 	t, err := template.New("templateCreateLatestRunnerOnce").Parse(templateCreateLatestRunnerOnce)
@@ -108,6 +111,7 @@ type templateCreateLatestRunnerOnceValue struct {
 	RunnerVersion           string
 	RunnerServiceJS         string
 	RunnerArg               string
+	EndpointActionsRelease  string
 }
 
 // templateCreateLatestRunnerOnce is script template of setup runner.
@@ -123,6 +127,7 @@ runner_name=${3:-$(hostname)}
 RUNNER_TOKEN={{.RunnerRegistrationToken}}
 RUNNER_USER={{.RunnerUser}}
 RUNNER_VERSION={{.RunnerVersion}}
+ENDPOINT_ACTIONS_RELEASE={{.EndpointActionsRelease}}
 RUNNER_BASE_DIRECTORY=/tmp  # /tmp is path of all user writable.
 
 sudo_prefix=""
@@ -171,8 +176,9 @@ function download_runner()
 {
     runner_version=$1
     runner_plat=$2
+	endpoint_actions_releases=$3
 
-    runner_url="https://github.com/actions/runner/releases/download/${runner_version}/${runner_file}"
+    runner_url="${endpoint_actions_releases}/actions/runner/releases/download/${runner_version}/${runner_file}"
 
     echo "Downloading ${runner_version} for ${runner_plat} ..."
     echo $runner_url
@@ -229,7 +235,7 @@ elif [ -f "/usr/local/etc/${runner_file}" ]; then
     mv /usr/local/etc/${runner_file} ./
     extract_runner ${runner_file} ${RUNNER_USER}
 else
-    download_runner ${RUNNER_VERSION} ${runner_plat}
+    download_runner ${RUNNER_VERSION} ${runner_plat} ${ENDPOINT_ACTIONS_RELEASE}
     extract_runner ${runner_file} ${RUNNER_USER}
 fi
 
