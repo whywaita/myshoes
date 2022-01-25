@@ -96,5 +96,8 @@ $ ./myshoes
 - `MAX_CONNECTIONS_TO_BACKEND`
   - default: 50
   - The number of max connections to shoes-provider
+- `MAX_CONCURRENCY_DELETING`
+  - default: 1
+  - The number of max concurrency of deleting
 
 and more some env values from [shoes provider](https://github.com/whywaita/myshoes-providers).

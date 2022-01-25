@@ -99,6 +99,14 @@ func Load() {
 		}
 		Config.MaxConnectionsToBackend = numberPB
 	}
+	Config.MaxConcurrencyDeleting = 1
+	if os.Getenv(EnvMaxConcurrencyDeleting) != "" {
+		numberCD, err := strconv.ParseInt(os.Getenv(EnvMaxConcurrencyDeleting), 10, 64)
+		if err != nil {
+			log.Panicf("failed to convert int64 %s: %+v", EnvMaxConcurrencyDeleting, err)
+		}
+		Config.MaxConcurrencyDeleting = numberCD
+	}
 }
 
 func checkBinary(p string) (string, error) {

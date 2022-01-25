@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
+	"github.com/whywaita/myshoes/pkg/runner"
 	"github.com/whywaita/myshoes/pkg/starter"
 )
 
@@ -39,6 +39,16 @@ var (
 		prometheus.BuildFQName(namespace, memoryName, "github_rate_limit_limiting"),
 		"The number of rate limit max",
 		[]string{"scope"}, nil,
+	)
+	memoryRunnerMaxConcurrencyDeleting = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "runner_max_concurrency_deleting"),
+		"The number of max concurrency deleting in runner (Config)",
+		[]string{"runner"}, nil,
+	)
+	memoryRunnerQueueConcurrencyDeleting = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "runner_queue_concurrency_deleting"),
+		"deleting concurrency in runner",
+		[]string{"runner"}, nil,
 	)
 )
 
@@ -82,6 +92,15 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 		memoryStarterQueueRunning, prometheus.GaugeValue, float64(countRunning), labelStarter)
 	ch <- prometheus.MustNewConstMetric(
 		memoryStarterQueueWaiting, prometheus.GaugeValue, float64(countWaiting), labelStarter)
+
+	const labelRunner = "runner"
+	configRunnerDeletingMax := config.Config.MaxConcurrencyDeleting
+	countRunnerDeletingNow := runner.ConcurrencyDeleting
+
+	ch <- prometheus.MustNewConstMetric(
+		memoryRunnerMaxConcurrencyDeleting, prometheus.GaugeValue, float64(configRunnerDeletingMax), labelRunner)
+	ch <- prometheus.MustNewConstMetric(
+		memoryRunnerQueueConcurrencyDeleting, prometheus.GaugeValue, float64(countRunnerDeletingNow), labelRunner)
 
 	return nil
 }
