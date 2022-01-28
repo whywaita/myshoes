@@ -56,7 +56,7 @@ func generateRunnerRegisterToken(ctx context.Context, gheDomain string, installa
 }
 
 func setRunnerRegisterTokenCache(installationID int64, scope, token string, expiresAt time.Time) {
-	expiresDuration := time.Until(expiresAt.Add(-time.Minute))
+	expiresDuration := time.Until(expiresAt.Add(-6 * time.Minute))
 
 	cacheRegistrationToken.Set(getCacheKeyRegistrationToken(installationID, scope), token, expiresDuration)
 }
