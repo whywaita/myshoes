@@ -3,7 +3,6 @@ package gh
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -16,7 +15,7 @@ var (
 // GetRunnerRegistrationToken get token for register runner
 // clientInstallation needs to response of `NewClientInstallation()`
 func GetRunnerRegistrationToken(ctx context.Context, gheDomain string, installationID int64, scope string) (string, error) {
-	cachedToken := getRunnerRegisterTokenFromCache(installationID)
+	cachedToken := getRunnerRegisterTokenFromCache(installationID, scope)
 	if cachedToken != "" {
 		return cachedToken, nil
 	}
@@ -25,7 +24,7 @@ func GetRunnerRegistrationToken(ctx context.Context, gheDomain string, installat
 	if err != nil {
 		return "", fmt.Errorf("failed to generate runner register token: %w", err)
 	}
-	setRunnerRegisterTokenCache(installationID, rrToken, *expiresAt)
+	setRunnerRegisterTokenCache(installationID, scope, rrToken, *expiresAt)
 	return rrToken, nil
 }
 
@@ -56,14 +55,14 @@ func generateRunnerRegisterToken(ctx context.Context, gheDomain string, installa
 	}
 }
 
-func setRunnerRegisterTokenCache(installationID int64, token string, expiresAt time.Time) {
+func setRunnerRegisterTokenCache(installationID int64, scope, token string, expiresAt time.Time) {
 	expiresDuration := time.Until(expiresAt.Add(-time.Minute))
 
-	cacheRegistrationToken.Set(strconv.FormatInt(installationID, 10), token, expiresDuration)
+	cacheRegistrationToken.Set(getCacheKeyRegistrationToken(installationID, scope), token, expiresDuration)
 }
 
-func getRunnerRegisterTokenFromCache(installationID int64) string {
-	got, found := cacheRegistrationToken.Get(strconv.FormatInt(installationID, 10))
+func getRunnerRegisterTokenFromCache(installationID int64, scope string) string {
+	got, found := cacheRegistrationToken.Get(getCacheKeyRegistrationToken(installationID, scope))
 	if !found {
 		return ""
 	}
@@ -72,4 +71,8 @@ func getRunnerRegisterTokenFromCache(installationID int64) string {
 		return ""
 	}
 	return token
+}
+
+func getCacheKeyRegistrationToken(installationID int64, scope string) string {
+	return fmt.Sprintf("%s-%d", scope, installationID)
 }
