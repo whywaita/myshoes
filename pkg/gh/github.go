@@ -195,7 +195,7 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 
 	var opts = &github.ListOptions{
 		Page:    0,
-		PerPage: 10,
+		PerPage: 100,
 	}
 
 	var rs []*github.Runner
