@@ -301,14 +301,17 @@ func parseReqTargetID(r *http.Request) (uuid.UUID, error) {
 	return targetID, nil
 }
 
+// ErrorResponse is error response
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 func outputErrorMsg(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 
 	w.WriteHeader(status)
 
-	json.NewEncoder(w).Encode(struct {
-		Error string `json:"error"`
-	}{Error: msg})
+	json.NewEncoder(w).Encode(ErrorResponse{Error: msg})
 }
 
 // validateUpdateTarget check input target that can valid input in update.
