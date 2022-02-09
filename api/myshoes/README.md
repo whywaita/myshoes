@@ -23,15 +23,15 @@ func main()  {
 	// Set customized logger
 	customLogger := log.New(io.Discard, "", log.LstdFlags)
 	
-    client, err := myshoes.NewClient("https://example.com", customHTTPClient, customLogger)
+	client, err := myshoes.NewClient("https://example.com", customHTTPClient, customLogger)
 	if err != nil {
 		// ...
-    }
+	}
 	
 	targets, err := client.ListTarget(context.Background())
 	if err != nil {
 		// ...
-    }
+	}
 	
 	fmt.Println(targets)
 }
