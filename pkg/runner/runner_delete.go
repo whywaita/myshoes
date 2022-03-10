@@ -7,10 +7,13 @@ import (
 	"time"
 
 	"github.com/google/go-github/v35/github"
+	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
 	"github.com/whywaita/myshoes/pkg/shoes"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -21,6 +24,11 @@ type Runner struct {
 	github *github.Runner
 	ds     *datastore.Runner
 }
+
+var (
+	// ConcurrencyDeleting is value of concurrency
+	ConcurrencyDeleting int64 = 0
+)
 
 func (m *Manager) do(ctx context.Context) error {
 	logger.Logf(true, "start runner manager")
@@ -47,7 +55,7 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		return fmt.Errorf("failed to retrieve list of running runner: %w", err)
 	}
 
-	isZero, err := isRegisteredRunnerZeroInGitHub(ctx, t)
+	isZero, ghRunners, err := isRegisteredRunnerZeroInGitHub(ctx, t)
 	if err != nil {
 		return fmt.Errorf("failed to check number of registerd runner: %w", err)
 	} else if isZero && len(runners) == 0 {
@@ -58,48 +66,81 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		return nil
 	}
 
-	for _, runner := range runners {
-		_, mode, err := datastore.GetRunnerTemporaryMode(runner.RunnerVersion)
-		if err != nil {
-			logger.Logf(false, "failed to get runner temporary mode: %+v", err)
-			continue
-		}
+	sem := semaphore.NewWeighted(config.Config.MaxConcurrencyDeleting)
+	var eg errgroup.Group
+	ConcurrencyDeleting = 0
 
-		switch mode {
-		case datastore.RunnerTemporaryOnce:
-			if err := m.removeRunnerModeOnce(ctx, t, runner); err != nil {
-				logger.Logf(false, "failed to remove runner (mode once): %+v", err)
-			}
-		case datastore.RunnerTemporaryEphemeral:
-			if err := m.removeRunnerModeEphemeral(ctx, t, runner); err != nil {
-				logger.Logf(false, "failed to remove runner (mode ephemeral): %+v", err)
-			}
+	for _, runner := range runners {
+		runner := runner
+
+		if err := sem.Acquire(ctx, 1); err != nil {
+			return fmt.Errorf("failed to Acquire: %w", err)
 		}
+		ConcurrencyDeleting++
+
+		eg.Go(func() error {
+			defer func() {
+				sem.Release(1)
+				ConcurrencyDeleting--
+			}()
+
+			if err := m.removeRunner(ctx, t, runner, ghRunners); err != nil {
+				logger.Logf(false, "failed to delete runner: %+v", err)
+			}
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("failed to wait errgroup.Wait(): %w", err)
 	}
 
 	return nil
 }
 
-func isRegisteredRunnerZeroInGitHub(ctx context.Context, t datastore.Target) (bool, error) {
-	owner, repo := t.OwnerRepo()
-	client, err := gh.NewClient(ctx, t.GitHubToken, t.GHEDomain.String)
+func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner datastore.Runner, ghRunners []*github.Runner) error {
+	if err := sanitizeRunnerMustRunningTime(runner); errors.Is(err, ErrNotWillDeleteRunner) {
+		return nil
+	}
+
+	_, mode, err := datastore.GetRunnerTemporaryMode(runner.RunnerVersion)
 	if err != nil {
-		return false, fmt.Errorf("failed to create github client: %w", err)
+		return fmt.Errorf("failed to get runner temporary mode: %w", err)
+	}
+
+	switch mode {
+	case datastore.RunnerTemporaryOnce:
+		if err := m.removeRunnerModeOnce(ctx, t, runner, ghRunners); err != nil {
+			return fmt.Errorf("failed to remove runner (mode once): %w", err)
+		}
+	case datastore.RunnerTemporaryEphemeral:
+		if err := m.removeRunnerModeEphemeral(ctx, t, runner, ghRunners); err != nil {
+			return fmt.Errorf("failed to remove runner (mode ephemeral): %w", err)
+		}
+	}
+	return nil
+}
+
+func isRegisteredRunnerZeroInGitHub(ctx context.Context, t datastore.Target) (bool, []*github.Runner, error) {
+	owner, repo := t.OwnerRepo()
+	client, err := gh.NewClient(t.GitHubToken, t.GHEDomain.String)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to create github client: %w", err)
 	}
 
 	ghRunners, err := gh.ListRunners(ctx, client, owner, repo)
 	if err != nil {
-		return false, fmt.Errorf("failed to get list of runner in GitHub: %w", err)
+		return false, nil, fmt.Errorf("failed to get list of runner in GitHub: %w", err)
 	}
 
 	if len(ghRunners) == 0 {
-		return true, nil
+		return true, nil, nil
 	}
-	return false, nil
+	return false, ghRunners, nil
 }
 
-// Error values
 var (
+	// ErrNotWillDeleteRunner is error message for "not will delete runner"
 	ErrNotWillDeleteRunner = fmt.Errorf("not will delete runner")
 )
 
@@ -113,13 +154,13 @@ var (
 func sanitizeGitHubRunner(ghRunner github.Runner, dsRunner datastore.Runner) error {
 	switch ghRunner.GetStatus() {
 	case StatusWillDelete:
-		if err := sanitizeRunner(&dsRunner, MustRunningTime); err != nil {
+		if err := sanitizeRunner(dsRunner, MustRunningTime); err != nil {
 			logger.Logf(false, "%s is offline and not running %s, so not will delete (created_at: %s, now: %s)", dsRunner.UUID, MustRunningTime, dsRunner.CreatedAt, time.Now().UTC())
 			return fmt.Errorf("failed to sanitize will delete runner: %w", err)
 		}
 		return nil
 	case StatusSleep:
-		if err := sanitizeRunner(&dsRunner, MustGoalTime); err != nil {
+		if err := sanitizeRunner(dsRunner, MustGoalTime); err != nil {
 			logger.Logf(false, "%s is idle and not running %s, so not will delete (created_at: %s, now: %s)", dsRunner.UUID, MustGoalTime, dsRunner.CreatedAt, time.Now().UTC())
 			return fmt.Errorf("failed to sanitize idle runner: %w", err)
 		}
@@ -129,7 +170,11 @@ func sanitizeGitHubRunner(ghRunner github.Runner, dsRunner datastore.Runner) err
 	return ErrNotWillDeleteRunner
 }
 
-func sanitizeRunner(runner *datastore.Runner, needTime time.Duration) error {
+func sanitizeRunnerMustRunningTime(runner datastore.Runner) error {
+	return sanitizeRunner(runner, MustRunningTime)
+}
+
+func sanitizeRunner(runner datastore.Runner, needTime time.Duration) error {
 	spent := runner.CreatedAt.Add(needTime)
 	now := time.Now().UTC()
 	if !spent.Before(now) {

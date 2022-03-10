@@ -8,13 +8,13 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v35/github"
-	"github.com/gregjones/httpcache"
+	"github.com/m4ns0ur/httpcache"
 	"github.com/patrickmn/go-cache"
-	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/logger"
 	"golang.org/x/oauth2"
 )
@@ -24,24 +24,43 @@ var (
 	ErrNotFound = fmt.Errorf("not found")
 
 	// ResponseCache is cache variable
-	responseCache *cache.Cache
+	responseCache = cache.New(5*time.Minute, 10*time.Minute)
+
+	// rateLimitRemain is remaining of Rate limit, for metrics
+	rateLimitRemain = sync.Map{}
+	// rateLimitLimit is limit of Rate limit, for metrics
+	rateLimitLimit = sync.Map{}
+
+	// httpCache is shareable response cache
+	httpCache = httpcache.NewMemoryCache()
+	// appTransport is transport for GitHub Apps
+	appTransport = ghinstallation.AppsTransport{}
+	// installationTransports is map of ghinstallation.Transport for cache token of installation.
+	// key: installationID, value: ghinstallation.Transport
+	installationTransports = sync.Map{}
 )
 
-func init() {
-	c := cache.New(5*time.Minute, 10*time.Minute)
-	responseCache = c
+// InitializeCache create a cache
+func InitializeCache(appID int64, appPEM []byte) error {
+	tr := httpcache.NewTransport(httpCache)
+	itr, err := ghinstallation.NewAppsTransport(tr, appID, appPEM)
+	if err != nil {
+		return fmt.Errorf("failed to create Apps transport: %w", err)
+	}
+	appTransport = *itr
+	return nil
 }
 
 // NewClient create a client of GitHub
-func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Client, error) {
+func NewClient(token, gheDomain string) (*github.Client, error) {
 	oauth2Transport := &oauth2.Transport{
 		Source: oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: personalToken},
+			&oauth2.Token{AccessToken: token},
 		),
 	}
 	transport := &httpcache.Transport{
 		Transport:           oauth2Transport,
-		Cache:               httpcache.NewMemoryCache(),
+		Cache:               httpCache,
 		MarkCachedResponses: true,
 	}
 
@@ -55,35 +74,28 @@ func NewClient(ctx context.Context, personalToken, gheDomain string) (*github.Cl
 // NewClientGitHubApps create a client of GitHub using Private Key from GitHub Apps
 // header is "Authorization: Bearer YOUR_JWT"
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-a-github-app
-func NewClientGitHubApps(gheDomain string, appID int64, appPEM []byte) (*github.Client, error) {
-	tr := httpcache.NewMemoryCacheTransport()
-	itr, err := ghinstallation.NewAppsTransport(tr, appID, appPEM)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Apps transport: %w", err)
+func NewClientGitHubApps(gheDomain string) (*github.Client, error) {
+	if gheDomain == "" {
+		return github.NewClient(&http.Client{Transport: &appTransport}), nil
 	}
 
-	if gheDomain == "" {
-		return github.NewClient(&http.Client{Transport: itr}), nil
-	}
 	apiEndpoint, err := getAPIEndpoint(gheDomain)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub API Endpoint: %w", err)
 	}
+
+	itr := appTransport
 	itr.BaseURL = apiEndpoint.String()
-	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: itr})
+	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: &appTransport})
 }
 
 // NewClientInstallation create a client of GitHub using installation ID from GitHub Apps
 // header is "Authorization: token YOUR_INSTALLATION_ACCESS_TOKEN"
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-an-installation
-func NewClientInstallation(gheDomain string, installationID int64, appID int64, appPEM []byte) (*github.Client, error) {
-	tr := httpcache.NewMemoryCacheTransport()
-	itr, err := ghinstallation.New(tr, appID, installationID, appPEM)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Apps transport: %w", err)
-	}
+func NewClientInstallation(gheDomain string, installationID int64) (*github.Client, error) {
+	itr := getInstallationTransport(installationID)
 
-	if gheDomain == "" {
+	if strings.EqualFold(gheDomain, "") || strings.EqualFold(gheDomain, "https://github.com") {
 		return github.NewClient(&http.Client{Transport: itr}), nil
 	}
 	apiEndpoint, err := getAPIEndpoint(gheDomain)
@@ -94,22 +106,40 @@ func NewClientInstallation(gheDomain string, installationID int64, appID int64, 
 	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: itr})
 }
 
+func setInstallationTransport(installationID int64, itr ghinstallation.Transport) {
+	installationTransports.Store(installationID, itr)
+}
+
+func getInstallationTransport(installationID int64) *ghinstallation.Transport {
+	got, found := installationTransports.Load(installationID)
+	if !found {
+		return generateInstallationTransport(installationID)
+	}
+
+	itr, ok := got.(ghinstallation.Transport)
+	if !ok {
+		return generateInstallationTransport(installationID)
+	}
+	return &itr
+}
+
+func generateInstallationTransport(installationID int64) *ghinstallation.Transport {
+	itr := ghinstallation.NewFromAppsTransport(&appTransport, installationID)
+	setInstallationTransport(installationID, *itr)
+	return itr
+}
+
 // CheckSignature check trust installation id from event.
 func CheckSignature(installationID int64) error {
-	appID := config.Config.GitHub.AppID
-	pem := config.Config.GitHub.PEMByte
-
-	tr := httpcache.NewMemoryCacheTransport()
-	_, err := ghinstallation.New(tr, appID, installationID, pem)
-	if err != nil {
-		return fmt.Errorf("failed to create GitHub installation: %w", err)
+	if itr := ghinstallation.NewFromAppsTransport(&appTransport, installationID); itr == nil {
+		return fmt.Errorf("failed to create GitHub installation")
 	}
 
 	return nil
 }
 
 // ExistGitHubRepository check exist of GitHub repository
-func ExistGitHubRepository(scope, gheDomain string, githubPersonalToken string) error {
+func ExistGitHubRepository(scope, gheDomain string, accessToken string) error {
 	repoURL, err := getRepositoryURL(scope, gheDomain)
 	if err != nil {
 		return fmt.Errorf("failed to get repository url: %w", err)
@@ -120,7 +150,7 @@ func ExistGitHubRepository(scope, gheDomain string, githubPersonalToken string) 
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Add("Authorization", fmt.Sprintf("token %s", githubPersonalToken))
+	req.Header.Add("Authorization", fmt.Sprintf("token %s", accessToken))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -143,6 +173,11 @@ func ExistGitHubRunner(ctx context.Context, client *github.Client, owner, repo, 
 		return nil, fmt.Errorf("failed to get list of runners: %w", err)
 	}
 
+	return ExistGitHubRunnerWithRunner(runners, runnerName)
+}
+
+// ExistGitHubRunnerWithRunner check exist registered of GitHub runner from a list of runner
+func ExistGitHubRunnerWithRunner(runners []*github.Runner, runnerName string) (*github.Runner, error) {
 	for _, r := range runners {
 		if strings.EqualFold(r.GetName(), runnerName) {
 			return r, nil
@@ -160,7 +195,7 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 
 	var opts = &github.ListOptions{
 		Page:    0,
-		PerPage: 10,
+		PerPage: 100,
 	}
 
 	var rs []*github.Runner
@@ -170,6 +205,7 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list runners: %w", err)
 		}
+		storeRateLimit(getRateLimitKey(owner, repo), resp.Rate)
 
 		rs = append(rs, runners.Runners...)
 		if resp.NextPage == 0 {

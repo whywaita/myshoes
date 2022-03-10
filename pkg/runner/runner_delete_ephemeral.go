@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/go-github/v35/github"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -12,14 +13,14 @@ import (
 
 // removeRunnerModeEphemeral remove runner that created by --ephemeral flag.
 // --ephemeral flag is delete self-hosted runner when end of job. So, The origin list of runner from datastore.
-func (m *Manager) removeRunnerModeEphemeral(ctx context.Context, t datastore.Target, runner datastore.Runner) error {
+func (m *Manager) removeRunnerModeEphemeral(ctx context.Context, t datastore.Target, runner datastore.Runner, ghRunners []*github.Runner) error {
 	owner, repo := t.OwnerRepo()
-	client, err := gh.NewClient(ctx, t.GitHubToken, t.GHEDomain.String)
+	client, err := gh.NewClient(t.GitHubToken, t.GHEDomain.String)
 	if err != nil {
 		return fmt.Errorf("failed to create github client: %w", err)
 	}
 
-	ghRunner, err := gh.ExistGitHubRunner(ctx, client, owner, repo, ToName(runner.UUID.String()))
+	ghRunner, err := gh.ExistGitHubRunnerWithRunner(ghRunners, ToName(runner.UUID.String()))
 	switch {
 	case errors.Is(err, gh.ErrNotFound):
 		// deleted in GitHub, It's completed

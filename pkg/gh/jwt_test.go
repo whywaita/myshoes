@@ -9,7 +9,7 @@ import (
 )
 
 func setStubFunctions() {
-	GHlistInstallations = func(ctx context.Context, clientApps *github.Client) ([]*github.Installation, error) {
+	GHlistInstallations = func(ctx context.Context, gheDomain string) ([]*github.Installation, error) {
 		i10 := int64(10)
 		i11 := int64(11)
 		i12 := int64(12)
@@ -49,21 +49,13 @@ func setStubFunctions() {
 		}, nil
 	}
 
-	GHlistAppsInstalledRepo = func(ctx context.Context, gheDomain string, installationID int64) (*github.ListRepositories, error) {
-		total := 1
+	GHlistAppsInstalledRepo = func(ctx context.Context, gheDomain string, installationID int64) ([]*github.Repository, error) {
 		fullName1 := "example-selected/sample-registered"
-		return &github.ListRepositories{
-			TotalCount: &total,
-			Repositories: []*github.Repository{
-				{
-					FullName: &fullName1,
-				},
+		return []*github.Repository{
+			{
+				FullName: &fullName1,
 			},
 		}, nil
-	}
-
-	GHNewClientGitHubApps = func(gheDomain string, appID int64, appPEM []byte) (*github.Client, error) {
-		return &github.Client{}, nil
 	}
 }
 

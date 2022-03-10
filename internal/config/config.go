@@ -21,6 +21,7 @@ type conf struct {
 	Debug                   bool
 	Strict                  bool // check to registered runner before delete job
 	MaxConnectionsToBackend int64
+	MaxConcurrencyDeleting  int64
 }
 
 // Config Environment keys
@@ -34,4 +35,5 @@ const (
 	EnvDebug                     = "DEBUG"
 	EnvStrict                    = "STRICT"
 	EnvMaxConnectionsToBackend   = "MAX_CONNECTIONS_TO_BACKEND"
+	EnvMaxConcurrencyDeleting    = "MAX_CONCURRENCY_DELETING"
 )

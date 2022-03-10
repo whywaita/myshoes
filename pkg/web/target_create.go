@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/whywaita/myshoes/internal/config"
-
 	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -38,13 +36,13 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
-	clientApps, err := GHNewClientApps(inputTarget.GHEDomain, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
+	clientApps, err := GHNewClientApps(inputTarget.GHEDomain)
 	if err != nil {
 		logger.Logf(false, "failed to client of GitHub Apps: %+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "failed to client GitHub Apps")
 		return
 	}
-	token, expiredAt, err := GHGenerateGitHubAppsToken(ctx, clientApps, installationID)
+	token, expiredAt, err := GHGenerateGitHubAppsToken(ctx, clientApps, installationID, inputTarget.Scope)
 	if err != nil {
 		logger.Logf(false, "failed to generate GitHub Apps Token: %+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "failed to generate GitHub Apps token")
@@ -126,7 +124,7 @@ func isValidScopeAndToken(ctx context.Context, scope, gheDomain, githubPersonalT
 		return fmt.Errorf("github scope is invalid (maybe, repository is not found)")
 	}
 
-	client, err := gh.NewClient(ctx, githubPersonalToken, gheDomain)
+	client, err := gh.NewClient(githubPersonalToken, gheDomain)
 	if err != nil {
 		logger.Logf(false, "failed to create GitHub client: %+v", err)
 		return fmt.Errorf("invalid github token in input scope")

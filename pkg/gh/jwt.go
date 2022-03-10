@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whywaita/myshoes/internal/config"
-
 	"github.com/whywaita/myshoes/pkg/logger"
 
 	"github.com/google/go-github/v35/github"
@@ -17,52 +15,23 @@ import (
 var (
 	GHlistInstallations     = listInstallations
 	GHlistAppsInstalledRepo = listAppsInstalledRepo
-	GHNewClientGitHubApps   = NewClientGitHubApps
 )
 
 // GenerateGitHubAppsToken generate token of GitHub Apps using private key
 // clientApps needs to response of `NewClientGitHubApps()`
-func GenerateGitHubAppsToken(ctx context.Context, clientApps *github.Client, installationID int64) (string, *time.Time, error) {
-	token, _, err := clientApps.Apps.CreateInstallationToken(ctx, installationID, nil)
+func GenerateGitHubAppsToken(ctx context.Context, clientApps *github.Client, installationID int64, scope string) (string, *time.Time, error) {
+	token, resp, err := clientApps.Apps.CreateInstallationToken(ctx, installationID, nil)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate token from API: %w", err)
 	}
+	storeRateLimit(scope, resp.Rate)
 	return *token.Token, token.ExpiresAt, nil
 }
 
-// GenerateRunnerRegistrationToken generate token for register runner
-func GenerateRunnerRegistrationToken(ctx context.Context, gheDomain string, installationID int64, scope string) (string, *time.Time, error) {
-	client, err := NewClientInstallation(gheDomain, installationID, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to create NewClientInstallation: %w", err)
-	}
-
-	switch DetectScope(scope) {
-	case Organization:
-		token, _, err := client.Actions.CreateOrganizationRegistrationToken(ctx, scope)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to generate registration token for organization (scope: %s): %w", scope, err)
-		}
-		return *token.Token, &token.ExpiresAt.Time, nil
-	case Repository:
-		owner, repo := DivideScope(scope)
-		token, _, err := client.Actions.CreateRegistrationToken(ctx, owner, repo)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to generate registration token for repository (scope: %s): %w", scope, err)
-		}
-		return *token.Token, &token.ExpiresAt.Time, nil
-	default:
-		return "", nil, fmt.Errorf("failed to detect scope (scope: %s)", scope)
-	}
-}
-
 // IsInstalledGitHubApp check installed GitHub Apps in gheDomain + inputScope
+// clientApps needs to response of `NewClientGitHubApps()`
 func IsInstalledGitHubApp(ctx context.Context, gheDomain, inputScope string) (int64, error) {
-	clientApps, err := GHNewClientGitHubApps(gheDomain, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
-	if err != nil {
-		return -1, fmt.Errorf("failed to create client from GitHub Apps: %w", err)
-	}
-	installations, err := GHlistInstallations(ctx, clientApps)
+	installations, err := GHlistInstallations(ctx, gheDomain)
 	if err != nil {
 		return -1, fmt.Errorf("failed to get list of installations: %w", err)
 	}
@@ -97,58 +66,70 @@ func IsInstalledGitHubApp(ctx context.Context, gheDomain, inputScope string) (in
 }
 
 func isInstalledGitHubAppSelected(ctx context.Context, gheDomain, inputScope string, installationID int64) error {
-	lr, err := GHlistAppsInstalledRepo(ctx, gheDomain, installationID)
+	installedRepository, err := GHlistAppsInstalledRepo(ctx, gheDomain, installationID)
 	if err != nil {
 		return fmt.Errorf("failed to get list of installed repositories: %w", err)
 	}
 
-	s := DetectScope(inputScope)
-	switch {
-	case *lr.TotalCount <= 0:
+	if len(installedRepository) <= 0 {
 		return fmt.Errorf("installed repository is not found")
-	case s == Organization:
-		// Scope is Organization and installed repository is exist
+	}
+
+	switch DetectScope(inputScope) {
+	case Organization:
+		// Scope is Organization and installed repository is existed
 		// So GitHub Apps installed
 		return nil
-	case s != Repository:
-		return fmt.Errorf("scope is unknown: %s", s)
-	}
-
-	// s == Repository
-	for _, repo := range lr.Repositories {
-		if strings.EqualFold(*repo.FullName, inputScope) {
-			return nil
+	case Repository:
+		for _, repo := range installedRepository {
+			if strings.EqualFold(*repo.FullName, inputScope) {
+				return nil
+			}
 		}
+
+		return fmt.Errorf("not found")
+	default:
+		return fmt.Errorf("%s can't detect scope", inputScope)
 	}
-	return fmt.Errorf("not found")
 }
 
-func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID int64) (*github.ListRepositories, error) {
-	clientApps, err := NewClientGitHubApps(gheDomain, config.Config.GitHub.AppID, config.Config.GitHub.PEMByte)
+func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID int64) ([]*github.Repository, error) {
+	clientInstallation, err := NewClientInstallation(gheDomain, installationID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create github.Client from installationID: %w", err)
-	}
-	token, _, err := GenerateGitHubAppsToken(ctx, clientApps, installationID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate GitHub Apps Token: %w", err)
-	}
-	client, err := NewClient(ctx, token, gheDomain)
-	if err != nil {
-		return nil, fmt.Errorf("failed to NewClient: %w", err)
+		return nil, fmt.Errorf("failed to create a client installation: %w", err)
 	}
 
-	lr, _, err := client.Apps.ListRepos(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get installed repositories: %w", err)
-	}
-
-	return lr, nil
-}
-
-func listInstallations(ctx context.Context, clientApps *github.Client) ([]*github.Installation, error) {
 	var opts = &github.ListOptions{
 		Page:    0,
-		PerPage: 10,
+		PerPage: 100,
+	}
+
+	var repositories []*github.Repository
+	for {
+		logger.Logf(true, "get list of repository from installation, page: %d, now all repositories: %d", opts.Page, len(repositories))
+		lr, resp, err := clientInstallation.Apps.ListRepos(ctx, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get installed repositories: %w", err)
+		}
+		repositories = append(repositories, lr.Repositories...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return repositories, nil
+}
+
+func listInstallations(ctx context.Context, gheDomain string) ([]*github.Installation, error) {
+	clientApps, err := NewClientGitHubApps(gheDomain)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a client Apps: %w", err)
+	}
+
+	var opts = &github.ListOptions{
+		Page:    0,
+		PerPage: 100,
 	}
 
 	var installations []*github.Installation
