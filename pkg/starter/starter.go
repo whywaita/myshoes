@@ -169,8 +169,9 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to bung (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
 
+	runnerName := runner.ToName(job.UUID.String())
 	if config.Config.Strict {
-		if err := s.checkRegisteredRunner(ctx, cloudID, *target); err != nil {
+		if err := s.checkRegisteredRunner(ctx, runnerName, *target); err != nil {
 			logger.Logf(false, "failed to check to register runner (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
 			if err := deleteInstance(ctx, cloudID); err != nil {
@@ -225,7 +226,9 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 // bung is start runner, like a pistol! :)
 func (s *Starter) bung(ctx context.Context, jobUUID uuid.UUID, target datastore.Target) (string, string, string, error) {
 	logger.Logf(false, "start create instance (job: %s)", jobUUID)
-	script, err := s.getSetupScript(ctx, target)
+	runnerName := runner.ToName(jobUUID.String())
+
+	script, err := s.getSetupScript(ctx, target, runnerName)
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to get setup scripts: %w", err)
 	}
@@ -236,7 +239,6 @@ func (s *Starter) bung(ctx context.Context, jobUUID uuid.UUID, target datastore.
 	}
 	defer teardown()
 
-	runnerName := runner.ToName(jobUUID.String())
 	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType)
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to add instance: %w", err)
@@ -263,7 +265,7 @@ func deleteInstance(ctx context.Context, cloudID string) error {
 }
 
 // checkRegisteredRunner check to register runner to GitHub
-func (s *Starter) checkRegisteredRunner(ctx context.Context, cloudID string, target datastore.Target) error {
+func (s *Starter) checkRegisteredRunner(ctx context.Context, runnerName string, target datastore.Target) error {
 	client, err := gh.NewClient(target.GitHubToken, target.GHEDomain.String)
 	if err != nil {
 		return fmt.Errorf("failed to create github client: %w", err)
@@ -283,7 +285,7 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, cloudID string, tar
 			// timeout
 			return fmt.Errorf("faied to to check existing runner in GitHub: timeout in %s", runner.MustRunningTime)
 		case <-ticker.C:
-			if _, err := gh.ExistGitHubRunner(cctx, client, owner, repo, cloudID); err == nil {
+			if _, err := gh.ExistGitHubRunner(cctx, client, owner, repo, runnerName); err == nil {
 				// success to register runner to GitHub
 				return nil
 			} else if !errors.Is(err, gh.ErrNotFound) {
@@ -291,7 +293,7 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, cloudID string, tar
 				return fmt.Errorf("failed to check existing runner in GitHub: %w", err)
 			}
 			count++
-			logger.Logf(true, "%s is not found in GitHub, will retry... (second: %ds)", cloudID, count)
+			logger.Logf(true, "%s is not found in GitHub, will retry... (second: %ds)", runnerName, count)
 		}
 	}
 }

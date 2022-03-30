@@ -22,8 +22,8 @@ func getPatchedFiles() (string, error) {
 	return runnerService, nil
 }
 
-func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target) (string, error) {
-	rawScript, err := s.getSetupRawScript(ctx, target)
+func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target, runnerName string) (string, error) {
+	rawScript, err := s.getSetupRawScript(ctx, target, runnerName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get raw setup scripts: %w", err)
 	}
@@ -44,7 +44,7 @@ func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target) (
 	return fmt.Sprintf(templateCompressedScript, encoded), nil
 }
 
-func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target) (string, error) {
+func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target, runnerName string) (string, error) {
 	runnerUser := ""
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
@@ -72,6 +72,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		Scope:                   target.Scope,
 		GHEDomain:               target.GHEDomain.String,
 		RunnerRegistrationToken: token,
+		RunnerName:              runnerName,
 		RunnerUser:              runnerUser,
 		RunnerVersion:           runnerVersion,
 		RunnerServiceJS:         runnerServiceJs,
@@ -107,6 +108,7 @@ type templateCreateLatestRunnerOnceValue struct {
 	Scope                   string
 	GHEDomain               string
 	RunnerRegistrationToken string
+	RunnerName              string
 	RunnerUser              string
 	RunnerVersion           string
 	RunnerServiceJS         string
@@ -123,7 +125,7 @@ set -e
 
 runner_scope={{.Scope}}
 ghe_hostname={{.GHEDomain}}
-runner_name=${3:-$(hostname)}
+runner_name={{.RunnerName}}
 RUNNER_TOKEN={{.RunnerRegistrationToken}}
 RUNNER_USER={{.RunnerUser}}
 RUNNER_VERSION={{.RunnerVersion}}
@@ -134,9 +136,6 @@ sudo_prefix=""
 if [ $(id -u) -eq 0 ]; then  # if root
 sudo_prefix="sudo -E -u ${RUNNER_USER} "
 fi
-
-export HOME="/home/${RUNNER_USER}"
-export AGENT_TOOLSDIRECTORY="/opt/hostedtoolcache"
 
 echo "Configuring runner @ ${runner_scope}"
 
@@ -150,6 +149,14 @@ function fatal()
 {
    echo "error: $1" >&2
    exit 1
+}
+
+function configure_environment()
+{
+	export HOME="/home/${RUNNER_USER}"
+	if [ "${runner_plat}" = "osx" ]; then
+		export HOME="/Users/${RUNNER_USER}"
+	fi
 }
 
 function install_jq()
@@ -170,6 +177,10 @@ function install_docker()
         sudo apt-get update -y -qq
         sudo apt-get install -y docker.io
     fi
+
+	if [ "${runner_plat}" = "osx"]; then
+		brew install docker
+	fi
 }
 
 function download_runner()
@@ -211,6 +222,7 @@ which jq || fatal "jq required.  Please install in PATH with apt-get, brew, etc"
 which docker || install_docker
 which docker || fatal "docker required.  Please install in PATH with apt-get, brew, etc"
 
+configure_environment
 
 cd ${RUNNER_BASE_DIRECTORY}
 ${sudo_prefix}mkdir -p runner

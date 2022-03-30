@@ -66,40 +66,59 @@ func IsInstalledGitHubApp(ctx context.Context, gheDomain, inputScope string) (in
 }
 
 func isInstalledGitHubAppSelected(ctx context.Context, gheDomain, inputScope string, installationID int64) error {
-	lr, err := GHlistAppsInstalledRepo(ctx, gheDomain, installationID)
+	installedRepository, err := GHlistAppsInstalledRepo(ctx, gheDomain, installationID)
 	if err != nil {
 		return fmt.Errorf("failed to get list of installed repositories: %w", err)
 	}
 
-	s := DetectScope(inputScope)
-	switch {
-	case *lr.TotalCount <= 0:
+	if len(installedRepository) <= 0 {
 		return fmt.Errorf("installed repository is not found")
-	case s == Organization:
-		// Scope is Organization and installed repository is exist
+	}
+
+	switch DetectScope(inputScope) {
+	case Organization:
+		// Scope is Organization and installed repository is existed
 		// So GitHub Apps installed
 		return nil
-	case s != Repository:
-		return fmt.Errorf("scope is unknown: %s", s)
-	}
-
-	// s == Repository
-	for _, repo := range lr.Repositories {
-		if strings.EqualFold(*repo.FullName, inputScope) {
-			return nil
+	case Repository:
+		for _, repo := range installedRepository {
+			if strings.EqualFold(*repo.FullName, inputScope) {
+				return nil
+			}
 		}
+
+		return fmt.Errorf("not found")
+	default:
+		return fmt.Errorf("%s can't detect scope", inputScope)
 	}
-	return fmt.Errorf("not found")
 }
 
-func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID int64) (*github.ListRepositories, error) {
+func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID int64) ([]*github.Repository, error) {
 	clientInstallation, err := NewClientInstallation(gheDomain, installationID)
-	lr, _, err := clientInstallation.Apps.ListRepos(ctx, nil) // TODO: paging
 	if err != nil {
-		return nil, fmt.Errorf("failed to get installed repositories: %w", err)
+		return nil, fmt.Errorf("failed to create a client installation: %w", err)
 	}
 
-	return lr, nil
+	var opts = &github.ListOptions{
+		Page:    0,
+		PerPage: 100,
+	}
+
+	var repositories []*github.Repository
+	for {
+		logger.Logf(true, "get list of repository from installation, page: %d, now all repositories: %d", opts.Page, len(repositories))
+		lr, resp, err := clientInstallation.Apps.ListRepos(ctx, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get installed repositories: %w", err)
+		}
+		repositories = append(repositories, lr.Repositories...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return repositories, nil
 }
 
 func listInstallations(ctx context.Context, gheDomain string) ([]*github.Installation, error) {
@@ -110,7 +129,7 @@ func listInstallations(ctx context.Context, gheDomain string) ([]*github.Install
 
 	var opts = &github.ListOptions{
 		Page:    0,
-		PerPage: 10,
+		PerPage: 100,
 	}
 
 	var installations []*github.Installation

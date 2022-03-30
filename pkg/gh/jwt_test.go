@@ -49,15 +49,11 @@ func setStubFunctions() {
 		}, nil
 	}
 
-	GHlistAppsInstalledRepo = func(ctx context.Context, gheDomain string, installationID int64) (*github.ListRepositories, error) {
-		total := 1
+	GHlistAppsInstalledRepo = func(ctx context.Context, gheDomain string, installationID int64) ([]*github.Repository, error) {
 		fullName1 := "example-selected/sample-registered"
-		return &github.ListRepositories{
-			TotalCount: &total,
-			Repositories: []*github.Repository{
-				{
-					FullName: &fullName1,
-				},
+		return []*github.Repository{
+			{
+				FullName: &fullName1,
 			},
 		}, nil
 	}
