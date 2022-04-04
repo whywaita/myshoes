@@ -64,70 +64,12 @@ func sortUserTarget(uts []UserTarget) []UserTarget {
 // function pointer (for testing)
 var (
 	GHExistGitHubRepositoryFunc = gh.ExistGitHubRepository
+	GHExistRunnerReleases       = gh.ExistRunnerReleases
 	GHListRunnersFunc           = gh.ListRunners
 	GHIsInstalledGitHubApp      = gh.IsInstalledGitHubApp
 	GHGenerateGitHubAppsToken   = gh.GenerateGitHubAppsToken
 	GHNewClientApps             = gh.NewClientGitHubApps
 )
-
-func toNullString(input *string) sql.NullString {
-	if input == nil || strings.EqualFold(*input, "") {
-		return sql.NullString{
-			Valid: false,
-		}
-	}
-
-	return sql.NullString{
-		Valid:  true,
-		String: *input,
-	}
-}
-
-func isValidTargetCreateParam(input TargetCreateParam) (bool, error) {
-	if input.Scope == "" || input.ResourceType == datastore.ResourceTypeUnknown {
-		return false, fmt.Errorf("scope, resource_type must be set")
-	}
-
-	if input.GHEDomain != "" {
-		if _, err := url.Parse(input.GHEDomain); err != nil {
-			return false, fmt.Errorf("domain of GitHub Enterprise is not valid URL: %w", err)
-		}
-	}
-
-	if input.RunnerVersion != nil {
-		// valid format: vX.X.X (X is [0-9])
-		if !strings.HasPrefix(*input.RunnerVersion, "v") {
-			return false, fmt.Errorf("runner_version must has prefix 'v'")
-		}
-
-		s := strings.Split(*input.RunnerVersion, ".")
-		if len(s) != 3 {
-			return false, fmt.Errorf("runner_version must has version of major, sem, patch")
-		}
-	}
-
-	return true, nil
-}
-
-// ToDS convert to datastore.Target
-func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datastore.Target {
-	gheDomain := toNullString(&t.GHEDomain)
-	runnerUser := toNullString(t.RunnerUser)
-	runnerVersion := toNullString(t.RunnerVersion)
-	providerURL := toNullString(t.ProviderURL)
-
-	return datastore.Target{
-		UUID:           t.UUID,
-		Scope:          t.Scope,
-		GitHubToken:    appToken,
-		TokenExpiredAt: tokenExpired,
-		GHEDomain:      gheDomain,
-		ResourceType:   t.ResourceType,
-		RunnerUser:     runnerUser,
-		RunnerVersion:  runnerVersion,
-		ProviderURL:    providerURL,
-	}
-}
 
 func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	ctx := r.Context()
@@ -344,6 +286,73 @@ func validateUpdateTarget(old, new datastore.Target) error {
 	}
 
 	return nil
+}
+
+func isValidTargetCreateParam(input TargetCreateParam) (bool, error) {
+	if input.Scope == "" || input.ResourceType == datastore.ResourceTypeUnknown {
+		return false, fmt.Errorf("scope, resource_type must be set")
+	}
+
+	if input.GHEDomain != "" {
+		if strings.EqualFold(input.GHEDomain, "https://github.com") {
+			return false, fmt.Errorf("ghe_domain must not https://github.com, please set blank")
+		}
+
+		if _, err := url.Parse(input.GHEDomain); err != nil {
+			return false, fmt.Errorf("domain of GitHub Enterprise is not valid URL: %w", err)
+		}
+	}
+
+	if input.RunnerVersion != nil {
+		// valid format: vX.X.X (X is [0-9])
+		if !strings.HasPrefix(*input.RunnerVersion, "v") {
+			return false, fmt.Errorf("runner_version must has prefix 'v'")
+		}
+
+		s := strings.Split(*input.RunnerVersion, ".")
+		if len(s) != 3 {
+			return false, fmt.Errorf("runner_version must has version of major, sem, patch")
+		}
+
+		if err := GHExistRunnerReleases(*input.RunnerVersion); err != nil {
+			return false, fmt.Errorf("runner_version is not found: %w", err)
+		}
+	}
+
+	return true, nil
+}
+
+func toNullString(input *string) sql.NullString {
+	if input == nil || strings.EqualFold(*input, "") {
+		return sql.NullString{
+			Valid: false,
+		}
+	}
+
+	return sql.NullString{
+		Valid:  true,
+		String: *input,
+	}
+}
+
+// ToDS convert to datastore.Target
+func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datastore.Target {
+	gheDomain := toNullString(&t.GHEDomain)
+	runnerUser := toNullString(t.RunnerUser)
+	runnerVersion := toNullString(t.RunnerVersion)
+	providerURL := toNullString(t.ProviderURL)
+
+	return datastore.Target{
+		UUID:           t.UUID,
+		Scope:          t.Scope,
+		GitHubToken:    appToken,
+		TokenExpiredAt: tokenExpired,
+		GHEDomain:      gheDomain,
+		ResourceType:   t.ResourceType,
+		RunnerUser:     runnerUser,
+		RunnerVersion:  runnerVersion,
+		ProviderURL:    providerURL,
+	}
 }
 
 type getWillUpdateTargetVariableOld struct {

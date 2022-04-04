@@ -39,6 +39,10 @@ func setStubFunctions() {
 		return nil
 	}
 
+	web.GHExistRunnerReleases = func(runnerVersion string) error {
+		return nil
+	}
+
 	web.GHListRunnersFunc = func(ctx context.Context, client *github.Client, owner, repo string) ([]*github.Runner, error) {
 		return nil, nil
 	}
