@@ -348,7 +348,7 @@ func validRunnerVersion(runnerVersion string) error {
 	}
 
 	if err := GHExistRunnerReleases(runnerVersion); err != nil {
-		return fmt.Errorf("runner_version is not found: %w", err)
+		return fmt.Errorf("runner_version is not found in GitHub Release: %w", err)
 	}
 
 	return nil
