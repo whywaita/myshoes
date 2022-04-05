@@ -14,6 +14,7 @@ require (
 	github.com/ory/dockertest/v3 v3.8.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.11.0
+	github.com/r3labs/diff/v2 v2.15.1 // indirect
 	github.com/satori/go.uuid v1.2.0
 	goji.io v2.0.2+incompatible
 	golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421

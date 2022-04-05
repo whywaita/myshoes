@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/r3labs/diff/v2"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
 
-	uuid "github.com/satori/go.uuid"
 	"goji.io/pat"
 )
 
@@ -162,7 +162,7 @@ func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	}
 	if err := validateUpdateTarget(*oldTarget, newTarget); err != nil {
 		logger.Logf(false, "input error in validateUpdateTarget: %+v", err)
-		outputErrorMsg(w, http.StatusBadRequest, "request parameter has value of not updatable")
+		outputErrorMsg(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -263,6 +263,7 @@ func validateUpdateTarget(old, new datastore.Target) error {
 
 	if new.RunnerVersion.Valid {
 		if err := validRunnerVersion(new.RunnerVersion.String); err != nil {
+			logger.Logf(false, "invalid input runner_version (runner_version: %s): %+v", new.RunnerVersion.String, err)
 			return fmt.Errorf("invalid input runner_version (runner_version: %s): %w", new.RunnerVersion.String, err)
 		}
 	}
@@ -287,35 +288,52 @@ func validateUpdateTarget(old, new datastore.Target) error {
 		t.GitHubToken = ""
 	}
 
-	if diff := cmp.Diff(oldv, newv); diff != "" {
-		return fmt.Errorf("mismatch (-want +got):\n%s", diff)
+	changelog, err := diff.Diff(oldv, newv)
+	if err != nil {
+		logger.Logf(false, "failed to check diff: %+v", err)
+		return fmt.Errorf("failed to check diff: %w", err)
+	}
+	if len(changelog) != 0 {
+		logger.Logf(false, "invalid updatable parameter: %+v", changelog)
+
+		var invalidFields []string
+		for _, cl := range changelog {
+			if len(cl.Path) == 2 && !strings.EqualFold(cl.Path[1], "String") {
+				continue
+			}
+
+			fieldName := cl.Path[0]
+			invalidFields = append(invalidFields, fieldName)
+		}
+
+		return fmt.Errorf("invalid input: can't updatable fields (%s)", strings.Join(invalidFields, ", "))
 	}
 
 	return nil
 }
 
-func isValidTargetCreateParam(input TargetCreateParam) (bool, error) {
+func isValidTargetCreateParam(input TargetCreateParam) error {
 	if input.Scope == "" || input.ResourceType == datastore.ResourceTypeUnknown {
-		return false, fmt.Errorf("scope, resource_type must be set")
+		return fmt.Errorf("scope, resource_type must be set")
 	}
 
 	if input.GHEDomain != "" {
 		if strings.EqualFold(input.GHEDomain, "https://github.com") {
-			return false, fmt.Errorf("ghe_domain must not https://github.com, please set blank")
+			return fmt.Errorf("ghe_domain must not https://github.com, please set blank")
 		}
 
 		if _, err := url.Parse(input.GHEDomain); err != nil {
-			return false, fmt.Errorf("domain of GitHub Enterprise is not valid URL: %w", err)
+			return fmt.Errorf("domain of GitHub Enterprise is not valid URL: %w", err)
 		}
 	}
 
 	if input.RunnerVersion != nil {
 		if err := validRunnerVersion(*input.RunnerVersion); err != nil {
-			return false, err
+			return err
 		}
 	}
 
-	return true, nil
+	return nil
 }
 
 func validRunnerVersion(runnerVersion string) error {
