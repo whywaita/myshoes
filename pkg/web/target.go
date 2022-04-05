@@ -261,6 +261,12 @@ func validateUpdateTarget(old, new datastore.Target) error {
 	oldv := old
 	newv := new
 
+	if new.RunnerVersion.Valid {
+		if err := validRunnerVersion(new.RunnerVersion.String); err != nil {
+			return fmt.Errorf("invalid input runner_version (runner_version: %s): %w", new.RunnerVersion.String, err)
+		}
+	}
+
 	for _, t := range []*datastore.Target{&oldv, &newv} {
 		t.UUID = uuid.UUID{}
 
@@ -304,22 +310,29 @@ func isValidTargetCreateParam(input TargetCreateParam) (bool, error) {
 	}
 
 	if input.RunnerVersion != nil {
-		// valid format: vX.X.X (X is [0-9])
-		if !strings.HasPrefix(*input.RunnerVersion, "v") {
-			return false, fmt.Errorf("runner_version must has prefix 'v'")
-		}
-
-		s := strings.Split(*input.RunnerVersion, ".")
-		if len(s) != 3 {
-			return false, fmt.Errorf("runner_version must has version of major, sem, patch")
-		}
-
-		if err := GHExistRunnerReleases(*input.RunnerVersion); err != nil {
-			return false, fmt.Errorf("runner_version is not found: %w", err)
+		if err := validRunnerVersion(*input.RunnerVersion); err != nil {
+			return false, err
 		}
 	}
 
 	return true, nil
+}
+
+func validRunnerVersion(runnerVersion string) error {
+	if !strings.HasPrefix(runnerVersion, "v") {
+		return fmt.Errorf("runner_version must has prefix 'v'")
+	}
+
+	s := strings.Split(runnerVersion, ".")
+	if len(s) != 3 {
+		return fmt.Errorf("runner_version must has version of major, sem, patch")
+	}
+
+	if err := GHExistRunnerReleases(runnerVersion); err != nil {
+		return fmt.Errorf("runner_version is not found: %w", err)
+	}
+
+	return nil
 }
 
 func toNullString(input *string) sql.NullString {
