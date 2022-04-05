@@ -3,6 +3,8 @@ package metric
 import (
 	"context"
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -20,6 +22,11 @@ var (
 		prometheus.BuildFQName(namespace, datastoreName, "targets"),
 		"Number of targets",
 		[]string{"resource_type"}, nil,
+	)
+	datastoreJobDurationOldest = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, datastoreName, "job_duration_oldest_seconds"),
+		"Duration time of oldest job",
+		[]string{"job_id"}, nil,
 	)
 )
 
@@ -60,6 +67,15 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 		)
 		return nil
 	}
+
+	sort.SliceStable(jobs, func(i, j int) bool {
+		// oldest job is first
+		return jobs[i].CreatedAt.Before(jobs[j].CreatedAt)
+	})
+
+	oldestJob := jobs[0]
+	ch <- prometheus.MustNewConstMetric(
+		datastoreJobDurationOldest, prometheus.GaugeValue, time.Since(oldestJob.CreatedAt).Seconds(), oldestJob.UUID.String())
 
 	result := map[string]float64{} // key: target_id, value: number
 	for _, j := range jobs {

@@ -129,9 +129,9 @@ func TestMySQL_ListJobs(t *testing.T) {
 		if len(test.want) != len(got) {
 			t.Fatalf("incorrect length jobs, want: %d but got: %d", len(test.want), len(got))
 		}
-		for _, g := range got {
-			g.CreatedAt = time.Time{}
-			g.UpdatedAt = time.Time{}
+		for i := range got {
+			got[i].CreatedAt = time.Time{}
+			got[i].UpdatedAt = time.Time{}
 		}
 
 		if diff := cmp.Diff(test.want, got); diff != "" {
