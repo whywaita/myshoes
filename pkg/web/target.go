@@ -329,7 +329,8 @@ func isValidTargetCreateParam(input TargetCreateParam) error {
 
 	if input.RunnerVersion != nil {
 		if err := validRunnerVersion(*input.RunnerVersion); err != nil {
-			return err
+			logger.Logf(false, "invalid input runner_version (runner_version: %s): %+v", *input.RunnerVersion, err)
+			return fmt.Errorf("invalid input runner_version (runner_version: %s): %w", *input.RunnerVersion, err)
 		}
 	}
 

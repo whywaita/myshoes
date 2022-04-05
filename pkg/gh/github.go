@@ -1,9 +1,7 @@
 package gh
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -144,15 +142,14 @@ func ExistRunnerReleases(runnerVersion string) error {
 	if err != nil {
 		return fmt.Errorf("failed to GET from %s: %w", releasesURL, ErrNotFound)
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
+
+	if resp.StatusCode == http.StatusOK {
+		return nil
+	} else if resp.StatusCode == http.StatusNotFound {
+		return ErrNotFound
 	}
 
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("response status code is not 200: %s", string(body))
-	}
-	return nil
+	return fmt.Errorf("invalid response code (%d)", resp.StatusCode)
 }
 
 // ExistGitHubRepository check exist of GitHub repository
@@ -177,7 +174,7 @@ func ExistGitHubRepository(scope, gheDomain string, accessToken string) error {
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	} else if resp.StatusCode == http.StatusNotFound {
-		return errors.New("not found")
+		return ErrNotFound
 	}
 
 	return fmt.Errorf("invalid response code (%d)", resp.StatusCode)
