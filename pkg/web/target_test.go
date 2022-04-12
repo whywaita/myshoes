@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -36,6 +37,10 @@ func parseResponse(resp *http.Response) ([]byte, int) {
 
 func setStubFunctions() {
 	web.GHExistGitHubRepositoryFunc = func(scope, gheDomain string, githubPersonalToken string) error {
+		return nil
+	}
+
+	web.GHExistRunnerReleases = func(runnerVersion string) error {
 		return nil
 	}
 
@@ -495,7 +500,7 @@ func Test_handleTargetUpdate(t *testing.T) {
 		}
 		content, code := parseResponse(resp)
 		if code != http.StatusOK {
-			t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
+			t.Fatalf("must be response statuscode is 200, but got %d: %+v", code, string(content))
 		}
 
 		var got web.UserTarget
@@ -509,6 +514,68 @@ func Test_handleTargetUpdate(t *testing.T) {
 
 		if diff := cmp.Diff(test.want, &got); diff != "" {
 			t.Errorf("mismatch (-want +got):\n%s", diff)
+		}
+
+		teardown()
+	}
+}
+
+func Test_handleTargetUpdate_Error(t *testing.T) {
+	testURL := testutils.GetTestURL()
+	_, teardown := testutils.GetTestDatastore()
+	defer teardown()
+
+	setStubFunctions()
+
+	tests := []struct {
+		input    string
+		wantCode int
+		want     string
+	}{
+		{ // Invalid: must set scope
+			input:    `{"ghe_domain": "https://github.example.com", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			wantCode: http.StatusBadRequest,
+			want:     `{"error":"invalid input: can't updatable fields (Scope)"}`,
+		},
+		{ // Invalid: must set ghe_domain
+			input:    `{"scope": "repo", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			wantCode: http.StatusBadRequest,
+			want:     `{"error":"invalid input: can't updatable fields (GHEDomain)"}`,
+		},
+		{ // Invalid: runner_version is semver
+			input:    `{"scope": "repo", "ghe_domain": "https://github.example.com", "resource_type": "nano", "runner_user": "ubuntu", "runner_version": "v2.100"}`,
+			wantCode: http.StatusBadRequest,
+			want:     `{"error": "runner_version must has version of major, sem, patch"}`,
+		},
+	}
+
+	for _, test := range tests {
+		target := `{"scope": "repo", "ghe_domain": "https://github.example.com", "resource_type": "micro", "runner_user": "ubuntu", "provider_url": "https://example.com/default-shoes"}`
+		respCreate, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
+		if err != nil {
+			t.Fatalf("failed to POST request: %+v", err)
+		}
+		contentCreate, statusCode := parseResponse(respCreate)
+		if statusCode != http.StatusCreated {
+			t.Fatalf("must be response statuscode is 201, but got %d: %+v", respCreate.StatusCode, string(contentCreate))
+		}
+		var respTarget web.UserTarget
+		if err := json.Unmarshal(contentCreate, &respTarget); err != nil {
+			t.Fatalf("failed to unmarshal response JSON: %+v", err)
+		}
+		targetUUID := respTarget.UUID
+
+		resp, err := http.Post(fmt.Sprintf("%s/target/%s", testURL, targetUUID.String()), "application/json", bytes.NewBufferString(test.input))
+		if err != nil {
+			t.Fatalf("failed to POST request: %+v", err)
+		}
+		content, code := parseResponse(resp)
+		got := string(content)
+		if code != test.wantCode {
+			t.Fatalf("must be response statuscode is %d, but got %d: %+v", test.wantCode, code, got)
+		}
+		if strings.EqualFold(test.want, got) {
+			t.Fatalf("invalid error response: %+v", string(content))
 		}
 
 		teardown()

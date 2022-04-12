@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/r3labs/diff/v2"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
 
-	uuid "github.com/satori/go.uuid"
 	"goji.io/pat"
 )
 
@@ -64,70 +64,12 @@ func sortUserTarget(uts []UserTarget) []UserTarget {
 // function pointer (for testing)
 var (
 	GHExistGitHubRepositoryFunc = gh.ExistGitHubRepository
+	GHExistRunnerReleases       = gh.ExistRunnerReleases
 	GHListRunnersFunc           = gh.ListRunners
 	GHIsInstalledGitHubApp      = gh.IsInstalledGitHubApp
 	GHGenerateGitHubAppsToken   = gh.GenerateGitHubAppsToken
 	GHNewClientApps             = gh.NewClientGitHubApps
 )
-
-func toNullString(input *string) sql.NullString {
-	if input == nil || strings.EqualFold(*input, "") {
-		return sql.NullString{
-			Valid: false,
-		}
-	}
-
-	return sql.NullString{
-		Valid:  true,
-		String: *input,
-	}
-}
-
-func isValidTargetCreateParam(input TargetCreateParam) (bool, error) {
-	if input.Scope == "" || input.ResourceType == datastore.ResourceTypeUnknown {
-		return false, fmt.Errorf("scope, resource_type must be set")
-	}
-
-	if input.GHEDomain != "" {
-		if _, err := url.Parse(input.GHEDomain); err != nil {
-			return false, fmt.Errorf("domain of GitHub Enterprise is not valid URL: %w", err)
-		}
-	}
-
-	if input.RunnerVersion != nil {
-		// valid format: vX.X.X (X is [0-9])
-		if !strings.HasPrefix(*input.RunnerVersion, "v") {
-			return false, fmt.Errorf("runner_version must has prefix 'v'")
-		}
-
-		s := strings.Split(*input.RunnerVersion, ".")
-		if len(s) != 3 {
-			return false, fmt.Errorf("runner_version must has version of major, sem, patch")
-		}
-	}
-
-	return true, nil
-}
-
-// ToDS convert to datastore.Target
-func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datastore.Target {
-	gheDomain := toNullString(&t.GHEDomain)
-	runnerUser := toNullString(t.RunnerUser)
-	runnerVersion := toNullString(t.RunnerVersion)
-	providerURL := toNullString(t.ProviderURL)
-
-	return datastore.Target{
-		UUID:           t.UUID,
-		Scope:          t.Scope,
-		GitHubToken:    appToken,
-		TokenExpiredAt: tokenExpired,
-		GHEDomain:      gheDomain,
-		ResourceType:   t.ResourceType,
-		RunnerUser:     runnerUser,
-		RunnerVersion:  runnerVersion,
-		ProviderURL:    providerURL,
-	}
-}
 
 func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	ctx := r.Context()
@@ -220,7 +162,7 @@ func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	}
 	if err := validateUpdateTarget(*oldTarget, newTarget); err != nil {
 		logger.Logf(false, "input error in validateUpdateTarget: %+v", err)
-		outputErrorMsg(w, http.StatusBadRequest, "request parameter has value of not updatable")
+		outputErrorMsg(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -319,6 +261,13 @@ func validateUpdateTarget(old, new datastore.Target) error {
 	oldv := old
 	newv := new
 
+	if new.RunnerVersion.Valid {
+		if err := validRunnerVersion(new.RunnerVersion.String); err != nil {
+			logger.Logf(false, "invalid input runner_version (runner_version: %s): %+v", new.RunnerVersion.String, err)
+			return fmt.Errorf("invalid input runner_version (runner_version: %s): %w", new.RunnerVersion.String, err)
+		}
+	}
+
 	for _, t := range []*datastore.Target{&oldv, &newv} {
 		t.UUID = uuid.UUID{}
 
@@ -339,11 +288,103 @@ func validateUpdateTarget(old, new datastore.Target) error {
 		t.GitHubToken = ""
 	}
 
-	if diff := cmp.Diff(oldv, newv); diff != "" {
-		return fmt.Errorf("mismatch (-want +got):\n%s", diff)
+	changelog, err := diff.Diff(oldv, newv)
+	if err != nil {
+		logger.Logf(false, "failed to check diff: %+v", err)
+		return fmt.Errorf("failed to check diff: %w", err)
+	}
+	if len(changelog) != 0 {
+		logger.Logf(false, "invalid updatable parameter: %+v", changelog)
+
+		var invalidFields []string
+		for _, cl := range changelog {
+			if len(cl.Path) == 2 && !strings.EqualFold(cl.Path[1], "String") {
+				continue
+			}
+
+			fieldName := cl.Path[0]
+			invalidFields = append(invalidFields, fieldName)
+		}
+
+		return fmt.Errorf("invalid input: can't updatable fields (%s)", strings.Join(invalidFields, ", "))
 	}
 
 	return nil
+}
+
+func isValidTargetCreateParam(input TargetCreateParam) error {
+	if input.Scope == "" || input.ResourceType == datastore.ResourceTypeUnknown {
+		return fmt.Errorf("scope, resource_type must be set")
+	}
+
+	if input.GHEDomain != "" {
+		if strings.EqualFold(input.GHEDomain, "https://github.com") {
+			return fmt.Errorf("ghe_domain must not https://github.com, please set blank")
+		}
+
+		if _, err := url.Parse(input.GHEDomain); err != nil {
+			return fmt.Errorf("domain of GitHub Enterprise is not valid URL: %w", err)
+		}
+	}
+
+	if input.RunnerVersion != nil {
+		if err := validRunnerVersion(*input.RunnerVersion); err != nil {
+			logger.Logf(false, "invalid input runner_version (runner_version: %s): %+v", *input.RunnerVersion, err)
+			return fmt.Errorf("invalid input runner_version (runner_version: %s): %w", *input.RunnerVersion, err)
+		}
+	}
+
+	return nil
+}
+
+func validRunnerVersion(runnerVersion string) error {
+	if !strings.HasPrefix(runnerVersion, "v") {
+		return fmt.Errorf("runner_version must has prefix 'v'")
+	}
+
+	s := strings.Split(runnerVersion, ".")
+	if len(s) != 3 {
+		return fmt.Errorf("runner_version must has version of major, sem, patch")
+	}
+
+	if err := GHExistRunnerReleases(runnerVersion); err != nil {
+		return fmt.Errorf("runner_version is not found in GitHub Release: %w", err)
+	}
+
+	return nil
+}
+
+func toNullString(input *string) sql.NullString {
+	if input == nil || strings.EqualFold(*input, "") {
+		return sql.NullString{
+			Valid: false,
+		}
+	}
+
+	return sql.NullString{
+		Valid:  true,
+		String: *input,
+	}
+}
+
+// ToDS convert to datastore.Target
+func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datastore.Target {
+	gheDomain := toNullString(&t.GHEDomain)
+	runnerUser := toNullString(t.RunnerUser)
+	runnerVersion := toNullString(t.RunnerVersion)
+	providerURL := toNullString(t.ProviderURL)
+
+	return datastore.Target{
+		UUID:           t.UUID,
+		Scope:          t.Scope,
+		GitHubToken:    appToken,
+		TokenExpiredAt: tokenExpired,
+		GHEDomain:      gheDomain,
+		ResourceType:   t.ResourceType,
+		RunnerUser:     runnerUser,
+		RunnerVersion:  runnerVersion,
+		ProviderURL:    providerURL,
+	}
 }
 
 type getWillUpdateTargetVariableOld struct {

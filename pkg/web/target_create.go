@@ -24,7 +24,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
-	if ok, err := isValidTargetCreateParam(inputTarget); !ok {
+	if err := isValidTargetCreateParam(inputTarget); err != nil {
 		logger.Logf(false, "failed to validate input: %+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, err.Error())
 		return

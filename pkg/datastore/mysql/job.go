@@ -23,7 +23,7 @@ func (m *MySQL) EnqueueJob(ctx context.Context, job datastore.Job) error {
 // ListJobs get all jobs
 func (m *MySQL) ListJobs(ctx context.Context) ([]datastore.Job, error) {
 	var jobs []datastore.Job
-	query := `SELECT uuid, ghe_domain, repository, check_event, target_id FROM jobs`
+	query := `SELECT uuid, ghe_domain, repository, check_event, target_id, created_at, updated_at FROM jobs`
 	if err := m.Conn.SelectContext(ctx, &jobs, query); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
