@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/go-plugin v1.4.3
 	github.com/hashicorp/go-version v1.4.0
 	github.com/jmoiron/sqlx v1.3.4
-	github.com/m4ns0ur/httpcache v0.0.0-20190611155906-901d90724c79
+	github.com/m4ns0ur/httpcache v0.0.0-20200426190423-1040e2e8823f
 	github.com/ory/dockertest/v3 v3.8.2-0.20220411151212-cfab898e8db4
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.12.1
