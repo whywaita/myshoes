@@ -1,4 +1,4 @@
-FROM golang:1.16 AS builder
+FROM golang:1.18 AS builder
 
 WORKDIR /go/src/github.com/whywaita/myshoes
 
@@ -6,8 +6,8 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOARCH=amd64
 
-RUN go get -u google.golang.org/protobuf/cmd/protoc-gen-go \
-              google.golang.org/grpc/cmd/protoc-gen-go-grpc
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 RUN apt-get update -y \
     && apt-get install -y protobuf-compiler
 
