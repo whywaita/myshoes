@@ -18,8 +18,10 @@ type conf struct {
 	ShoesPluginPath string
 	RunnerUser      string
 
-	Debug                   bool
-	Strict                  bool // check to registered runner before delete job
+	Debug           bool
+	Strict          bool // check to registered runner before delete job
+	ModeWebhookType string
+
 	MaxConnectionsToBackend int64
 	MaxConcurrencyDeleting  int64
 }
@@ -34,6 +36,7 @@ const (
 	EnvShoesPluginPath           = "PLUGIN"
 	EnvDebug                     = "DEBUG"
 	EnvStrict                    = "STRICT"
+	EnvModeWebhookType           = "MODE_WEBHOOK_TYPE"
 	EnvMaxConnectionsToBackend   = "MAX_CONNECTIONS_TO_BACKEND"
 	EnvMaxConcurrencyDeleting    = "MAX_CONCURRENCY_DELETING"
 )

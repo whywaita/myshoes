@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v45/github"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/internal/testutils"

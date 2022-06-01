@@ -91,6 +91,11 @@ func Load() {
 		Config.Strict = false
 	}
 
+	Config.ModeWebhookType = "workflow_job"
+	if os.Getenv(EnvModeWebhookType) != "" {
+		Config.ModeWebhookType = os.Getenv(EnvModeWebhookType)
+	}
+
 	Config.MaxConnectionsToBackend = 50
 	if os.Getenv(EnvMaxConnectionsToBackend) != "" {
 		numberPB, err := strconv.ParseInt(os.Getenv(EnvMaxConnectionsToBackend), 10, 64)
