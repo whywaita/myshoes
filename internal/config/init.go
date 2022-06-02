@@ -93,6 +93,9 @@ func Load() {
 
 	Config.ModeWebhookType = "workflow_job"
 	if os.Getenv(EnvModeWebhookType) != "" {
+		if !validWebhookType(os.Getenv(EnvModeWebhookType)) {
+			log.Panicf("%s is invalid webhook type", os.Getenv(EnvModeWebhookType))
+		}
 		Config.ModeWebhookType = os.Getenv(EnvModeWebhookType)
 	}
 
@@ -190,4 +193,13 @@ func fetchHTTP(u *url.URL) (string, error) {
 	}
 
 	return fp, nil
+}
+
+func validWebhookType(input string) bool {
+	switch input {
+	case "workflow_job", "check_run":
+		return true
+	default:
+		return false
+	}
 }
