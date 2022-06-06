@@ -28,6 +28,16 @@ Auto scaling self-hosted runner :runner: (like GitHub-hosted) for GitHub Actions
 
 Please see [Documents](./docs).
 
+## How to contribute
+
+1. Fork it
+1. Clone original repository `git clone https://github.com/whywaita/myshoes`
+1. Add remote your repository `git remote add your-name https://github.com/${your-name}/myshoes`
+1. Create your feature branch `git switch -c my-new-feature`
+1. Commit your changes `git commit -am 'Add some feature'`
+1. Push to the branch `git push your-name my-new-feature`
+1. Create new Pull Request
+
 ## Publications
 
 ### Talk
