@@ -43,8 +43,11 @@ type Datastore interface {
 	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newRunnerVersion, newRunnerUser, newProviderURL sql.NullString) error
 
 	EnqueueJob(ctx context.Context, job Job) error
+	DequeueJobs(ctx context.Context) ([]Job, error)
 	ListJobs(ctx context.Context) ([]Job, error)
 	DeleteJob(ctx context.Context, id uuid.UUID) error
+
+	CleanUpJobs(ctx context.Context) error
 
 	CreateRunner(ctx context.Context, runner Runner) error
 	ListRunners(ctx context.Context) ([]Runner, error)
@@ -163,6 +166,7 @@ type Job struct {
 	Repository     string         `db:"repository"` // repo (:owner/:repo)
 	CheckEventJSON string         `db:"check_event"`
 	TargetID       uuid.UUID      `db:"target_id"`
+	Owner          sql.NullInt64  `db:"owner"`
 	CreatedAt      time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt      time.Time      `db:"updated_at" json:"updated_at"`
 }

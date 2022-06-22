@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 type MySQL struct {
 	Conn *sqlx.DB
 }
+
+var cacheConnectionID = 0
 
 // New create mysql connection
 func New(dsn string) (*MySQL, error) {
@@ -51,4 +54,18 @@ func getMySQLURL(dsn string) (string, error) {
 	c.InterpolateParams = true
 
 	return c.FormatDSN(), nil
+}
+
+func (m *MySQL) getConnectionID(ctx context.Context) (int, error) {
+	if cacheConnectionID != 0 {
+		return cacheConnectionID, nil
+	}
+
+	var cID int
+	if err := m.Conn.GetContext(ctx, &cID, `SELECT CONNECTION_ID()`); err != nil {
+		return -1, fmt.Errorf("failed to execute SELECT query: %w", err)
+	}
+	cacheConnectionID = cID
+
+	return cacheConnectionID, nil
 }

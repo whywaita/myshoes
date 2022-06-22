@@ -73,6 +73,26 @@ func (s *Starter) Loop(ctx context.Context) error {
 		}
 	})
 
+	eg.Go(func() error {
+		if err := s.ds.CleanUpJobs(ctx); err != nil {
+			return fmt.Errorf("failed to cleanup owner column in startup: %w", err)
+		}
+
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := s.ds.CleanUpJobs(ctx); err != nil {
+					return fmt.Errorf("failed to cleanup owner column: %w", err)
+				}
+			case <-ctx.Done():
+				return nil
+			}
+		}
+	})
+
 	if err := eg.Wait(); err != nil {
 		return fmt.Errorf("failed to errgroup wait: %w", err)
 	}
@@ -81,7 +101,7 @@ func (s *Starter) Loop(ctx context.Context) error {
 
 func (s *Starter) dispatcher(ctx context.Context, ch chan datastore.Job) error {
 	logger.Logf(true, "start to check starter")
-	jobs, err := s.ds.ListJobs(ctx)
+	jobs, err := s.ds.DequeueJobs(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get jobs: %w", err)
 	}

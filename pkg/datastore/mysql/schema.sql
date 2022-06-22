@@ -61,6 +61,7 @@ CREATE TABLE `jobs` (
     `repository` VARCHAR(255) NOT NULL,
     `check_event` TEXT NOT NULL,
     `target_id` VARCHAR(36) NOT NULL,
+    `owner` INT(64),
     `created_at` TIMESTAMP NOT NULL DEFAULT current_timestamp,
     `updated_at` TIMESTAMP NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp,
     KEY `fk_job_target_id` (`target_id`),

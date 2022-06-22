@@ -136,6 +136,7 @@ func processCheckRun(ctx context.Context, ds datastore.Datastore, checkAction, r
 		Repository:     repoName,
 		CheckEventJSON: string(requestJSON),
 		TargetID:       target.UUID,
+		Owner:          sql.NullInt64{Valid: false},
 	}
 	if err := ds.EnqueueJob(ctx, j); err != nil {
 		return fmt.Errorf("failed to enqueue job: %w", err)
