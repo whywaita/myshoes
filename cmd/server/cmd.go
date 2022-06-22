@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
-	"time"
 
 	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -66,25 +64,6 @@ func newShoes() (*myShoes, error) {
 // Run start services.
 func (m *myShoes) Run() error {
 	eg, ctx := errgroup.WithContext(context.Background())
-
-	for {
-		logger.Logf(false, "start getting lock...")
-		isLocked, err := m.ds.IsLocked(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to check lock: %w", err)
-		}
-
-		if strings.EqualFold(isLocked, datastore.IsNotLocked) {
-			if err := m.ds.GetLock(ctx); err != nil {
-				return fmt.Errorf("failed to get lock: %w", err)
-			}
-
-			logger.Logf(false, "get lock successfully!")
-			break
-		}
-
-		time.Sleep(time.Second)
-	}
 
 	eg.Go(func() error {
 		if err := web.Serve(ctx, m.ds); err != nil {

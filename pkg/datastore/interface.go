@@ -54,10 +54,6 @@ type Datastore interface {
 	ListRunnersByTargetID(ctx context.Context, targetID uuid.UUID) ([]Runner, error)
 	GetRunner(ctx context.Context, id uuid.UUID) (*Runner, error)
 	DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time, reason RunnerStatus) error
-
-	// Lock
-	GetLock(ctx context.Context) error
-	IsLocked(ctx context.Context) (string, error)
 }
 
 // Target is a target repository that will add auto-scaling runner.
