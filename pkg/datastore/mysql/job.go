@@ -47,7 +47,7 @@ func (m *MySQL) DequeueJobs(ctx context.Context) ([]datastore.Job, error) {
 	tx := m.Conn.MustBegin()
 
 	var noOwnerUUID []string
-	noOwnerQuery := `SELECT uuid FROM jobs WHERE owner is NULL`
+	noOwnerQuery := `SELECT uuid FROM jobs WHERE owner IS NULL`
 	if err := tx.SelectContext(ctx, &noOwnerUUID, noOwnerQuery); err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("failed to get a list of unowner jobs: %w", err)
@@ -90,9 +90,9 @@ func (m *MySQL) DeleteJob(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// CleanUpJobs expire jobs
+// CleanUpJobs cleanup owner if owner is already disconnected
 func (m *MySQL) CleanUpJobs(ctx context.Context) error {
-	query := `UPDATE jobs SET owner = NULL WHERE owner is not NULL`
+	query := `UPDATE jobs SET owner = NULL WHERE owner NOT IN (SELECT ID FROM information_schema.processlist)`
 	if _, err := m.Conn.ExecContext(ctx, query); err != nil {
 		return fmt.Errorf("failed to execute UPDATE query: %w", err)
 	}
