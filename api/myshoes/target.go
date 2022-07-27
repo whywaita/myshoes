@@ -98,7 +98,7 @@ func (c *Client) ListTarget(ctx context.Context) ([]web.UserTarget, error) {
 	}
 
 	var targets []web.UserTarget
-	if err := c.request(req, targets); err != nil {
+	if err := c.request(req, &targets); err != nil {
 		return nil, fmt.Errorf(errRequest, err)
 	}
 
