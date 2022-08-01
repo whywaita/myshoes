@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/go-github/v35/github"
@@ -65,14 +66,16 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		return fmt.Errorf("failed to check number of registerd runner: %w", err)
 	} else if isZero && len(runners) == 0 && mode == datastore.RunnerTemporaryOnce {
 		logger.Logf(false, "runner for queueing is not found in %s", t.RepoURL())
-		if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, "runner for queueing is not found"); err != nil {
+		if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, ErrDescriptionRunnerForQueueingIsNotFound); err != nil {
 			logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
 		}
 		return nil
 	}
 
-	if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusActive, ""); err != nil {
-		logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
+	if t.Status == datastore.TargetStatusErr && t.StatusDescription.Valid && strings.EqualFold(t.StatusDescription.String, ErrDescriptionRunnerForQueueingIsNotFound) {
+		if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusActive, ""); err != nil {
+			logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
+		}
 	}
 
 	sem := semaphore.NewWeighted(config.Config.MaxConcurrencyDeleting)
@@ -151,6 +154,11 @@ func isRegisteredRunnerZeroInGitHub(ctx context.Context, t datastore.Target) (bo
 var (
 	// ErrNotWillDeleteRunner is error message for "not will delete runner"
 	ErrNotWillDeleteRunner = fmt.Errorf("not will delete runner")
+)
+
+const (
+	// ErrDescriptionRunnerForQueueingIsNotFound is error message for datastore.StatusDescription "runner for queueing is not found"
+	ErrDescriptionRunnerForQueueingIsNotFound = "runner for queueing is not found"
 )
 
 var (
