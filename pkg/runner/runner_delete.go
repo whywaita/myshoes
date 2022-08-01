@@ -55,15 +55,24 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		return fmt.Errorf("failed to retrieve list of running runner: %w", err)
 	}
 
+	_, mode, err := datastore.GetRunnerTemporaryMode(t.RunnerVersion)
+	if err != nil {
+		return fmt.Errorf("failed to get runner mode: %w", err)
+	}
+
 	isZero, ghRunners, err := isRegisteredRunnerZeroInGitHub(ctx, t)
 	if err != nil {
 		return fmt.Errorf("failed to check number of registerd runner: %w", err)
-	} else if isZero && len(runners) == 0 {
+	} else if isZero && len(runners) == 0 && mode == datastore.RunnerTemporaryOnce {
 		logger.Logf(false, "runner for queueing is not found in %s", t.RepoURL())
 		if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, "runner for queueing is not found"); err != nil {
 			logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
 		}
 		return nil
+	}
+
+	if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusActive, ""); err != nil {
+		logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
 	}
 
 	sem := semaphore.NewWeighted(config.Config.MaxConcurrencyDeleting)
