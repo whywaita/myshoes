@@ -147,7 +147,7 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 		// is not ok, save job
 		return nil
 	}
-	if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusRunning, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+	if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusRunning, ""); err != nil {
 		return fmt.Errorf("failed to update target status (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
 
