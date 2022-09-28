@@ -28,7 +28,6 @@ func handleConfigDebug(w http.ResponseWriter, r *http.Request) {
 	config.Config.Debug = i.Debug
 	logger.Logf(false, "switch debug mode to %t", i.Debug)
 	w.WriteHeader(http.StatusNoContent)
-	return
 }
 
 func handleConfigStrict(w http.ResponseWriter, r *http.Request) {
@@ -43,5 +42,4 @@ func handleConfigStrict(w http.ResponseWriter, r *http.Request) {
 	config.Config.Strict = i.Strict
 	logger.Logf(false, "switch strict mode to %t", i.Strict)
 	w.WriteHeader(http.StatusNoContent)
-	return
 }

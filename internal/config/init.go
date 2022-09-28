@@ -91,12 +91,14 @@ func Load() {
 		Config.Strict = false
 	}
 
-	Config.ModeWebhookType = "workflow_job"
+	Config.ModeWebhookType = ModeWebhookTypeCheckRun
 	if os.Getenv(EnvModeWebhookType) != "" {
-		if !validWebhookType(os.Getenv(EnvModeWebhookType)) {
+		mwt := marshalModeWebhookType(os.Getenv(EnvModeWebhookType))
+
+		if mwt == ModeWebhookTypeUnknown {
 			log.Panicf("%s is invalid webhook type", os.Getenv(EnvModeWebhookType))
 		}
-		Config.ModeWebhookType = os.Getenv(EnvModeWebhookType)
+		Config.ModeWebhookType = mwt
 	}
 
 	Config.MaxConnectionsToBackend = 50
@@ -193,13 +195,4 @@ func fetchHTTP(u *url.URL) (string, error) {
 	}
 
 	return fp, nil
-}
-
-func validWebhookType(input string) bool {
-	switch input {
-	case "workflow_job", "check_run":
-		return true
-	default:
-		return false
-	}
 }

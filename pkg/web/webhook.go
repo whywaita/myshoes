@@ -44,7 +44,7 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 		w.WriteHeader(http.StatusOK)
 		return
 	case *github.CheckRunEvent:
-		if !strings.EqualFold(config.Config.ModeWebhookType, "check_run") {
+		if !config.Config.ModeWebhookType.Equal("check_run") {
 			logger.Logf(false, "receive CheckRunEvent, but set %s. So ignore", config.Config.ModeWebhookType)
 			return
 		}
@@ -58,7 +58,7 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 		w.WriteHeader(http.StatusOK)
 		return
 	case *github.WorkflowJobEvent:
-		if !strings.EqualFold(config.Config.ModeWebhookType, "workflow_job") {
+		if !config.Config.ModeWebhookType.Equal("workflow_job") {
 			logger.Logf(false, "receive WorkflowJobEvent, but set %s. So ignore", config.Config.ModeWebhookType)
 			return
 		}
