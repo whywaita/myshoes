@@ -10,7 +10,7 @@
   - The webhook endpoint from github.com **OR** your GitHub Enterprise Server (`POST /github/events`).
   - REST API from your workspace (`GET, POST, DELETE /target`).
 - You decide platform for runner and shoes-provider
-  - The official shoes-provider is [whywaita/myshoes-provider](https://github.com/whywaita/myshoes-provider).
+  - The official shoes-provider topic is [myshoes-provider](https://github.com/search?q=topic%3Amyshoes-provider).
   - You can implement and use your private shoes-provider. Please check [how-to-develop-shoes.md](./03_how-to-develop-shoes.md).
 
 ## Word definition
@@ -57,7 +57,7 @@ For example is [here](https://github.com/whywaita/myshoes-providers/tree/master/
   
 ##### Subscribe to events
 
-- check `Check run`
+- Check `Workflow job`
 
 ### Download private key
 
@@ -69,6 +69,8 @@ For example is [here](https://github.com/whywaita/myshoes-providers/tree/master/
 $ make build
 $ ./myshoes
 ```
+
+A config variables can set from environment values.
 
 - `PORT`
   - default: 8080
@@ -104,4 +106,4 @@ $ ./myshoes
   - default: 1
   - The number of max concurrency of deleting
 
-and more some env values from [shoes provider](https://github.com/whywaita/myshoes-providers).
+and more some env values from [shoes provider](https://github.com/search?q=topic%3Amyshoes-provider).
