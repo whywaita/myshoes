@@ -3,6 +3,7 @@ package myshoes
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/whywaita/myshoes/pkg/web"
@@ -11,8 +12,15 @@ import (
 func decodeBody(resp *http.Response, out interface{}) error {
 	defer resp.Body.Close()
 
-	decoder := json.NewDecoder(resp.Body)
-	return decoder.Decode(out)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to io.ReadAll(resp.Body): %w", err)
+	}
+
+	if err := json.Unmarshal(body, out); err != nil {
+		return fmt.Errorf("failed to json.Unmarshal() (out: %s): %w", body, err)
+	}
+	return nil
 }
 
 func decodeErrorBody(resp *http.Response) error {

@@ -124,6 +124,7 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 
 func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner datastore.Runner, ghRunners []*github.Runner) error {
 	if err := sanitizeRunnerMustRunningTime(runner); errors.Is(err, ErrNotWillDeleteRunner) {
+		logger.Logf(false, "%s is not running MustRunningTime", runner.UUID)
 		return nil
 	}
 
