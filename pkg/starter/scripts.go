@@ -163,18 +163,22 @@ function install_jq()
     elif [ -e /etc/redhat-release ]; then
         sudo yum install -y jq
     fi
+
+	if [ "${runner_plat}" = "osx" ]; then
+		brew install jq
+	fi
 }
 
 function install_docker()
 {
-    echo "docker is not installed, will be install docker."
-    if [ -e /etc/debian_version ] || [ -e /etc/debian_release ]; then
-        sudo apt-get update -y -qq
-        sudo apt-get install -y docker.io
-    fi
+	echo "docker is not installed, will be install docker."
+	if [ -e /etc/debian_version ] || [ -e /etc/debian_release ]; then
+		sudo apt-get update -y -qq
+		sudo apt-get install -y docker.io
+	fi
 
-	if [ "${runner_plat}" = "osx"]; then
-		brew install docker
+	if [ "${runner_plat}" = "osx" ]; then
+		echo "No install in macOS, It is same that GitHub-hosted" 
 	fi
 }
 
@@ -214,7 +218,6 @@ which curl || fatal "curl required.  Please install in PATH with apt-get, brew, 
 which jq || install_jq
 which jq || fatal "jq required.  Please install in PATH with apt-get, brew, etc"
 which docker || install_docker
-which docker || fatal "docker required.  Please install in PATH with apt-get, brew, etc"
 
 configure_environment
 

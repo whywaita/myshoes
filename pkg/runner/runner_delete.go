@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/go-github/v45/github"
@@ -55,14 +56,31 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		return fmt.Errorf("failed to retrieve list of running runner: %w", err)
 	}
 
-	isZero, ghRunners, err := isRegisteredRunnerZeroInGitHub(ctx, t)
+	_, mode, err := datastore.GetRunnerTemporaryMode(t.RunnerVersion)
+	if err != nil {
+		return fmt.Errorf("failed to get runner mode: %w", err)
+	}
+
+	ghRunners, err := isRegisteredRunnerZeroInGitHub(ctx, t)
 	if err != nil {
 		return fmt.Errorf("failed to check number of registerd runner: %w", err)
-	} else if isZero && len(runners) == 0 {
-		logger.Logf(false, "runner for queueing is not found in %s", t.RepoURL())
-		if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, "runner for queueing is not found"); err != nil {
-			logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
+	}
+
+	if len(ghRunners) == 0 && len(runners) == 0 {
+		switch mode {
+		case datastore.RunnerTemporaryOnce:
+			logger.Logf(false, "runner for queueing is not found in %s", t.RepoURL())
+			if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, ErrDescriptionRunnerForQueueingIsNotFound); err != nil {
+				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
+			}
+		default:
+			if t.Status == datastore.TargetStatusErr && t.StatusDescription.Valid && strings.EqualFold(t.StatusDescription.String, ErrDescriptionRunnerForQueueingIsNotFound) {
+				if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusActive, ""); err != nil {
+					logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
+				}
+			}
 		}
+
 		return nil
 	}
 
@@ -95,11 +113,18 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		return fmt.Errorf("failed to wait errgroup.Wait(): %w", err)
 	}
 
+	if t.Status == datastore.TargetStatusRunning {
+		if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusActive, ""); err != nil {
+			logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
+		}
+	}
+
 	return nil
 }
 
 func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner datastore.Runner, ghRunners []*github.Runner) error {
 	if err := sanitizeRunnerMustRunningTime(runner); errors.Is(err, ErrNotWillDeleteRunner) {
+		logger.Logf(false, "%s is not running MustRunningTime", runner.UUID)
 		return nil
 	}
 
@@ -118,30 +143,33 @@ func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner d
 			return fmt.Errorf("failed to remove runner (mode ephemeral): %w", err)
 		}
 	}
+
 	return nil
 }
 
-func isRegisteredRunnerZeroInGitHub(ctx context.Context, t datastore.Target) (bool, []*github.Runner, error) {
+func isRegisteredRunnerZeroInGitHub(ctx context.Context, t datastore.Target) ([]*github.Runner, error) {
 	owner, repo := t.OwnerRepo()
 	client, err := gh.NewClient(t.GitHubToken, t.GHEDomain.String)
 	if err != nil {
-		return false, nil, fmt.Errorf("failed to create github client: %w", err)
+		return nil, fmt.Errorf("failed to create github client: %w", err)
 	}
 
 	ghRunners, err := gh.ListRunners(ctx, client, owner, repo)
 	if err != nil {
-		return false, nil, fmt.Errorf("failed to get list of runner in GitHub: %w", err)
+		return nil, fmt.Errorf("failed to get list of runner in GitHub: %w", err)
 	}
 
-	if len(ghRunners) == 0 {
-		return true, nil, nil
-	}
-	return false, ghRunners, nil
+	return ghRunners, nil
 }
 
 var (
 	// ErrNotWillDeleteRunner is error message for "not will delete runner"
 	ErrNotWillDeleteRunner = fmt.Errorf("not will delete runner")
+)
+
+const (
+	// ErrDescriptionRunnerForQueueingIsNotFound is error message for datastore.StatusDescription "runner for queueing is not found"
+	ErrDescriptionRunnerForQueueingIsNotFound = "runner for queueing is not found"
 )
 
 var (
