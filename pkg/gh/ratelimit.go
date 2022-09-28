@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v47/github"
 )
 
 func storeRateLimit(scope string, rateLimit github.Rate) {
