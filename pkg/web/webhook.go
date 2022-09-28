@@ -45,6 +45,7 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 		return
 	case *github.CheckRunEvent:
 		if !strings.EqualFold(config.Config.ModeWebhookType, "check_run") {
+			logger.Logf(false, "receive CheckRunEvent, but set %s. So ignore", config.Config.ModeWebhookType)
 			return
 		}
 
@@ -58,6 +59,7 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 		return
 	case *github.WorkflowJobEvent:
 		if !strings.EqualFold(config.Config.ModeWebhookType, "workflow_job") {
+			logger.Logf(false, "receive WorkflowJobEvent, but set %s. So ignore", config.Config.ModeWebhookType)
 			return
 		}
 
@@ -177,7 +179,7 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 	}
 
 	if action != "queued" {
-		logger.Logf(true, "check_action is not created, ignore")
+		logger.Logf(true, "workflow_job actions is not queued, ignore")
 		return nil
 	}
 
