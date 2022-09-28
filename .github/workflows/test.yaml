@@ -14,14 +14,14 @@ jobs:
         os:
           - ubuntu-latest
     steps:
-      - name: setup go
-        uses: actions/setup-go@v2
-        with:
-          go-version-file: 'go.mod'
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
+      - name: setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: 'go.mod'
       - name: lint
         run: |
           GO111MODULE=off GOBIN=$(pwd)/bin go get golang.org/x/lint/golint
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
      - name: checkout
-       uses: actions/checkout@v2
+       uses: actions/checkout@v3
        with:
          fetch-depth: 1
      - name: docker build
