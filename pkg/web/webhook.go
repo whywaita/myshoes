@@ -172,9 +172,9 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 	repoURL := repo.GetHTMLURL()
 
 	labels := event.GetWorkflowJob().Labels
-	if !hasSelfHosted(labels) {
-		// workflow_job use GitHub-hosted, So will be ignored
-		logger.Logf(true, "self-hosted is not found in labels, so ignore (labels: %s)", labels)
+	if !isRequestedMyshoesLabel(labels) {
+		// is not request myshoes, So will be ignored
+		logger.Logf(true, "label \"myshoes\" is not found in labels, so ignore (labels: %s)", labels)
 		return nil
 	}
 
@@ -191,9 +191,9 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 	return processCheckRun(ctx, ds, repoName, repoURL, installationID, jb)
 }
 
-func hasSelfHosted(labels []string) bool {
+func isRequestedMyshoesLabel(labels []string) bool {
 	for _, label := range labels {
-		if strings.EqualFold(label, "self-hosted") {
+		if strings.EqualFold(label, "myshoes") || strings.EqualFold(label, "self-hosted") {
 			return true
 		}
 	}
