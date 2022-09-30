@@ -23,5 +23,4 @@ func handleMetrics(w http.ResponseWriter, r *http.Request, ds datastore.Datastor
 	}
 	h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
-	return
 }

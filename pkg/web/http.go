@@ -30,7 +30,6 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 		}
 
 		json.NewEncoder(w).Encode(h)
-		return
 	})
 
 	mux.HandleFunc(pat.Post("/github/events"), func(w http.ResponseWriter, r *http.Request) {

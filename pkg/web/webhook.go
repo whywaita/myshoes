@@ -78,7 +78,7 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 	}
 }
 
-func receivePingWebhook(ctx context.Context, event *github.PingEvent) error {
+func receivePingWebhook(_ context.Context, _ *github.PingEvent) error {
 	return nil
 }
 

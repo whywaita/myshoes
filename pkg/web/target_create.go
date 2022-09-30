@@ -79,6 +79,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	case target.Status == datastore.TargetStatusDeleted:
 		// deleted, need to recreate
+		//lint:ignore SA1019 ds.UpdateTargetStatus only use under.
 		if err := ds.UpdateTargetStatus(ctx, target.UUID, datastore.TargetStatusActive, ""); err != nil {
 			logger.Logf(false, "failed to recreate target: %+v", err)
 			outputErrorMsg(w, http.StatusInternalServerError, "datastore recreate error")
@@ -115,7 +116,6 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(ut)
-	return
 }
 
 func isValidScopeAndToken(ctx context.Context, scope, gheDomain, githubPersonalToken string) error {
