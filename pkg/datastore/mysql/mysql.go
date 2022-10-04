@@ -5,11 +5,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-
 	"github.com/jmoiron/sqlx"
-
-	// mysql driver
-	_ "github.com/go-sql-driver/mysql"
 )
 
 // MySQL is implement datastore in MySQL

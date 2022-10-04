@@ -420,11 +420,9 @@ func TestMySQL_ListTargets(t *testing.T) {
 		if !test.err && err != nil {
 			t.Fatalf("failed to list targets: %+v", err)
 		}
-		if got != nil {
-			for i := range got {
-				got[i].CreatedAt = time.Time{}
-				got[i].UpdatedAt = time.Time{}
-			}
+		for i := range got {
+			got[i].CreatedAt = time.Time{}
+			got[i].UpdatedAt = time.Time{}
 		}
 
 		if diff := cmp.Diff(test.want, got); diff != "" {

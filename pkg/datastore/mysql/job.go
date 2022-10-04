@@ -37,7 +37,7 @@ func (m *MySQL) ListJobs(ctx context.Context) ([]datastore.Job, error) {
 
 // DeleteJob delete a job
 func (m *MySQL) DeleteJob(ctx context.Context, id uuid.UUID) error {
-	query := fmt.Sprintf(`DELETE FROM jobs WHERE uuid = ?`)
+	query := `DELETE FROM jobs WHERE uuid = ?`
 	if _, err := m.Conn.ExecContext(ctx, query, id.String()); err != nil {
 		return fmt.Errorf("failed to execute DELETE query: %w", err)
 	}

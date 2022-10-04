@@ -91,6 +91,16 @@ func Load() {
 		Config.Strict = false
 	}
 
+	Config.ModeWebhookType = ModeWebhookTypeCheckRun
+	if os.Getenv(EnvModeWebhookType) != "" {
+		mwt := marshalModeWebhookType(os.Getenv(EnvModeWebhookType))
+
+		if mwt == ModeWebhookTypeUnknown {
+			log.Panicf("%s is invalid webhook type", os.Getenv(EnvModeWebhookType))
+		}
+		Config.ModeWebhookType = mwt
+	}
+
 	Config.MaxConnectionsToBackend = 50
 	if os.Getenv(EnvMaxConnectionsToBackend) != "" {
 		numberPB, err := strconv.ParseInt(os.Getenv(EnvMaxConnectionsToBackend), 10, 64)

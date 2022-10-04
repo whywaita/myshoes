@@ -8,7 +8,7 @@ import (
 
 	"github.com/whywaita/myshoes/pkg/logger"
 
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v47/github"
 )
 
 // function pointers (for testing)

@@ -91,7 +91,6 @@ func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(targets)
-	return
 }
 
 func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
@@ -115,7 +114,6 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(ut)
-	return
 }
 
 func sanitizeTarget(t datastore.Target) UserTarget {
@@ -194,7 +192,6 @@ func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(ut)
-	return
 }
 
 func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
@@ -230,7 +227,6 @@ func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(http.StatusNoContent)
-	return
 }
 
 func parseReqTargetID(r *http.Request) (uuid.UUID, error) {

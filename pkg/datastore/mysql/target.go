@@ -38,7 +38,7 @@ func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error
 // GetTarget get a target
 func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`)
+	query := `SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
 	if err := m.Conn.GetContext(ctx, &t, query, id.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
