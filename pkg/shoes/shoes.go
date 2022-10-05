@@ -6,11 +6,12 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/whywaita/myshoes/pkg/datastore"
-
 	"github.com/hashicorp/go-plugin"
+
 	pb "github.com/whywaita/myshoes/api/proto.go"
 	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/datastore"
+
 	"google.golang.org/grpc"
 )
 
@@ -68,7 +69,7 @@ func (p *Plugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *g
 
 // Client is plugin client interface
 type Client interface {
-	AddInstance(ctx context.Context, runnerID, setupScript string, resourceType datastore.ResourceType) (string, string, string, error)
+	AddInstance(ctx context.Context, runnerID, setupScript string, resourceType datastore.ResourceType, labels []string) (string, string, string, error)
 	DeleteInstance(ctx context.Context, cloudID string) error
 }
 
@@ -78,11 +79,12 @@ type GRPCClient struct {
 }
 
 // AddInstance create instance for runner
-func (c *GRPCClient) AddInstance(ctx context.Context, runnerName, setupScript string, resourceType datastore.ResourceType) (string, string, string, error) {
+func (c *GRPCClient) AddInstance(ctx context.Context, runnerName, setupScript string, resourceType datastore.ResourceType, labels []string) (string, string, string, error) {
 	req := &pb.AddInstanceRequest{
 		RunnerName:   runnerName,
 		SetupScript:  setupScript,
 		ResourceType: resourceType.ToPb(),
+		Labels:       labels,
 	}
 	resp, err := c.client.AddInstance(ctx, req)
 	if err != nil {

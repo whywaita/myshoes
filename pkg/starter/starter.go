@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
@@ -158,7 +157,7 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 
 	cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
 	defer cancel()
-	cloudID, ipAddress, shoesType, err := s.bung(cctx, job.UUID, *target)
+	cloudID, ipAddress, shoesType, err := s.bung(cctx, job, *target)
 	if err != nil {
 		logger.Logf(false, "failed to bung (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
@@ -224,9 +223,9 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 }
 
 // bung is start runner, like a pistol! :)
-func (s *Starter) bung(ctx context.Context, jobUUID uuid.UUID, target datastore.Target) (string, string, string, error) {
-	logger.Logf(false, "start create instance (job: %s)", jobUUID)
-	runnerName := runner.ToName(jobUUID.String())
+func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.Target) (string, string, string, error) {
+	logger.Logf(false, "start create instance (job: %s)", job.UUID)
+	runnerName := runner.ToName(job.UUID.String())
 
 	script, err := s.getSetupScript(ctx, target, runnerName)
 	if err != nil {
@@ -239,12 +238,17 @@ func (s *Starter) bung(ctx context.Context, jobUUID uuid.UUID, target datastore.
 	}
 	defer teardown()
 
-	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType)
+	labels, err := gh.ExtractRunsOnLabels([]byte(job.CheckEventJSON))
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to extract labels: %w", err)
+	}
+
+	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType, labels)
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to add instance: %w", err)
 	}
 
-	logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", jobUUID, cloudID)
+	logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
 
 	return cloudID, ipAddress, shoesType, nil
 }

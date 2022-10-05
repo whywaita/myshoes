@@ -25,6 +25,7 @@ message AddInstanceRequest {
   string runner_name = 1;
   string setup_script = 2;
   ResourceType resource_type = 3;
+  repeated string labels = 4;
 }
 
 message AddInstanceResponse {
