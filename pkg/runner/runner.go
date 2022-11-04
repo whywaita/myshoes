@@ -11,8 +11,9 @@ import (
 var (
 	// GoalCheckerInterval is interval time of check deleting runner
 	GoalCheckerInterval = 1 * time.Minute
-	// MustGoalTime is hard limit for idle runner
-	MustGoalTime = 1 * time.Hour
+	// MustGoalTime is hard limit for idle runner.
+	// So it is same as the limit of GitHub Actions
+	MustGoalTime = 6 * time.Hour
 	// MustRunningTime is set time of instance create + download binaries + etc
 	MustRunningTime = 5 * time.Minute
 	// TargetTokenInterval is interval time of checking target token
