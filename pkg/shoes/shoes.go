@@ -70,7 +70,7 @@ func (p *Plugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *g
 // Client is plugin client interface
 type Client interface {
 	AddInstance(ctx context.Context, runnerID, setupScript string, resourceType datastore.ResourceType, labels []string) (string, string, string, error)
-	DeleteInstance(ctx context.Context, cloudID string) error
+	DeleteInstance(ctx context.Context, cloudID string, labels []string) error
 }
 
 // GRPCClient is plugin client implement
@@ -95,9 +95,10 @@ func (c *GRPCClient) AddInstance(ctx context.Context, runnerName, setupScript st
 }
 
 // DeleteInstance delete instance for runner
-func (c *GRPCClient) DeleteInstance(ctx context.Context, cloudID string) error {
+func (c *GRPCClient) DeleteInstance(ctx context.Context, cloudID string, labels []string) error {
 	req := &pb.DeleteInstanceRequest{
 		CloudId: cloudID,
+		Labels:  labels,
 	}
 	_, err := c.client.DeleteInstance(ctx, req)
 	if err != nil {

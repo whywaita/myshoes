@@ -247,7 +247,12 @@ func (m *Manager) deleteRunner(ctx context.Context, runner datastore.Runner, run
 	}
 	defer teardown()
 
-	if err := client.DeleteInstance(ctx, runner.CloudID); err != nil {
+	labels, err := gh.ExtractRunsOnLabels([]byte(runner.RequestWebhook))
+	if err != nil {
+		return fmt.Errorf("failed to extract labels: %w", err)
+	}
+
+	if err := client.DeleteInstance(ctx, runner.CloudID, labels); err != nil {
 		if status.Code(errors.Unwrap(err)) == codes.NotFound {
 			logger.Logf(true, "%s is not found, will ignore from shoes", runner.UUID)
 		} else {

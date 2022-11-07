@@ -173,7 +173,7 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 		if err := s.checkRegisteredRunner(ctx, runnerName, *target); err != nil {
 			logger.Logf(false, "failed to check to register runner (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
-			if err := deleteInstance(ctx, cloudID); err != nil {
+			if err := deleteInstance(ctx, cloudID, job.CheckEventJSON); err != nil {
 				logger.Logf(false, "failed to delete an instance that not registered instance (target ID: %s, cloud ID: %s): %+v\n", job.TargetID, cloudID, err)
 				// not return, need to update target status if err.
 			}
@@ -253,14 +253,19 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.
 	return cloudID, ipAddress, shoesType, nil
 }
 
-func deleteInstance(ctx context.Context, cloudID string) error {
+func deleteInstance(ctx context.Context, cloudID, checkEventJSON string) error {
 	client, teardown, err := shoes.GetClient()
 	if err != nil {
 		return fmt.Errorf("failed to get plugin client: %w", err)
 	}
 	defer teardown()
 
-	if err := client.DeleteInstance(ctx, cloudID); err != nil {
+	labels, err := gh.ExtractRunsOnLabels([]byte(checkEventJSON))
+	if err != nil {
+		return fmt.Errorf("failed to extract labels: %w", err)
+	}
+
+	if err := client.DeleteInstance(ctx, cloudID, labels); err != nil {
 		return fmt.Errorf("failed to delete instance: %w", err)
 	}
 
