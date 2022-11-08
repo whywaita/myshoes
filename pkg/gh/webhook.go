@@ -3,6 +3,7 @@ package gh
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/google/go-github/v47/github"
 )
@@ -11,14 +12,17 @@ import (
 // github.ParseWebHook need *http.Request because it checks headers in request.
 func parseEventJSON(in []byte) (interface{}, error) {
 	var checkRun *github.CheckRunEvent
+	log.Println(string(in))
 	err := json.Unmarshal(in, &checkRun)
 	if err == nil && checkRun.GetCheckRun() != nil {
+		log.Println("reach checkRun")
 		return checkRun, nil
 	}
 
 	var workflowJob *github.WorkflowJobEvent
 	err = json.Unmarshal(in, &workflowJob)
 	if err == nil && workflowJob.GetWorkflowJob() != nil {
+		log.Println("reach workflowJob")
 		return workflowJob, nil
 	}
 
@@ -35,8 +39,10 @@ func ExtractRunsOnLabels(in []byte) ([]string, error) {
 	switch t := event.(type) {
 	case github.WorkflowJobEvent:
 		// workflow_job has labels, can extract labels
+		log.Printf("t.GetWorkflowJob().Labels: %v", t.GetWorkflowJob().Labels)
 		return t.GetWorkflowJob().Labels, nil
 	}
 
+	log.Println("nil labels")
 	return []string{}, nil
 }
