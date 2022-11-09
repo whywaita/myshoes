@@ -33,7 +33,7 @@ func ExtractRunsOnLabels(in []byte) ([]string, error) {
 	}
 
 	switch t := event.(type) {
-	case github.WorkflowJobEvent:
+	case *github.WorkflowJobEvent:
 		// workflow_job has labels, can extract labels
 		return t.GetWorkflowJob().Labels, nil
 	}
