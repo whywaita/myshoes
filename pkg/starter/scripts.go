@@ -187,7 +187,7 @@ function get_runner_file_name()
     runner_version=$1
     runner_plat=$2
 
-	trimmed_runner_version=$(echo ${RUNNER_VERSION:1})
+    trimmed_runner_version=$(echo ${RUNNER_VERSION:1})
 
     if [ "${runner_plat}" = "linux" ]; then
         echo "actions-runner-${runner_plat}-x64-${trimmed_runner_version}.tar.gz"
