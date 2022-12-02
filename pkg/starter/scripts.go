@@ -93,8 +93,8 @@ const templateCompressedScript = `#!/bin/bash
 set -e
 
 # main script compressed base64 and gzip
-COMPRESSED_SCRIPT=%s
-MAIN_SCRIPT_PATH=/tmp/main.sh
+export COMPRESSED_SCRIPT=%s
+export MAIN_SCRIPT_PATH=/tmp/main.sh
 
 echo ${COMPRESSED_SCRIPT} | base64 -d | gzip -d > ${MAIN_SCRIPT_PATH}
 
@@ -194,7 +194,9 @@ function get_runner_file_name()
     fi
 
     if [ "${runner_plat}" = "osx" ]; then
-        echo "actions-runner-${runner_plat}-arm64-${trimmed_runner_version}.tar.gz"
+        runner_arch=x64
+        [ "$(uname -m)" = "arm64" ] && runner_arch=arm64;
+        echo "actions-runner-${runner_plat}-${runner_arch}-${trimmed_runner_version}.tar.gz"
     fi
 }
 
