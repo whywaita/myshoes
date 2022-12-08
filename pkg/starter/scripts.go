@@ -93,8 +93,8 @@ const templateCompressedScript = `#!/bin/bash
 set -e
 
 # main script compressed base64 and gzip
-COMPRESSED_SCRIPT=%s
-MAIN_SCRIPT_PATH=/tmp/main.sh
+export COMPRESSED_SCRIPT=%s
+export MAIN_SCRIPT_PATH=/tmp/main.sh
 
 echo ${COMPRESSED_SCRIPT} | base64 -d | gzip -d > ${MAIN_SCRIPT_PATH}
 
@@ -182,10 +182,28 @@ function install_docker()
 	fi
 }
 
-function download_runner()
+function get_runner_file_name()
 {
     runner_version=$1
     runner_plat=$2
+
+    trimmed_runner_version=$(echo ${RUNNER_VERSION:1})
+
+    if [ "${runner_plat}" = "linux" ]; then
+        echo "actions-runner-${runner_plat}-x64-${trimmed_runner_version}.tar.gz"
+    fi
+
+    if [ "${runner_plat}" = "osx" ]; then
+        runner_arch=x64
+        [ "$(uname -m)" = "arm64" ] && runner_arch=arm64;
+        echo "actions-runner-${runner_plat}-${runner_arch}-${trimmed_runner_version}.tar.gz"
+    fi
+}
+
+function download_runner()
+{
+    runner_version=$1
+    runner_file=$2
 
     runner_url="https://github.com/actions/runner/releases/download/${runner_version}/${runner_file}"
 
@@ -230,8 +248,7 @@ ${sudo_prefix}mkdir -p runner
 echo
 echo "Downloading latest runner ..."
 
-version=$(echo ${RUNNER_VERSION:1})
-runner_file="actions-runner-${runner_plat}-x64-${version}.tar.gz"
+runner_file=$(get_runner_file_name ${RUNNER_VERSION} ${runner_plat})
 
 if [ -f "${RUNNER_BASE_DIRECTORY}/runner/config.sh" ]; then
     # already extracted
@@ -244,7 +261,7 @@ elif [ -f "/usr/local/etc/${runner_file}" ]; then
     mv /usr/local/etc/${runner_file} ./
     extract_runner ${runner_file} ${RUNNER_USER}
 else
-    download_runner ${RUNNER_VERSION} ${runner_plat}
+    download_runner ${RUNNER_VERSION} ${runner_file}
     extract_runner ${runner_file} ${RUNNER_USER}
 fi
 
@@ -289,7 +306,11 @@ fi
 # insert anything to setup env when running as a service
 
 # run the host process which keep the listener alive
-./externals/node12/bin/node ./bin/RunnerService.js \$* &
+NODE_PATH="./externals/node16/bin/node"
+if [ ! -e "\${NODE_PATH}" ]; then
+  NODE_PATH="./externals/node12/bin/node"
+fi
+\${NODE_PATH} ./bin/RunnerService.js \$* &
 PID=\$!
 wait \$PID
 trap - TERM INT

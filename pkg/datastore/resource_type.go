@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	pb "github.com/whywaita/myshoes/api/proto"
+	pb "github.com/whywaita/myshoes/api/proto.go"
 )
 
 // ResourceType is runner machine spec

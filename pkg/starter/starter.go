@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
@@ -158,7 +157,7 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 
 	cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
 	defer cancel()
-	cloudID, ipAddress, shoesType, err := s.bung(cctx, job.UUID, *target)
+	cloudID, ipAddress, shoesType, err := s.bung(cctx, job, *target)
 	if err != nil {
 		logger.Logf(false, "failed to bung (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
@@ -174,7 +173,7 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 		if err := s.checkRegisteredRunner(ctx, runnerName, *target); err != nil {
 			logger.Logf(false, "failed to check to register runner (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
-			if err := deleteInstance(ctx, cloudID); err != nil {
+			if err := deleteInstance(ctx, cloudID, job.CheckEventJSON); err != nil {
 				logger.Logf(false, "failed to delete an instance that not registered instance (target ID: %s, cloud ID: %s): %+v\n", job.TargetID, cloudID, err)
 				// not return, need to update target status if err.
 			}
@@ -224,9 +223,9 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 }
 
 // bung is start runner, like a pistol! :)
-func (s *Starter) bung(ctx context.Context, jobUUID uuid.UUID, target datastore.Target) (string, string, string, error) {
-	logger.Logf(false, "start create instance (job: %s)", jobUUID)
-	runnerName := runner.ToName(jobUUID.String())
+func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.Target) (string, string, string, error) {
+	logger.Logf(false, "start create instance (job: %s)", job.UUID)
+	runnerName := runner.ToName(job.UUID.String())
 
 	script, err := s.getSetupScript(ctx, target, runnerName)
 	if err != nil {
@@ -239,24 +238,34 @@ func (s *Starter) bung(ctx context.Context, jobUUID uuid.UUID, target datastore.
 	}
 	defer teardown()
 
-	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType)
+	labels, err := gh.ExtractRunsOnLabels([]byte(job.CheckEventJSON))
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to extract labels: %w", err)
+	}
+
+	cloudID, ipAddress, shoesType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType, labels)
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to add instance: %w", err)
 	}
 
-	logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", jobUUID, cloudID)
+	logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
 
 	return cloudID, ipAddress, shoesType, nil
 }
 
-func deleteInstance(ctx context.Context, cloudID string) error {
+func deleteInstance(ctx context.Context, cloudID, checkEventJSON string) error {
 	client, teardown, err := shoes.GetClient()
 	if err != nil {
 		return fmt.Errorf("failed to get plugin client: %w", err)
 	}
 	defer teardown()
 
-	if err := client.DeleteInstance(ctx, cloudID); err != nil {
+	labels, err := gh.ExtractRunsOnLabels([]byte(checkEventJSON))
+	if err != nil {
+		return fmt.Errorf("failed to extract labels: %w", err)
+	}
+
+	if err := client.DeleteInstance(ctx, cloudID, labels); err != nil {
 		return fmt.Errorf("failed to delete instance: %w", err)
 	}
 
