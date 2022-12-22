@@ -15,13 +15,12 @@ import (
 func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error {
 	expiredAtRFC3339 := target.TokenExpiredAt.Format("2006-01-02 15:04:05")
 
-	query := `INSERT INTO targets(uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO targets(uuid, scope, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 	if _, err := m.Conn.ExecContext(
 		ctx,
 		query,
 		target.UUID,
 		target.Scope,
-		target.GHEDomain,
 		target.GitHubToken,
 		expiredAtRFC3339,
 		target.ResourceType,
@@ -38,7 +37,7 @@ func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error
 // GetTarget get a target
 func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := `SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
+	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
 	if err := m.Conn.GetContext(ctx, &t, query, id.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
@@ -51,12 +50,9 @@ func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target,
 }
 
 // GetTargetByScope get a target from scope
-func (m *MySQL) GetTargetByScope(ctx context.Context, gheDomain, scope string) (*datastore.Target, error) {
+func (m *MySQL) GetTargetByScope(ctx context.Context, scope string) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE scope = "%s"`, scope)
-	if gheDomain != "" {
-		query = fmt.Sprintf(`%s AND ghe_domain = "%s"`, query, gheDomain)
-	}
+	query := fmt.Sprintf(`SELECT uuid, scope, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE scope = "%s"`, scope)
 	if err := m.Conn.GetContext(ctx, &t, query); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
@@ -71,7 +67,7 @@ func (m *MySQL) GetTargetByScope(ctx context.Context, gheDomain, scope string) (
 // ListTargets get a all target
 func (m *MySQL) ListTargets(ctx context.Context) ([]datastore.Target, error) {
 	var ts []datastore.Target
-	query := `SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets`
+	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets`
 	if err := m.Conn.SelectContext(ctx, &ts, query); err != nil {
 		return nil, fmt.Errorf("failed to SELECT query: %w", err)
 	}

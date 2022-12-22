@@ -125,7 +125,7 @@ func processCheckRun(ctx context.Context, ds datastore.Datastore, repoName, repo
 	}
 
 	logger.Logf(false, "receive webhook repository: %s/%s", domain, repoName)
-	target, err := searchRepo(ctx, ds, gheDomain, repoName)
+	target, err := searchRepo(ctx, ds, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to search registered target: %w", err)
 	}
@@ -202,14 +202,14 @@ func isRequestedMyshoesLabel(labels []string) bool {
 
 // searchRepo search datastore.Target from datastore
 // format of repo is "orgs/repos"
-func searchRepo(ctx context.Context, ds datastore.Datastore, gheDomain, repo string) (*datastore.Target, error) {
+func searchRepo(ctx context.Context, ds datastore.Datastore, repo string) (*datastore.Target, error) {
 	sep := strings.Split(repo, "/")
 	if len(sep) != 2 {
 		return nil, fmt.Errorf("incorrect repo format ex: orgs/repo")
 	}
 
 	// use repo scope if set repo
-	repoTarget, err := ds.GetTargetByScope(ctx, gheDomain, repo)
+	repoTarget, err := ds.GetTargetByScope(ctx, repo)
 	if err == nil && repoTarget.CanReceiveJob() {
 		return repoTarget, nil
 	} else if err != nil && err != datastore.ErrNotFound {
@@ -218,7 +218,7 @@ func searchRepo(ctx context.Context, ds datastore.Datastore, gheDomain, repo str
 
 	// repo is not found, so search org target
 	org := sep[0]
-	orgTarget, err := ds.GetTargetByScope(ctx, gheDomain, org)
+	orgTarget, err := ds.GetTargetByScope(ctx, org)
 	if err != nil || !orgTarget.CanReceiveJob() {
 		return nil, fmt.Errorf("failed to get target from organization: %w", err)
 	}

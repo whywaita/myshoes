@@ -42,10 +42,7 @@ func TestMySQL_CreateTarget(t *testing.T) {
 				Scope:          testScopeRepo,
 				GitHubToken:    testGitHubToken,
 				TokenExpiredAt: testTime,
-				GHEDomain: sql.NullString{
-					Valid: false,
-				},
-				ResourceType: datastore.ResourceTypeNano,
+				ResourceType:   datastore.ResourceTypeNano,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
 					Valid:  true,
@@ -60,11 +57,8 @@ func TestMySQL_CreateTarget(t *testing.T) {
 				Scope:          testScopeRepo,
 				GitHubToken:    testGitHubToken,
 				TokenExpiredAt: testTime,
-				GHEDomain: sql.NullString{
-					Valid: false,
-				},
-				Status:       datastore.TargetStatusActive,
-				ResourceType: datastore.ResourceTypeNano,
+				Status:         datastore.TargetStatusActive,
+				ResourceType:   datastore.ResourceTypeNano,
 				RunnerVersion: sql.NullString{
 					String: testRunnerVersion,
 					Valid:  true,
@@ -347,7 +341,7 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 			t.Fatalf("failed to prepare function: %+v", err)
 		}
 
-		got, err := testDatastore.GetTargetByScope(context.Background(), "", test.input)
+		got, err := testDatastore.GetTargetByScope(context.Background(), test.input)
 		if err != nil {
 			t.Fatalf("failed to get target: %+v", err)
 		}
@@ -891,7 +885,7 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 
 func getTargetFromSQL(testDB *sqlx.DB, uuid uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := `SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
+	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)

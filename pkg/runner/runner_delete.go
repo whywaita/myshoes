@@ -41,9 +41,9 @@ func (m *Manager) do(ctx context.Context) error {
 
 	logger.Logf(true, "found %d targets in datastore", len(targets))
 	for _, target := range targets {
-		logger.Logf(true, "start to search runner in %s", target.RepoURL())
+		logger.Logf(true, "start to search runner in %s", target.Scope)
 		if err := m.removeRunners(ctx, target); err != nil {
-			logger.Logf(false, "failed to delete runners (target: %s): %+v", target.RepoURL(), err)
+			logger.Logf(false, "failed to delete runners (target: %s): %+v", target.Scope, err)
 		}
 	}
 
@@ -69,7 +69,7 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 	if len(ghRunners) == 0 && len(runners) == 0 {
 		switch mode {
 		case datastore.RunnerTemporaryOnce:
-			logger.Logf(false, "runner for queueing is not found in %s", t.RepoURL())
+			logger.Logf(false, "runner for queueing is not found in %s", t.Scope)
 			if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, ErrDescriptionRunnerForQueueingIsNotFound); err != nil {
 				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
 			}
@@ -149,7 +149,7 @@ func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner d
 
 func isRegisteredRunnerZeroInGitHub(ctx context.Context, t datastore.Target) ([]*github.Runner, error) {
 	owner, repo := t.OwnerRepo()
-	client, err := gh.NewClient(t.GitHubToken, t.GHEDomain.String)
+	client, err := gh.NewClient(t.GitHubToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create github client: %w", err)
 	}

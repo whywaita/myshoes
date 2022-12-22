@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -24,8 +23,7 @@ import (
 type TargetCreateParam struct {
 	datastore.Target
 
-	RunnerUser    *string `json:"runner_user"` // nullable
-	GHEDomain     string  `json:"ghe_domain"`
+	RunnerUser    *string `json:"runner_user"`    // nullable
 	RunnerVersion *string `json:"runner_version"` // nullable
 	ProviderURL   *string `json:"provider_url"`   // nullable
 }
@@ -35,7 +33,6 @@ type UserTarget struct {
 	UUID              uuid.UUID              `json:"id"`
 	Scope             string                 `json:"scope"`
 	TokenExpiredAt    time.Time              `json:"token_expired_at"`
-	GHEDomain         string                 `json:"ghe_domain"`
 	ResourceType      string                 `json:"resource_type"`
 	RunnerUser        string                 `json:"runner_user"`
 	RunnerVersion     string                 `json:"runner_version"`
@@ -80,6 +77,7 @@ func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore read error")
 	}
 
+	fmt.Println(ts)
 	var targets []UserTarget
 	for _, t := range ts {
 		ut := sanitizeTarget(t)
@@ -121,7 +119,6 @@ func sanitizeTarget(t datastore.Target) UserTarget {
 		UUID:              t.UUID,
 		Scope:             t.Scope,
 		TokenExpiredAt:    t.TokenExpiredAt,
-		GHEDomain:         t.GHEDomain.String,
 		ResourceType:      t.ResourceType.String(),
 		RunnerUser:        t.RunnerUser.String,
 		RunnerVersion:     t.RunnerVersion.String,
@@ -313,16 +310,6 @@ func isValidTargetCreateParam(input TargetCreateParam) error {
 		return fmt.Errorf("scope, resource_type must be set")
 	}
 
-	if input.GHEDomain != "" {
-		if strings.EqualFold(input.GHEDomain, "https://github.com") {
-			return fmt.Errorf("ghe_domain must not https://github.com, please set blank")
-		}
-
-		if _, err := url.Parse(input.GHEDomain); err != nil {
-			return fmt.Errorf("domain of GitHub Enterprise is not valid URL: %w", err)
-		}
-	}
-
 	if input.RunnerVersion != nil {
 		if err := validRunnerVersion(*input.RunnerVersion); err != nil {
 			logger.Logf(false, "invalid input runner_version (runner_version: %s): %+v", *input.RunnerVersion, err)
@@ -365,7 +352,6 @@ func toNullString(input *string) sql.NullString {
 
 // ToDS convert to datastore.Target
 func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datastore.Target {
-	gheDomain := toNullString(&t.GHEDomain)
 	runnerUser := toNullString(t.RunnerUser)
 	runnerVersion := toNullString(t.RunnerVersion)
 	providerURL := toNullString(t.ProviderURL)
@@ -375,7 +361,6 @@ func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datast
 		Scope:          t.Scope,
 		GitHubToken:    appToken,
 		TokenExpiredAt: tokenExpired,
-		GHEDomain:      gheDomain,
 		ResourceType:   t.ResourceType,
 		RunnerUser:     runnerUser,
 		RunnerVersion:  runnerVersion,

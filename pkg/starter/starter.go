@@ -275,7 +275,7 @@ func deleteInstance(ctx context.Context, cloudID, checkEventJSON string) error {
 
 // checkRegisteredRunner check to register runner to GitHub
 func (s *Starter) checkRegisteredRunner(ctx context.Context, runnerName string, target datastore.Target) error {
-	client, err := gh.NewClient(target.GitHubToken, target.GHEDomain.String)
+	client, err := gh.NewClient(target.GitHubToken)
 	if err != nil {
 		return fmt.Errorf("failed to create github client: %w", err)
 	}

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/whywaita/myshoes/internal/config"
+
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 )
@@ -57,18 +59,18 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		return "", fmt.Errorf("failed to get patched files: %w", err)
 	}
 
-	installationID, err := gh.IsInstalledGitHubApp(ctx, target.GHEDomain.String, target.Scope)
+	installationID, err := gh.IsInstalledGitHubApp(ctx, target.Scope)
 	if err != nil {
 		return "", fmt.Errorf("failed to get installlation id: %w", err)
 	}
-	token, err := gh.GetRunnerRegistrationToken(ctx, target.GHEDomain.String, installationID, target.Scope)
+	token, err := gh.GetRunnerRegistrationToken(ctx, installationID, target.Scope)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate runner register token: %w", err)
 	}
 
 	v := templateCreateLatestRunnerOnceValue{
 		Scope:                   target.Scope,
-		GHEDomain:               target.GHEDomain.String,
+		GHEDomain:               config.Config.GitHubURL,
 		RunnerRegistrationToken: token,
 		RunnerName:              runnerName,
 		RunnerUser:              runnerUser,

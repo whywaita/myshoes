@@ -36,7 +36,7 @@ func parseResponse(resp *http.Response) ([]byte, int) {
 }
 
 func setStubFunctions() {
-	web.GHExistGitHubRepositoryFunc = func(scope, gheDomain string, githubPersonalToken string) error {
+	web.GHExistGitHubRepositoryFunc = func(scope string, githubPersonalToken string) error {
 		return nil
 	}
 
@@ -48,7 +48,7 @@ func setStubFunctions() {
 		return nil, nil
 	}
 
-	web.GHIsInstalledGitHubApp = func(ctx context.Context, gheDomain, inputScope string) (int64, error) {
+	web.GHIsInstalledGitHubApp = func(ctx context.Context, inputScope string) (int64, error) {
 		return testInstallationID, nil
 	}
 
@@ -56,7 +56,7 @@ func setStubFunctions() {
 		return testGitHubAppToken, &testTime, nil
 	}
 
-	web.GHNewClientApps = func(gheDomain string) (*github.Client, error) {
+	web.GHNewClientApps = func() (*github.Client, error) {
 		return &github.Client{}, nil
 	}
 }
@@ -69,12 +69,13 @@ func Test_handleTargetCreate(t *testing.T) {
 	setStubFunctions()
 
 	tests := []struct {
-		input string
-		want  *web.UserTarget
-		err   bool
+		input          string
+		inputGHEDomain string
+		want           *web.UserTarget
+		err            bool
 	}{
 		{
-			input: `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`,
+			input: `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu"}`,
 			want: &web.UserTarget{
 				Scope:          "octocat",
 				TokenExpiredAt: testTime,
@@ -85,11 +86,10 @@ func Test_handleTargetCreate(t *testing.T) {
 			err: false,
 		},
 		{
-			input: `{"scope": "whywaita/whywaita", "ghe_domain": "github.example.com", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			input: `{"scope": "whywaita/whywaita", "resource_type": "nano", "runner_user": "ubuntu"}`,
 			want: &web.UserTarget{
 				Scope:          "whywaita/whywaita",
 				TokenExpiredAt: testTime,
-				GHEDomain:      "github.example.com",
 				ResourceType:   datastore.ResourceTypeNano.String(),
 				RunnerUser:     "ubuntu",
 				Status:         datastore.TargetStatusActive,
@@ -98,27 +98,31 @@ func Test_handleTargetCreate(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(test.input))
-		if !test.err && err != nil {
-			t.Fatalf("failed to POST request: %+v", err)
-		}
-		content, code := parseResponse(resp)
-		if code != http.StatusCreated {
-			t.Fatalf("must be response statuscode is 201, but got %d", code)
+		f := func() {
+			resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(test.input))
+			if !test.err && err != nil {
+				t.Fatalf("failed to POST request: %+v", err)
+			}
+			content, code := parseResponse(resp)
+			if code != http.StatusCreated {
+				t.Fatalf("must be response statuscode is 201, but got %d", code)
+			}
+
+			var gotContent web.UserTarget
+			if err := json.Unmarshal(content, &gotContent); err != nil {
+				t.Fatalf("failed to unmarshal resoponse content: %+v", err)
+			}
+
+			gotContent.UUID = uuid.UUID{}
+			gotContent.CreatedAt = time.Time{}
+			gotContent.UpdatedAt = time.Time{}
+
+			if diff := cmp.Diff(test.want, &gotContent); diff != "" {
+				t.Errorf("mismatch (-want +got):\n%s", diff)
+			}
 		}
 
-		var gotContent web.UserTarget
-		if err := json.Unmarshal(content, &gotContent); err != nil {
-			t.Fatalf("failed to unmarshal resoponse content: %+v", err)
-		}
-
-		gotContent.UUID = uuid.UUID{}
-		gotContent.CreatedAt = time.Time{}
-		gotContent.UpdatedAt = time.Time{}
-
-		if diff := cmp.Diff(test.want, &gotContent); diff != "" {
-			t.Errorf("mismatch (-want +got):\n%s", diff)
-		}
+		f()
 	}
 }
 
@@ -129,7 +133,7 @@ func Test_handleTargetCreate_alreadyRegistered(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -159,7 +163,7 @@ func Test_handleTargetCreate_recreated(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -218,7 +222,7 @@ func Test_handleTargetCreate_recreated_update(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -252,7 +256,7 @@ func Test_handleTargetCreate_recreated_update(t *testing.T) {
 	}
 
 	// second create
-	secondInput := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu", "runner_version": "v0.000.1"}`
+	secondInput := `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu", "runner_version": "v0.000.1"}`
 
 	resp, err = http.Post(testURL+"/target", "application/json", bytes.NewBufferString(secondInput))
 	if err != nil {
@@ -533,24 +537,19 @@ func Test_handleTargetUpdate_Error(t *testing.T) {
 		want     string
 	}{
 		{ // Invalid: must set scope
-			input:    `{"ghe_domain": "https://github.example.com", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			input:    `{"resource_type": "nano", "runner_user": "ubuntu"}`,
 			wantCode: http.StatusBadRequest,
 			want:     `{"error":"invalid input: can't updatable fields (Scope)"}`,
 		},
-		{ // Invalid: must set ghe_domain
-			input:    `{"scope": "repo", "resource_type": "nano", "runner_user": "ubuntu"}`,
-			wantCode: http.StatusBadRequest,
-			want:     `{"error":"invalid input: can't updatable fields (GHEDomain)"}`,
-		},
 		{ // Invalid: runner_version is semver
-			input:    `{"scope": "repo", "ghe_domain": "https://github.example.com", "resource_type": "nano", "runner_user": "ubuntu", "runner_version": "v2.100"}`,
+			input:    `{"scope": "repo", "resource_type": "nano", "runner_user": "ubuntu", "runner_version": "v2.100"}`,
 			wantCode: http.StatusBadRequest,
 			want:     `{"error": "runner_version must has version of major, sem, patch"}`,
 		},
 	}
 
 	for _, test := range tests {
-		target := `{"scope": "repo", "ghe_domain": "https://github.example.com", "resource_type": "micro", "runner_user": "ubuntu", "provider_url": "https://example.com/default-shoes"}`
+		target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu", "provider_url": "https://example.com/default-shoes"}`
 		respCreate, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 		if err != nil {
 			t.Fatalf("failed to POST request: %+v", err)

@@ -57,23 +57,15 @@ func (m *Memory) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target
 }
 
 // GetTargetByScope get a target from scope
-func (m *Memory) GetTargetByScope(ctx context.Context, gheDomain, scope string) (*datastore.Target, error) {
+func (m *Memory) GetTargetByScope(ctx context.Context, scope string) (*datastore.Target, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var inputValid bool
-	if gheDomain == "" {
-		inputValid = false
-	} else {
-		inputValid = true
-	}
-
 	for _, t := range m.targets {
 		if t.Scope == scope {
-			if t.GHEDomain.Valid == inputValid && t.GHEDomain.String == gheDomain {
-				// found
-				return &t, nil
-			}
+			// found
+			return &t, nil
+
 		}
 	}
 

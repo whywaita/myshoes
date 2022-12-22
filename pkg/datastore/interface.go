@@ -32,7 +32,7 @@ var (
 type Datastore interface {
 	CreateTarget(ctx context.Context, target Target) error
 	GetTarget(ctx context.Context, id uuid.UUID) (*Target, error)
-	GetTargetByScope(ctx context.Context, gheDomain, scope string) (*Target, error)
+	GetTargetByScope(ctx context.Context, scope string) (*Target, error)
 	ListTargets(ctx context.Context) ([]Target, error)
 	DeleteTarget(ctx context.Context, id uuid.UUID) error
 
@@ -59,11 +59,12 @@ type Datastore interface {
 
 // Target is a target repository that will add auto-scaling runner.
 type Target struct {
-	UUID              uuid.UUID      `db:"uuid" json:"id"`
-	Scope             string         `db:"scope" json:"scope"` // repo (:owner/:repo) or org (:organization)
-	GitHubToken       string         `db:"github_token" json:"github_token"`
-	TokenExpiredAt    time.Time      `db:"token_expired_at" json:"token_expired_at"`
-	GHEDomain         sql.NullString `db:"ghe_domain" json:"ghe_domain"`
+	UUID  uuid.UUID `db:"uuid" json:"id"`
+	Scope string    `db:"scope" json:"scope"` // repo (:owner/:repo) or org (:organization)
+	// deprecated
+	GitHubToken    string    `db:"github_token" json:"github_token"`
+	TokenExpiredAt time.Time `db:"token_expired_at" json:"token_expired_at"`
+
 	ResourceType      ResourceType   `db:"resource_type" json:"resource_type"`
 	RunnerUser        sql.NullString `db:"runner_user" json:"runner_user"`
 	RunnerVersion     sql.NullString `db:"runner_version" json:"runner_version"`
@@ -72,23 +73,6 @@ type Target struct {
 	StatusDescription sql.NullString `db:"status_description" json:"status_description"`
 	CreatedAt         time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt         time.Time      `db:"updated_at" json:"updated_at"`
-}
-
-// RepoURL return repository URL.
-func (t *Target) RepoURL() string {
-	serverURL := "https://github.com"
-	if t.GHEDomain.Valid {
-		serverURL = t.GHEDomain.String
-	}
-
-	s := strings.Split(serverURL, "://")
-
-	var u url.URL
-	u.Scheme = s[0]
-	u.Host = s[1]
-	u.Path = t.Scope
-
-	return u.String()
 }
 
 // OwnerRepo return :owner and :repo
