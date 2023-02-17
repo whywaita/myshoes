@@ -30,15 +30,17 @@ var (
 
 // Starter is dispatcher for running job
 type Starter struct {
-	ds     datastore.Datastore
-	safety safety.Safety
+	ds            datastore.Datastore
+	safety        safety.Safety
+	runnerVersion string
 }
 
 // New create starter instance
-func New(ds datastore.Datastore, s safety.Safety) *Starter {
+func New(ds datastore.Datastore, s safety.Safety, runnerVersion string) *Starter {
 	return &Starter{
-		ds:     ds,
-		safety: s,
+		ds:            ds,
+		safety:        s,
+		runnerVersion: runnerVersion,
 	}
 }
 
@@ -194,7 +196,6 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 		CloudID:        cloudID,
 		ResourceType:   target.ResourceType,
 		RunnerUser:     target.RunnerUser,
-		RunnerVersion:  target.RunnerVersion,
 		ProviderURL:    target.ProviderURL,
 		RepositoryURL:  job.RepoURL(),
 		RequestWebhook: job.CheckEventJSON,

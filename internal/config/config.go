@@ -29,7 +29,8 @@ type Conf struct {
 	MaxConnectionsToBackend int64
 	MaxConcurrencyDeleting  int64
 
-	GitHubURL string
+	GitHubURL     string
+	RunnerVersion string
 }
 
 // Config Environment keys
@@ -46,6 +47,7 @@ const (
 	EnvMaxConnectionsToBackend   = "MAX_CONNECTIONS_TO_BACKEND"
 	EnvMaxConcurrencyDeleting    = "MAX_CONCURRENCY_DELETING"
 	EnvGitHubURL                 = "GITHUB_URL"
+	EnvRunnerVersion             = "RUNNER_VERSION"
 )
 
 // ModeWebhookType is type value for GitHub webhook

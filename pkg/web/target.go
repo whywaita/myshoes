@@ -23,9 +23,8 @@ import (
 type TargetCreateParam struct {
 	datastore.Target
 
-	RunnerUser    *string `json:"runner_user"`    // nullable
-	RunnerVersion *string `json:"runner_version"` // nullable
-	ProviderURL   *string `json:"provider_url"`   // nullable
+	RunnerUser  *string `json:"runner_user"`  // nullable
+	ProviderURL *string `json:"provider_url"` // nullable
 }
 
 // UserTarget is format for user
@@ -35,7 +34,6 @@ type UserTarget struct {
 	TokenExpiredAt    time.Time              `json:"token_expired_at"`
 	ResourceType      string                 `json:"resource_type"`
 	RunnerUser        string                 `json:"runner_user"`
-	RunnerVersion     string                 `json:"runner_version"`
 	ProviderURL       string                 `json:"provider_url"`
 	Status            datastore.TargetStatus `json:"status"`
 	StatusDescription string                 `json:"status_description"`
@@ -121,7 +119,6 @@ func sanitizeTarget(t datastore.Target) UserTarget {
 		TokenExpiredAt:    t.TokenExpiredAt,
 		ResourceType:      t.ResourceType.String(),
 		RunnerUser:        t.RunnerUser.String,
-		RunnerVersion:     t.RunnerVersion.String,
 		ProviderURL:       t.ProviderURL.String,
 		Status:            t.Status,
 		StatusDescription: t.StatusDescription.String,
@@ -161,18 +158,16 @@ func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
-	resourceType, runnerVersion, runnerUser, providerURL := getWillUpdateTargetVariable(getWillUpdateTargetVariableOld{
-		resourceType:  oldTarget.ResourceType,
-		runnerVersion: oldTarget.RunnerVersion,
-		runnerUser:    oldTarget.RunnerUser,
-		providerURL:   oldTarget.ProviderURL,
+	resourceType, runnerUser, providerURL := getWillUpdateTargetVariable(getWillUpdateTargetVariableOld{
+		resourceType: oldTarget.ResourceType,
+		runnerUser:   oldTarget.RunnerUser,
+		providerURL:  oldTarget.ProviderURL,
 	}, getWillUpdateTargetVariableNew{
-		resourceType:  inputTarget.ResourceType,
-		runnerVersion: inputTarget.RunnerVersion,
-		runnerUser:    inputTarget.RunnerUser,
-		providerURL:   inputTarget.ProviderURL,
+		resourceType: inputTarget.ResourceType,
+		runnerUser:   inputTarget.RunnerUser,
+		providerURL:  inputTarget.ProviderURL,
 	})
-	if err := ds.UpdateTargetParam(ctx, targetID, resourceType, runnerVersion, runnerUser, providerURL); err != nil {
+	if err := ds.UpdateTargetParam(ctx, targetID, resourceType, runnerUser, providerURL); err != nil {
 		logger.Logf(false, "failed to ds.UpdateTargetParam: %+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore update error")
 		return
@@ -254,19 +249,11 @@ func validateUpdateTarget(old, new datastore.Target) error {
 	oldv := old
 	newv := new
 
-	if new.RunnerVersion.Valid {
-		if err := validRunnerVersion(new.RunnerVersion.String); err != nil {
-			logger.Logf(false, "invalid input runner_version (runner_version: %s): %+v", new.RunnerVersion.String, err)
-			return fmt.Errorf("invalid input runner_version (runner_version: %s): %w", new.RunnerVersion.String, err)
-		}
-	}
-
 	for _, t := range []*datastore.Target{&oldv, &newv} {
 		t.UUID = uuid.UUID{}
 
 		// can update variables
 		t.ResourceType = datastore.ResourceTypeUnknown
-		t.RunnerVersion = sql.NullString{}
 		t.RunnerUser = sql.NullString{}
 		t.ProviderURL = sql.NullString{}
 
@@ -310,30 +297,6 @@ func isValidTargetCreateParam(input TargetCreateParam) error {
 		return fmt.Errorf("scope, resource_type must be set")
 	}
 
-	if input.RunnerVersion != nil {
-		if err := validRunnerVersion(*input.RunnerVersion); err != nil {
-			logger.Logf(false, "invalid input runner_version (runner_version: %s): %+v", *input.RunnerVersion, err)
-			return fmt.Errorf("invalid input runner_version (runner_version: %s): %w", *input.RunnerVersion, err)
-		}
-	}
-
-	return nil
-}
-
-func validRunnerVersion(runnerVersion string) error {
-	if !strings.HasPrefix(runnerVersion, "v") {
-		return fmt.Errorf("runner_version must has prefix 'v'")
-	}
-
-	s := strings.Split(runnerVersion, ".")
-	if len(s) != 3 {
-		return fmt.Errorf("runner_version must has version of major, sem, patch")
-	}
-
-	if err := GHExistRunnerReleases(runnerVersion); err != nil {
-		return fmt.Errorf("runner_version is not found in GitHub Release: %w", err)
-	}
-
 	return nil
 }
 
@@ -353,7 +316,6 @@ func toNullString(input *string) sql.NullString {
 // ToDS convert to datastore.Target
 func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datastore.Target {
 	runnerUser := toNullString(t.RunnerUser)
-	runnerVersion := toNullString(t.RunnerVersion)
 	providerURL := toNullString(t.ProviderURL)
 
 	return datastore.Target{
@@ -363,36 +325,32 @@ func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datast
 		TokenExpiredAt: tokenExpired,
 		ResourceType:   t.ResourceType,
 		RunnerUser:     runnerUser,
-		RunnerVersion:  runnerVersion,
 		ProviderURL:    providerURL,
 	}
 }
 
 type getWillUpdateTargetVariableOld struct {
 	resourceType  datastore.ResourceType
-	runnerVersion sql.NullString
 	runnerUser    sql.NullString
 	providerURL   sql.NullString
 }
 
 type getWillUpdateTargetVariableNew struct {
 	resourceType  datastore.ResourceType
-	runnerVersion *string
 	runnerUser    *string
 	providerURL   *string
 }
 
-func getWillUpdateTargetVariable(oldParam getWillUpdateTargetVariableOld, newParam getWillUpdateTargetVariableNew) (datastore.ResourceType, sql.NullString, sql.NullString, sql.NullString) {
+func getWillUpdateTargetVariable(oldParam getWillUpdateTargetVariableOld, newParam getWillUpdateTargetVariableNew) (datastore.ResourceType, sql.NullString, sql.NullString) {
 	rt := oldParam.resourceType
 	if newParam.resourceType != datastore.ResourceTypeUnknown {
 		rt = newParam.resourceType
 	}
 
-	runnerVersion := getWillUpdateTargetVariableString(oldParam.runnerVersion, newParam.runnerVersion)
 	runnerUser := getWillUpdateTargetVariableString(oldParam.runnerUser, newParam.runnerUser)
 	providerURL := getWillUpdateTargetVariableString(oldParam.providerURL, newParam.providerURL)
 
-	return rt, runnerVersion, runnerUser, providerURL
+	return rt, runnerUser, providerURL
 }
 
 func getWillUpdateTargetVariableString(old sql.NullString, new *string) sql.NullString {

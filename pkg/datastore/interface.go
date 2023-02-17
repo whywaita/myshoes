@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-version"
-
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -40,7 +38,7 @@ type Datastore interface {
 	UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus TargetStatus, description string) error
 	UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error
 
-	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newRunnerVersion, newRunnerUser, newProviderURL sql.NullString) error
+	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newRunnerUser, newProviderURL sql.NullString) error
 
 	EnqueueJob(ctx context.Context, job Job) error
 	ListJobs(ctx context.Context) ([]Job, error)
@@ -67,7 +65,6 @@ type Target struct {
 
 	ResourceType      ResourceType   `db:"resource_type" json:"resource_type"`
 	RunnerUser        sql.NullString `db:"runner_user" json:"runner_user"`
-	RunnerVersion     sql.NullString `db:"runner_version" json:"runner_version"`
 	ProviderURL       sql.NullString `db:"provider_url" json:"provider_url"`
 	Status            TargetStatus   `db:"status" json:"status"`
 	StatusDescription sql.NullString `db:"status_description" json:"status_description"`
@@ -179,7 +176,6 @@ type Runner struct {
 	Status         RunnerStatus   `db:"status"`
 	ResourceType   ResourceType   `db:"resource_type"`
 	RunnerUser     sql.NullString `db:"runner_user" json:"runner_user"`
-	RunnerVersion  sql.NullString `db:"runner_version" json:"runner_version"`
 	ProviderURL    sql.NullString `db:"provider_url" json:"provider_url"`
 	RepositoryURL  string         `db:"repository_url"`
 	RequestWebhook string         `db:"request_webhook"`
@@ -197,52 +193,3 @@ const (
 	RunnerStatusCompleted                   = "completed"
 	RunnerStatusReachHardLimit              = "reach_hard_limit"
 )
-
-const (
-	// DefaultRunnerVersion is default value of actions/runner
-	DefaultRunnerVersion = "v2.275.1"
-)
-
-// RunnerTemporaryMode is mode of temporary runner
-type RunnerTemporaryMode int
-
-// RunnerEphemeralModes variable
-const (
-	RunnerTemporaryUnknown RunnerTemporaryMode = iota
-	RunnerTemporaryOnce
-	RunnerTemporaryEphemeral
-)
-
-// StringFlag return flag
-func (rtm RunnerTemporaryMode) StringFlag() string {
-	switch rtm {
-	case RunnerTemporaryOnce:
-		return "--once"
-	case RunnerTemporaryEphemeral:
-		return "--ephemeral"
-	}
-	return "unknown"
-}
-
-// GetRunnerTemporaryMode get runner version and RunnerTemporaryMode
-func GetRunnerTemporaryMode(runnerVersion sql.NullString) (string, RunnerTemporaryMode, error) {
-	if !runnerVersion.Valid {
-		// not set, return default
-		return DefaultRunnerVersion, RunnerTemporaryOnce, nil
-	}
-
-	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
-	if err != nil {
-		return "", RunnerTemporaryUnknown, fmt.Errorf("failed to parse ephemeral runner version: %w", err)
-	}
-
-	inputVersion, err := version.NewVersion(runnerVersion.String)
-	if err != nil {
-		return "", RunnerTemporaryUnknown, fmt.Errorf("failed to parse input runner version: %w", err)
-	}
-
-	if ephemeralSupportVersion.GreaterThan(inputVersion) {
-		return runnerVersion.String, RunnerTemporaryOnce, nil
-	}
-	return runnerVersion.String, RunnerTemporaryEphemeral, nil
-}

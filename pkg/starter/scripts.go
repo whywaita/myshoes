@@ -12,6 +12,7 @@ import (
 	"github.com/whywaita/myshoes/internal/config"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/runner"
 	"github.com/whywaita/myshoes/pkg/gh"
 )
 
@@ -49,7 +50,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
 	}
-	runnerVersion, runnerTemporaryMode, err := datastore.GetRunnerTemporaryMode(target.RunnerVersion)
+	runnerVersion, runnerTemporaryMode, err := runner.GetRunnerTemporaryMode(s.runnerVersion)
 	if err != nil {
 		return "", fmt.Errorf("failed to get runner version: %w", err)
 	}

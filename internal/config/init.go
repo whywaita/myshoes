@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/go-version"
 )
 
 // Load load config from environment
@@ -140,6 +142,23 @@ func LoadWithDefault() Conf {
 		}
 
 		c.GitHubURL = os.Getenv(EnvGitHubURL)
+	}
+
+	c.RunnerVersion = "latest"
+	if os.Getenv(EnvRunnerVersion) != "" {
+		ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
+		if err != nil {
+			log.Panicf("failed to parse ephemeral runner version: %+v", err)
+		}
+		inputVersion, err := version.NewVersion(os.Getenv(EnvRunnerVersion))
+		if err != nil {
+			log.Panicf("failed to parse input runner version: %+v", err)
+		}
+		if !ephemeralSupportVersion.GreaterThan(inputVersion) {
+			log.Panicf("RUNNER_VERSION must be greater than %s", ephemeralSupportVersion)
+		}
+
+		c.RunnerVersion = os.Getenv(EnvRunnerVersion)
 	}
 
 	Config = c

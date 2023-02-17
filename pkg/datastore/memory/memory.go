@@ -144,10 +144,6 @@ func (m *Memory) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newR
 		return fmt.Errorf("not found")
 	}
 	t.ResourceType = newResourceType
-	t.RunnerVersion = sql.NullString{
-		String: newRunnerVersion,
-		Valid:  true,
-	}
 	t.RunnerUser = sql.NullString{
 		String: newRunnerUser,
 		Valid:  true,

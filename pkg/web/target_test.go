@@ -256,7 +256,7 @@ func Test_handleTargetCreate_recreated_update(t *testing.T) {
 	}
 
 	// second create
-	secondInput := `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu", "runner_version": "v0.000.1"}`
+	secondInput := `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu"}`
 
 	resp, err = http.Post(testURL+"/target", "application/json", bytes.NewBufferString(secondInput))
 	if err != nil {
@@ -273,9 +273,6 @@ func Test_handleTargetCreate_recreated_update(t *testing.T) {
 	}
 	if got.Status != datastore.TargetStatusActive {
 		t.Fatalf("must be status is active when recreated")
-	}
-	if got.RunnerVersion.String != "v0.000.1" {
-		t.Fatalf("must be update runner_version in second createm")
 	}
 }
 
@@ -436,20 +433,18 @@ func Test_handleTargetUpdate(t *testing.T) {
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
 				RunnerUser:     "ubuntu",
-				RunnerVersion:  "",
 				ProviderURL:    "https://example.com/default-shoes",
 				Status:         datastore.TargetStatusActive,
 			},
 		},
 		{ // Update all values
-			input: `{"scope": "repo", "resource_type": "micro", "runner_user": "super-user", "runner_version": "v9.999.9", "provider_url": "https://example.com/shoes-provider"}`,
+			input: `{"scope": "repo", "resource_type": "micro", "runner_user": "super-user", "provider_url": "https://example.com/shoes-provider"}`,
 			want: &web.UserTarget{
 				UUID:           uuid.UUID{},
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeMicro.String(),
 				RunnerUser:     "super-user",
-				RunnerVersion:  "v9.999.9",
 				ProviderURL:    "https://example.com/shoes-provider",
 				Status:         datastore.TargetStatusActive,
 			},
@@ -462,7 +457,6 @@ func Test_handleTargetUpdate(t *testing.T) {
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
 				RunnerUser:     "ubuntu",
-				RunnerVersion:  "",
 				ProviderURL:    "https://example.com/default-shoes",
 				Status:         datastore.TargetStatusActive,
 			},
@@ -475,7 +469,6 @@ func Test_handleTargetUpdate(t *testing.T) {
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
 				RunnerUser:     "ubuntu",
-				RunnerVersion:  "",
 				ProviderURL:    "",
 				Status:         datastore.TargetStatusActive,
 			},
@@ -540,11 +533,6 @@ func Test_handleTargetUpdate_Error(t *testing.T) {
 			input:    `{"resource_type": "nano", "runner_user": "ubuntu"}`,
 			wantCode: http.StatusBadRequest,
 			want:     `{"error":"invalid input: can't updatable fields (Scope)"}`,
-		},
-		{ // Invalid: runner_version is semver
-			input:    `{"scope": "repo", "resource_type": "nano", "runner_user": "ubuntu", "runner_version": "v2.100"}`,
-			wantCode: http.StatusBadRequest,
-			want:     `{"error": "runner_version must has version of major, sem, patch"}`,
 		},
 	}
 
