@@ -77,11 +77,6 @@ func (m *Manager) Loop(ctx context.Context) error {
 	}
 }
 
-const (
-	// DefaultRunnerVersion is default value of actions/runner
-	DefaultRunnerVersion = "v2.275.1"
-)
-
 // RunnerTemporaryMode is mode of temporary runner
 type RunnerTemporaryMode int
 
