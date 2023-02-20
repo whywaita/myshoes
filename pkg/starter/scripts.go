@@ -12,8 +12,8 @@ import (
 	"github.com/whywaita/myshoes/internal/config"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
-	"github.com/whywaita/myshoes/pkg/runner"
 	"github.com/whywaita/myshoes/pkg/gh"
+	"github.com/whywaita/myshoes/pkg/runner"
 )
 
 //go:embed scripts/RunnerService.js

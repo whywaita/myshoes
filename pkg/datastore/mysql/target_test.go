@@ -616,9 +616,9 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 	testDB, _ := testutils.GetTestDB()
 
 	type input struct {
-		resourceType  datastore.ResourceType
-		runnerUser    sql.NullString
-		providerURL   sql.NullString
+		resourceType datastore.ResourceType
+		runnerUser   sql.NullString
+		providerURL  sql.NullString
 	}
 
 	tests := []struct {

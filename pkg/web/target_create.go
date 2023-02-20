@@ -88,13 +88,13 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 			return
 		}
 		resourceType, runnerUser, providerURL := getWillUpdateTargetVariable(getWillUpdateTargetVariableOld{
-			resourceType:  target.ResourceType,
-			runnerUser:    target.RunnerUser,
-			providerURL:   target.ProviderURL,
+			resourceType: target.ResourceType,
+			runnerUser:   target.RunnerUser,
+			providerURL:  target.ProviderURL,
 		}, getWillUpdateTargetVariableNew{
-			resourceType:  inputTarget.ResourceType,
-			runnerUser:    inputTarget.RunnerUser,
-			providerURL:   inputTarget.ProviderURL,
+			resourceType: inputTarget.ResourceType,
+			runnerUser:   inputTarget.RunnerUser,
+			providerURL:  inputTarget.ProviderURL,
 		})
 		if err := ds.UpdateTargetParam(ctx, target.UUID, resourceType, runnerUser, providerURL); err != nil {
 			logger.Logf(false, "failed to update resource type in recreating target: %+v", err)

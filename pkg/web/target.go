@@ -330,15 +330,15 @@ func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datast
 }
 
 type getWillUpdateTargetVariableOld struct {
-	resourceType  datastore.ResourceType
-	runnerUser    sql.NullString
-	providerURL   sql.NullString
+	resourceType datastore.ResourceType
+	runnerUser   sql.NullString
+	providerURL  sql.NullString
 }
 
 type getWillUpdateTargetVariableNew struct {
-	resourceType  datastore.ResourceType
-	runnerUser    *string
-	providerURL   *string
+	resourceType datastore.ResourceType
+	runnerUser   *string
+	providerURL  *string
 }
 
 func getWillUpdateTargetVariable(oldParam getWillUpdateTargetVariableOld, newParam getWillUpdateTargetVariableNew) (datastore.ResourceType, sql.NullString, sql.NullString) {
