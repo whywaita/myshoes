@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/go-github/v47/github"
 	"github.com/hashicorp/go-version"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -99,28 +98,11 @@ func (rtm RunnerTemporaryMode) StringFlag() string {
 	return "unknown"
 }
 
-func getLatestRunnerVersion(runnerVersion string) (string, error) {
-	client := github.NewClient(nil)
-	release, _, err := client.Repositories.GetLatestRelease(context.Background(), "actions", "runner")
-	if err != nil {
-		return "", fmt.Errorf("failed to get latest runner version: %w", err)
-	}
-	return *release.TagName, nil
-
-}
-
 // GetRunnerTemporaryMode get runner version and RunnerTemporaryMode
 func GetRunnerTemporaryMode(runnerVersion string) (string, RunnerTemporaryMode, error) {
 	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
 	if err != nil {
 		return "", RunnerTemporaryUnknown, fmt.Errorf("failed to parse ephemeral runner version: %w", err)
-	}
-
-	if runnerVersion == "latest" {
-		runnerVersion, err = getLatestRunnerVersion(runnerVersion)
-		if err != nil {
-			return "", RunnerTemporaryUnknown, fmt.Errorf("failed to parse input runner version: %w", err)
-		}
 	}
 
 	inputVersion, err := version.NewVersion(runnerVersion)
