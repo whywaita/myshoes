@@ -56,9 +56,9 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		return fmt.Errorf("failed to retrieve list of running runner: %w", err)
 	}
 
-	var mode RunnerTemporaryMode
+	var mode TemporaryMode
 	if strings.EqualFold(m.runnerVersion, "latest") {
-		mode = RunnerTemporaryEphemeral
+		mode = TemporaryEphemeral
 	} else {
 		_, m, err := GetRunnerTemporaryMode(m.runnerVersion)
 		if err != nil {
@@ -74,7 +74,7 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 
 	if len(ghRunners) == 0 && len(runners) == 0 {
 		switch mode {
-		case RunnerTemporaryOnce:
+		case TemporaryOnce:
 			logger.Logf(false, "runner for queueing is not found in %s", t.Scope)
 			if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, ErrDescriptionRunnerForQueueingIsNotFound); err != nil {
 				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
@@ -133,9 +133,9 @@ func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner d
 		logger.Logf(false, "%s is not running MustRunningTime", runner.UUID)
 		return nil
 	}
-	var mode RunnerTemporaryMode
+	var mode TemporaryMode
 	if strings.EqualFold(m.runnerVersion, "latest") {
-		mode = RunnerTemporaryEphemeral
+		mode = TemporaryEphemeral
 	} else {
 		_, m, err := GetRunnerTemporaryMode(m.runnerVersion)
 		if err != nil {
@@ -145,11 +145,11 @@ func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner d
 	}
 
 	switch mode {
-	case RunnerTemporaryOnce:
+	case TemporaryOnce:
 		if err := m.removeRunnerModeOnce(ctx, t, runner, ghRunners); err != nil {
 			return fmt.Errorf("failed to remove runner (mode once): %w", err)
 		}
-	case RunnerTemporaryEphemeral:
+	case TemporaryEphemeral:
 		if err := m.removeRunnerModeEphemeral(ctx, t, runner, ghRunners); err != nil {
 			return fmt.Errorf("failed to remove runner (mode ephemeral): %w", err)
 		}

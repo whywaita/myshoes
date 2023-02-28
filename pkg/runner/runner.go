@@ -77,41 +77,41 @@ func (m *Manager) Loop(ctx context.Context) error {
 	}
 }
 
-// RunnerTemporaryMode is mode of temporary runner
-type RunnerTemporaryMode int
+// TemporaryMode is mode of temporary runner
+type TemporaryMode int
 
 // RunnerEphemeralModes variable
 const (
-	RunnerTemporaryUnknown RunnerTemporaryMode = iota
-	RunnerTemporaryOnce
-	RunnerTemporaryEphemeral
+	TemporaryUnknown TemporaryMode = iota
+	TemporaryOnce
+	TemporaryEphemeral
 )
 
 // StringFlag return flag
-func (rtm RunnerTemporaryMode) StringFlag() string {
+func (rtm TemporaryMode) StringFlag() string {
 	switch rtm {
-	case RunnerTemporaryOnce:
+	case TemporaryOnce:
 		return "--once"
-	case RunnerTemporaryEphemeral:
+	case TemporaryEphemeral:
 		return "--ephemeral"
 	}
 	return "unknown"
 }
 
 // GetRunnerTemporaryMode get runner version and RunnerTemporaryMode
-func GetRunnerTemporaryMode(runnerVersion string) (string, RunnerTemporaryMode, error) {
+func GetRunnerTemporaryMode(runnerVersion string) (string, TemporaryMode, error) {
 	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
 	if err != nil {
-		return "", RunnerTemporaryUnknown, fmt.Errorf("failed to parse ephemeral runner version: %w", err)
+		return "", TemporaryUnknown, fmt.Errorf("failed to parse ephemeral runner version: %w", err)
 	}
 
 	inputVersion, err := version.NewVersion(runnerVersion)
 	if err != nil {
-		return "", RunnerTemporaryUnknown, fmt.Errorf("failed to parse input runner version: %w", err)
+		return "", TemporaryUnknown, fmt.Errorf("failed to parse input runner version: %w", err)
 	}
 
 	if ephemeralSupportVersion.GreaterThan(inputVersion) {
-		return runnerVersion, RunnerTemporaryOnce, nil
+		return runnerVersion, TemporaryOnce, nil
 	}
-	return runnerVersion, RunnerTemporaryEphemeral, nil
+	return runnerVersion, TemporaryEphemeral, nil
 }
