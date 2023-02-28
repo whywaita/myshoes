@@ -7,6 +7,7 @@ import (
 	_ "embed" // TODO:
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/whywaita/myshoes/internal/config"
@@ -50,7 +51,17 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 	if target.RunnerUser.Valid {
 		runnerUser = target.RunnerUser.String
 	}
-	runnerVersion, runnerTemporaryMode, err := runner.GetRunnerTemporaryMode(s.runnerVersion)
+
+	targetRunnerVersion := s.runnerVersion
+	if strings.EqualFold(s.runnerVersion, "latest") {
+		latestVersion, err := gh.GetLatestRunnerVersion(ctx)
+		if err != nil {
+			return "", fmt.Errorf("failed to get latest version of actions/runner: %w", err)
+		}
+		targetRunnerVersion = latestVersion
+	}
+
+	runnerVersion, runnerTemporaryMode, err := runner.GetRunnerTemporaryMode(targetRunnerVersion)
 	if err != nil {
 		return "", fmt.Errorf("failed to get runner version: %w", err)
 	}

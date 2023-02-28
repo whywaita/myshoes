@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -15,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/go-github/v47/github"
 	"github.com/hashicorp/go-version"
 )
 
@@ -147,17 +145,20 @@ func LoadWithDefault() Conf {
 	}
 
 	if os.Getenv(EnvRunnerVersion) == "" {
-		c.RunnerVersion, err = getLatestRunnerVersion()
-		if err != nil {
-			log.Panicf("failed to set runner version: %+v", err)
-		}
+		c.RunnerVersion = "latest"
 	} else {
-		_, err := version.NewVersion(os.Getenv(EnvRunnerVersion))
-		if err != nil {
-			log.Panicf("failed to parse input runner version: %+v", err)
-		}
+		// valid value: "latest" or "vX.XXX.X"
+		switch os.Getenv(EnvRunnerVersion) {
+		case "latest":
+			c.RunnerVersion = "latest"
+		default:
+			_, err := version.NewVersion(os.Getenv(EnvRunnerVersion))
+			if err != nil {
+				log.Panicf("failed to parse input runner version: %+v", err)
+			}
 
-		c.RunnerVersion = os.Getenv(EnvRunnerVersion)
+			c.RunnerVersion = os.Getenv(EnvRunnerVersion)
+		}
 	}
 
 	Config = c
@@ -240,14 +241,4 @@ func fetchHTTP(u *url.URL) (string, error) {
 	}
 
 	return fp, nil
-}
-
-func getLatestRunnerVersion() (string, error) {
-	client := github.NewClient(nil)
-	release, _, err := client.Repositories.GetLatestRelease(context.Background(), "actions", "runner")
-	if err != nil {
-		return "", fmt.Errorf("failed to get latest runner version: %w", err)
-	}
-	return *release.TagName, nil
-
 }

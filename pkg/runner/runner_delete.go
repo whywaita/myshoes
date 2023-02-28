@@ -56,9 +56,15 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		return fmt.Errorf("failed to retrieve list of running runner: %w", err)
 	}
 
-	_, mode, err := GetRunnerTemporaryMode(m.runnerVersion)
-	if err != nil {
-		return fmt.Errorf("failed to get runner mode: %w", err)
+	var mode RunnerTemporaryMode
+	if strings.EqualFold(m.runnerVersion, "latest") {
+		mode = RunnerTemporaryEphemeral
+	} else {
+		_, m, err := GetRunnerTemporaryMode(m.runnerVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get runner mode: %w", err)
+		}
+		mode = m
 	}
 
 	ghRunners, err := isRegisteredRunnerZeroInGitHub(ctx, t)
@@ -127,10 +133,15 @@ func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner d
 		logger.Logf(false, "%s is not running MustRunningTime", runner.UUID)
 		return nil
 	}
-
-	_, mode, err := GetRunnerTemporaryMode(m.runnerVersion)
-	if err != nil {
-		return fmt.Errorf("failed to get runner temporary mode: %w", err)
+	var mode RunnerTemporaryMode
+	if strings.EqualFold(m.runnerVersion, "latest") {
+		mode = RunnerTemporaryEphemeral
+	} else {
+		_, m, err := GetRunnerTemporaryMode(m.runnerVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get runner mode: %w", err)
+		}
+		mode = m
 	}
 
 	switch mode {
