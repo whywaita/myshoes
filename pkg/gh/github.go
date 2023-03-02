@@ -62,7 +62,7 @@ func NewClient(token string) (*github.Client, error) {
 	}
 
 	if !config.Config.IsGHES() {
-		return github.NewClient(&http.Client{Transport: &appTransport}), nil
+		return github.NewClient(&http.Client{Transport: transport}), nil
 	}
 
 	return github.NewEnterpriseClient(config.Config.GitHubURL, config.Config.GitHubURL, &http.Client{Transport: transport})
