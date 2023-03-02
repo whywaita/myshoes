@@ -93,6 +93,11 @@ A config variables can set from environment values.
   - default: `https://github.com`
   - The URL of GitHub Enterprise Server.
   - Please contain schema.
+- `RUNNER_VERSION`
+  - default: `latest`
+    - Use the latest version in starting job
+  - The version of `actions/runner`
+  - example) `v2.302.1`, `latest`
 
 For tuning values
 
