@@ -107,7 +107,7 @@ func LoadWithDefault() Conf {
 		if mwt == ModeWebhookTypeUnknown {
 			log.Panicf("%s is invalid webhook type", os.Getenv(EnvModeWebhookType))
 		}
-		Config.ModeWebhookType = mwt
+		c.ModeWebhookType = mwt
 	}
 
 	c.MaxConnectionsToBackend = 50
