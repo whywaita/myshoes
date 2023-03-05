@@ -47,10 +47,7 @@ func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target, r
 }
 
 func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target, runnerName string) (string, error) {
-	runnerUser := ""
-	if target.RunnerUser.Valid {
-		runnerUser = target.RunnerUser.String
-	}
+	runnerUser := config.Config.RunnerUser
 
 	targetRunnerVersion := s.runnerVersion
 	if strings.EqualFold(s.runnerVersion, "latest") {

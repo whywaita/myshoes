@@ -135,7 +135,7 @@ func (m *Memory) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken s
 }
 
 // UpdateTargetParam update parameter of target
-func (m *Memory) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType, newRunnerVersion, newRunnerUser, newProviderURL string) error {
+func (m *Memory) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType, newProviderURL string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -144,10 +144,6 @@ func (m *Memory) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newR
 		return fmt.Errorf("not found")
 	}
 	t.ResourceType = newResourceType
-	t.RunnerUser = sql.NullString{
-		String: newRunnerUser,
-		Valid:  true,
-	}
 	t.ProviderURL = sql.NullString{
 		String: newProviderURL,
 		Valid:  true,

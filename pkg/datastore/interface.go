@@ -38,7 +38,7 @@ type Datastore interface {
 	UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus TargetStatus, description string) error
 	UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error
 
-	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newRunnerUser, newProviderURL sql.NullString) error
+	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newProviderURL sql.NullString) error
 
 	EnqueueJob(ctx context.Context, job Job) error
 	ListJobs(ctx context.Context) ([]Job, error)
@@ -64,7 +64,6 @@ type Target struct {
 	TokenExpiredAt time.Time `db:"token_expired_at" json:"token_expired_at"`
 
 	ResourceType      ResourceType   `db:"resource_type" json:"resource_type"`
-	RunnerUser        sql.NullString `db:"runner_user" json:"runner_user"`
 	ProviderURL       sql.NullString `db:"provider_url" json:"provider_url"`
 	Status            TargetStatus   `db:"status" json:"status"`
 	StatusDescription sql.NullString `db:"status_description" json:"status_description"`

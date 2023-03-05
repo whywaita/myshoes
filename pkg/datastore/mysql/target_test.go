@@ -642,10 +642,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 				Scope:        testScopeRepo,
 				GitHubToken:  testGitHubToken,
 				ResourceType: datastore.ResourceTypeLarge,
-				RunnerUser: sql.NullString{
-					String: "",
-					Valid:  false,
-				},
 				ProviderURL: sql.NullString{
 					String: "",
 					Valid:  false,
@@ -674,10 +670,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 				Scope:        testScopeRepo,
 				GitHubToken:  testGitHubToken,
 				ResourceType: datastore.ResourceTypeLarge,
-				RunnerUser: sql.NullString{
-					String: testRunnerUser,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -706,10 +698,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 				Scope:        testScopeRepo,
 				GitHubToken:  testGitHubToken,
 				ResourceType: datastore.ResourceTypeLarge,
-				RunnerUser: sql.NullString{
-					String: testRunnerUser,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: "",
 					Valid:  false,
@@ -732,10 +720,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 			GitHubToken:    testGitHubToken,
 			TokenExpiredAt: testTime,
 			ResourceType:   datastore.ResourceTypeNano,
-			RunnerUser: sql.NullString{
-				String: "",
-				Valid:  false,
-			},
 			ProviderURL: sql.NullString{
 				String: "test-default-string",
 				Valid:  true,
@@ -744,7 +728,7 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 			t.Fatalf("failed to create target: %+v", err)
 		}
 
-		if err := testDatastore.UpdateTargetParam(context.Background(), tID, test.input.resourceType, test.input.runnerUser, test.input.providerURL); err != nil {
+		if err := testDatastore.UpdateTargetParam(context.Background(), tID, test.input.resourceType, test.input.providerURL); err != nil {
 			t.Fatalf("failed to UpdateResourceTyoe: %+v", err)
 		}
 
@@ -771,7 +755,7 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 
 func getTargetFromSQL(testDB *sqlx.DB, uuid uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, runner_user, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
+	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)

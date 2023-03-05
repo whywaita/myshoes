@@ -33,7 +33,6 @@ type UserTarget struct {
 	Scope             string                 `json:"scope"`
 	TokenExpiredAt    time.Time              `json:"token_expired_at"`
 	ResourceType      string                 `json:"resource_type"`
-	RunnerUser        string                 `json:"runner_user"`
 	ProviderURL       string                 `json:"provider_url"`
 	Status            datastore.TargetStatus `json:"status"`
 	StatusDescription string                 `json:"status_description"`
@@ -118,7 +117,6 @@ func sanitizeTarget(t datastore.Target) UserTarget {
 		Scope:             t.Scope,
 		TokenExpiredAt:    t.TokenExpiredAt,
 		ResourceType:      t.ResourceType.String(),
-		RunnerUser:        t.RunnerUser.String,
 		ProviderURL:       t.ProviderURL.String,
 		Status:            t.Status,
 		StatusDescription: t.StatusDescription.String,
@@ -158,16 +156,14 @@ func handleTargetUpdate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		return
 	}
 
-	resourceType, runnerUser, providerURL := getWillUpdateTargetVariable(getWillUpdateTargetVariableOld{
+	resourceType, providerURL := getWillUpdateTargetVariable(getWillUpdateTargetVariableOld{
 		resourceType: oldTarget.ResourceType,
-		runnerUser:   oldTarget.RunnerUser,
 		providerURL:  oldTarget.ProviderURL,
 	}, getWillUpdateTargetVariableNew{
 		resourceType: inputTarget.ResourceType,
-		runnerUser:   inputTarget.RunnerUser,
 		providerURL:  inputTarget.ProviderURL,
 	})
-	if err := ds.UpdateTargetParam(ctx, targetID, resourceType, runnerUser, providerURL); err != nil {
+	if err := ds.UpdateTargetParam(ctx, targetID, resourceType, providerURL); err != nil {
 		logger.Logf(false, "failed to ds.UpdateTargetParam: %+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore update error")
 		return
@@ -254,7 +250,6 @@ func validateUpdateTarget(old, new datastore.Target) error {
 
 		// can update variables
 		t.ResourceType = datastore.ResourceTypeUnknown
-		t.RunnerUser = sql.NullString{}
 		t.ProviderURL = sql.NullString{}
 
 		// time
@@ -315,7 +310,6 @@ func toNullString(input *string) sql.NullString {
 
 // ToDS convert to datastore.Target
 func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datastore.Target {
-	runnerUser := toNullString(t.RunnerUser)
 	providerURL := toNullString(t.ProviderURL)
 
 	return datastore.Target{
@@ -324,33 +318,29 @@ func (t *TargetCreateParam) ToDS(appToken string, tokenExpired time.Time) datast
 		GitHubToken:    appToken,
 		TokenExpiredAt: tokenExpired,
 		ResourceType:   t.ResourceType,
-		RunnerUser:     runnerUser,
 		ProviderURL:    providerURL,
 	}
 }
 
 type getWillUpdateTargetVariableOld struct {
 	resourceType datastore.ResourceType
-	runnerUser   sql.NullString
 	providerURL  sql.NullString
 }
 
 type getWillUpdateTargetVariableNew struct {
 	resourceType datastore.ResourceType
-	runnerUser   *string
 	providerURL  *string
 }
 
-func getWillUpdateTargetVariable(oldParam getWillUpdateTargetVariableOld, newParam getWillUpdateTargetVariableNew) (datastore.ResourceType, sql.NullString, sql.NullString) {
+func getWillUpdateTargetVariable(oldParam getWillUpdateTargetVariableOld, newParam getWillUpdateTargetVariableNew) (datastore.ResourceType, sql.NullString) {
 	rt := oldParam.resourceType
 	if newParam.resourceType != datastore.ResourceTypeUnknown {
 		rt = newParam.resourceType
 	}
 
-	runnerUser := getWillUpdateTargetVariableString(oldParam.runnerUser, newParam.runnerUser)
 	providerURL := getWillUpdateTargetVariableString(oldParam.providerURL, newParam.providerURL)
 
-	return rt, runnerUser, providerURL
+	return rt, providerURL
 }
 
 func getWillUpdateTargetVariableString(old sql.NullString, new *string) sql.NullString {

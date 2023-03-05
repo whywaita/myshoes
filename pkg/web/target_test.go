@@ -3,7 +3,6 @@ package web_test
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -80,7 +79,6 @@ func Test_handleTargetCreate(t *testing.T) {
 				Scope:          "octocat",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeMicro.String(),
-				RunnerUser:     "ubuntu",
 				Status:         datastore.TargetStatusActive,
 			},
 			err: false,
@@ -91,7 +89,6 @@ func Test_handleTargetCreate(t *testing.T) {
 				Scope:          "whywaita/whywaita",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
-				RunnerUser:     "ubuntu",
 				Status:         datastore.TargetStatusActive,
 			},
 		},
@@ -307,14 +304,12 @@ func Test_handleTargetList(t *testing.T) {
 					Scope:          "reponano",
 					TokenExpiredAt: testTime,
 					ResourceType:   datastore.ResourceTypeNano.String(),
-					RunnerUser:     "ubuntu",
 					Status:         datastore.TargetStatusActive,
 				},
 				{
 					Scope:          "repomicro",
 					TokenExpiredAt: testTime,
 					ResourceType:   datastore.ResourceTypeMicro.String(),
-					RunnerUser:     "ubuntu",
 					Status:         datastore.TargetStatusActive,
 				},
 			},
@@ -383,7 +378,6 @@ func Test_handleTargetRead(t *testing.T) {
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeMicro.String(),
-				RunnerUser:     "ubuntu",
 				Status:         datastore.TargetStatusActive,
 			},
 		},
@@ -426,25 +420,23 @@ func Test_handleTargetUpdate(t *testing.T) {
 		err   bool
 	}{
 		{ // Update a few values
-			input: `{"scope": "repo", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			input: `{"scope": "repo", "resource_type": "nano"}`,
 			want: &web.UserTarget{
 				UUID:           uuid.UUID{},
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
-				RunnerUser:     "ubuntu",
 				ProviderURL:    "https://example.com/default-shoes",
 				Status:         datastore.TargetStatusActive,
 			},
 		},
 		{ // Update all values
-			input: `{"scope": "repo", "resource_type": "micro", "runner_user": "super-user", "provider_url": "https://example.com/shoes-provider"}`,
+			input: `{"scope": "repo", "resource_type": "micro", "provider_url": "https://example.com/shoes-provider"}`,
 			want: &web.UserTarget{
 				UUID:           uuid.UUID{},
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeMicro.String(),
-				RunnerUser:     "super-user",
 				ProviderURL:    "https://example.com/shoes-provider",
 				Status:         datastore.TargetStatusActive,
 			},
@@ -456,7 +448,6 @@ func Test_handleTargetUpdate(t *testing.T) {
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
-				RunnerUser:     "ubuntu",
 				ProviderURL:    "https://example.com/default-shoes",
 				Status:         datastore.TargetStatusActive,
 			},
@@ -468,7 +459,6 @@ func Test_handleTargetUpdate(t *testing.T) {
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
-				RunnerUser:     "ubuntu",
 				ProviderURL:    "",
 				Status:         datastore.TargetStatusActive,
 			},
@@ -605,11 +595,7 @@ func Test_handleTargetDelete(t *testing.T) {
 				GitHubToken:    testGitHubAppToken,
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeMicro,
-				RunnerUser: sql.NullString{
-					Valid:  true,
-					String: "ubuntu",
-				},
-				Status: datastore.TargetStatusDeleted,
+				Status:         datastore.TargetStatusDeleted,
 			},
 		},
 	}

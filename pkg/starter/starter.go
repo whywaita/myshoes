@@ -2,6 +2,7 @@ package starter
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -189,13 +190,16 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 	}
 
 	r := datastore.Runner{
-		UUID:           job.UUID,
-		ShoesType:      shoesType,
-		IPAddress:      ipAddress,
-		TargetID:       job.TargetID,
-		CloudID:        cloudID,
-		ResourceType:   target.ResourceType,
-		RunnerUser:     target.RunnerUser,
+		UUID:         job.UUID,
+		ShoesType:    shoesType,
+		IPAddress:    ipAddress,
+		TargetID:     job.TargetID,
+		CloudID:      cloudID,
+		ResourceType: target.ResourceType,
+		RunnerUser: sql.NullString{
+			String: config.Config.RunnerUser,
+			Valid:  true,
+		},
 		ProviderURL:    target.ProviderURL,
 		RepositoryURL:  job.RepoURL(),
 		RequestWebhook: job.CheckEventJSON,
