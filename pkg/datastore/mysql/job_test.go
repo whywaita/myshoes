@@ -24,8 +24,11 @@ func TestMySQL_EnqueueJob(t *testing.T) {
 	testDB, _ := testutils.GetTestDB()
 
 	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:           testTargetID,
-		Scope:          testScopeRepo,
+		UUID:  testTargetID,
+		Scope: testScopeRepo,
+		GHEDomain: sql.NullString{
+			Valid: false,
+		},
 		GitHubToken:    testGitHubToken,
 		TokenExpiredAt: testTime,
 		ResourceType:   datastore.ResourceTypeNano,
@@ -79,8 +82,11 @@ func TestMySQL_ListJobs(t *testing.T) {
 	defer teardown()
 
 	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:           testTargetID,
-		Scope:          testScopeRepo,
+		UUID:  testTargetID,
+		Scope: testScopeRepo,
+		GHEDomain: sql.NullString{
+			Valid: false,
+		},
 		GitHubToken:    testGitHubToken,
 		TokenExpiredAt: testTime,
 		ResourceType:   datastore.ResourceTypeNano,
@@ -146,8 +152,11 @@ func TestMySQL_DeleteJob(t *testing.T) {
 	testDB, _ := testutils.GetTestDB()
 
 	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
-		UUID:           testTargetID,
-		Scope:          testScopeRepo,
+		UUID:  testTargetID,
+		Scope: testScopeRepo,
+		GHEDomain: sql.NullString{
+			Valid: false,
+		},
 		GitHubToken:    testGitHubToken,
 		TokenExpiredAt: testTime,
 		ResourceType:   datastore.ResourceTypeNano,

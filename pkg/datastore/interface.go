@@ -60,8 +60,9 @@ type Target struct {
 	UUID  uuid.UUID `db:"uuid" json:"id"`
 	Scope string    `db:"scope" json:"scope"` // repo (:owner/:repo) or org (:organization)
 	// deprecated
-	GitHubToken    string    `db:"github_token" json:"github_token"`
-	TokenExpiredAt time.Time `db:"token_expired_at" json:"token_expired_at"`
+	GitHubToken    string         `db:"github_token" json:"github_token"`
+	TokenExpiredAt time.Time      `db:"token_expired_at" json:"token_expired_at"`
+	GHEDomain      sql.NullString `db:"ghe_domain" json:"ghe_domain"`
 
 	ResourceType      ResourceType   `db:"resource_type" json:"resource_type"`
 	ProviderURL       sql.NullString `db:"provider_url" json:"provider_url"`
