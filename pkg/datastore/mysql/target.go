@@ -15,12 +15,13 @@ import (
 func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error {
 	expiredAtRFC3339 := target.TokenExpiredAt.Format("2006-01-02 15:04:05")
 
-	query := `INSERT INTO targets(uuid, scope, github_token, token_expired_at, resource_type, provider_url) VALUES (?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO targets(uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, provider_url) VALUES (?, ?, ?, ?, ?, ?, ?)`
 	if _, err := m.Conn.ExecContext(
 		ctx,
 		query,
 		target.UUID,
 		target.Scope,
+		target.GHEDomain,
 		target.GitHubToken,
 		expiredAtRFC3339,
 		target.ResourceType,
