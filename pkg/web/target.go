@@ -23,6 +23,7 @@ import (
 type TargetCreateParam struct {
 	datastore.Target
 
+	GHEDomain   *string `json:"ghe_domain"`   // ignore
 	RunnerUser  *string `json:"runner_user"`  // nullable
 	ProviderURL *string `json:"provider_url"` // nullable
 }
