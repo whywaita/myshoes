@@ -143,15 +143,13 @@ func createNewTarget(ctx context.Context, input datastore.Target, ds datastore.D
 	input.CreatedAt = now
 	input.UpdatedAt = now
 
-	gheDomain := config.Config.GitHubURL
-	if gheDomain == "https://github.com" {
-		gheDomain = ""
+	input.GHEDomain = sql.NullString{}
+	if config.Config.GitHubURL != "https://github.com" {
+		input.GHEDomain = sql.NullString{
+			String: config.Config.GitHubURL,
+			Valid:  true,
+		}
 	}
-	input.GHEDomain = sql.NullString{
-		String: gheDomain,
-		Valid:  true,
-	}
-
 	if err := ds.CreateTarget(ctx, input); err != nil {
 		logger.Logf(false, "failed to create target in datastore: %+v", err)
 		return nil, fmt.Errorf("datastore create error")
