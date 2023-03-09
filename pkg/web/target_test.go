@@ -74,7 +74,7 @@ func Test_handleTargetCreate(t *testing.T) {
 		err            bool
 	}{
 		{
-			input: `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu"}`,
+			input: `{"scope": "octocat", "resource_type": "micro", "runner_user": "runner"}`,
 			want: &web.UserTarget{
 				Scope:          "octocat",
 				TokenExpiredAt: testTime,
@@ -84,9 +84,18 @@ func Test_handleTargetCreate(t *testing.T) {
 			err: false,
 		},
 		{
-			input: `{"scope": "whywaita/whywaita", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			input: `{"scope": "whywaita/whywaita", "resource_type": "nano", "runner_user": "runner"}`,
 			want: &web.UserTarget{
 				Scope:          "whywaita/whywaita",
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano.String(),
+				Status:         datastore.TargetStatusActive,
+			},
+		},
+		{ // Confirm that no error occurs even if ghe_domain is specified
+			input: `{"scope": "whywaita/whywaita2", "resource_type": "nano", "runner_user": "runner", "ghe_domain": "https://example.com"}`,
+			want: &web.UserTarget{
+				Scope:          "whywaita/whywaita2",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
 				Status:         datastore.TargetStatusActive,
@@ -130,7 +139,7 @@ func Test_handleTargetCreate_alreadyRegistered(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "runner", "ghe_domain": "https://example.com"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -160,7 +169,7 @@ func Test_handleTargetCreate_recreated(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "runner", "ghe_domain": "https://example.com"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -219,7 +228,7 @@ func Test_handleTargetCreate_recreated_update(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "runner", "ghe_domain": "https://example.com"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -253,7 +262,7 @@ func Test_handleTargetCreate_recreated_update(t *testing.T) {
 	}
 
 	// second create
-	secondInput := `{"scope": "octocat", "resource_type": "micro", "runner_user": "ubuntu"}`
+	secondInput := `{"scope": "octocat", "resource_type": "micro", "runner_user": "runner", "ghe_domain": "https://example.com"}`
 
 	resp, err = http.Post(testURL+"/target", "application/json", bytes.NewBufferString(secondInput))
 	if err != nil {
@@ -281,7 +290,7 @@ func Test_handleTargetList(t *testing.T) {
 	setStubFunctions()
 
 	for _, rt := range []string{"nano", "micro"} {
-		target := fmt.Sprintf(`{"scope": "repo%s", "resource_type": "%s", "runner_user": "ubuntu"}`,
+		target := fmt.Sprintf(`{"scope": "repo%s", "resource_type": "%s", "runner_user": "runner"}`,
 			rt, rt)
 		resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 		if err != nil {
@@ -350,7 +359,7 @@ func Test_handleTargetRead(t *testing.T) {
 
 	setStubFunctions()
 
-	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu"}`
+	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "runner"}`
 
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 	if err != nil {
@@ -430,6 +439,17 @@ func Test_handleTargetUpdate(t *testing.T) {
 				Status:         datastore.TargetStatusActive,
 			},
 		},
+		{ // Confirm that no error occurs even if ghe_domain is specified
+			input: `{"scope": "repo", "resource_type": "nano", "ghe_domain": "https://example.com"}`,
+			want: &web.UserTarget{
+				UUID:           uuid.UUID{},
+				Scope:          "repo",
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano.String(),
+				ProviderURL:    "https://example.com/default-shoes",
+				Status:         datastore.TargetStatusActive,
+			},
+		},
 		{ // Update all values
 			input: `{"scope": "repo", "resource_type": "micro", "provider_url": "https://example.com/shoes-provider"}`,
 			want: &web.UserTarget{
@@ -466,7 +486,7 @@ func Test_handleTargetUpdate(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu", "provider_url": "https://example.com/default-shoes"}`
+		target := `{"scope": "repo", "resource_type": "micro", "runner_user": "runner", "provider_url": "https://example.com/default-shoes"}`
 		respCreate, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 		if err != nil {
 			t.Fatalf("failed to POST request: %+v", err)
@@ -520,14 +540,14 @@ func Test_handleTargetUpdate_Error(t *testing.T) {
 		want     string
 	}{
 		{ // Invalid: must set scope
-			input:    `{"resource_type": "nano", "runner_user": "ubuntu"}`,
+			input:    `{"resource_type": "nano", "runner_user": "runner"}`,
 			wantCode: http.StatusBadRequest,
 			want:     `{"error":"invalid input: can't updatable fields (Scope)"}`,
 		},
 	}
 
 	for _, test := range tests {
-		target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu", "provider_url": "https://example.com/default-shoes"}`
+		target := `{"scope": "repo", "resource_type": "micro", "runner_user": "runner", "provider_url": "https://example.com/default-shoes"}`
 		respCreate, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 		if err != nil {
 			t.Fatalf("failed to POST request: %+v", err)
@@ -566,7 +586,7 @@ func Test_handleTargetDelete(t *testing.T) {
 
 	setStubFunctions()
 
-	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu"}`
+	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "runner"}`
 
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 	if err != nil {
