@@ -83,3 +83,13 @@ func listRunners(ctx context.Context, client *github.Client, owner, repo string,
 	}
 	return runners, resp, nil
 }
+
+// GetLatestRunnerVersion get a latest version of actions/runner
+func GetLatestRunnerVersion(ctx context.Context) (string, error) {
+	client := github.NewClient(runnerVersionCacheTransport.Client())
+	release, _, err := client.Repositories.GetLatestRelease(ctx, "actions", "runner")
+	if err != nil {
+		return "", fmt.Errorf("failed to get latest runner version: %w", err)
+	}
+	return *release.TagName, nil
+}

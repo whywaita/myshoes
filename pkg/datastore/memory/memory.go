@@ -57,23 +57,15 @@ func (m *Memory) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target
 }
 
 // GetTargetByScope get a target from scope
-func (m *Memory) GetTargetByScope(ctx context.Context, gheDomain, scope string) (*datastore.Target, error) {
+func (m *Memory) GetTargetByScope(ctx context.Context, scope string) (*datastore.Target, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var inputValid bool
-	if gheDomain == "" {
-		inputValid = false
-	} else {
-		inputValid = true
-	}
-
 	for _, t := range m.targets {
 		if t.Scope == scope {
-			if t.GHEDomain.Valid == inputValid && t.GHEDomain.String == gheDomain {
-				// found
-				return &t, nil
-			}
+			// found
+			return &t, nil
+
 		}
 	}
 
@@ -143,7 +135,7 @@ func (m *Memory) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken s
 }
 
 // UpdateTargetParam update parameter of target
-func (m *Memory) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType, newRunnerVersion, newRunnerUser, newProviderURL string) error {
+func (m *Memory) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType, newProviderURL string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -152,14 +144,6 @@ func (m *Memory) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newR
 		return fmt.Errorf("not found")
 	}
 	t.ResourceType = newResourceType
-	t.RunnerVersion = sql.NullString{
-		String: newRunnerVersion,
-		Valid:  true,
-	}
-	t.RunnerUser = sql.NullString{
-		String: newRunnerUser,
-		Valid:  true,
-	}
 	t.ProviderURL = sql.NullString{
 		String: newProviderURL,
 		Valid:  true,

@@ -52,9 +52,9 @@ func newShoes() (*myShoes, error) {
 	}
 
 	unlimit := unlimited.Unlimited{}
-	s := starter.New(ds, unlimit)
+	s := starter.New(ds, unlimit, config.Config.RunnerVersion)
 
-	manager := runner.New(ds)
+	manager := runner.New(ds, config.Config.RunnerVersion)
 
 	return &myShoes{
 		ds:    ds,

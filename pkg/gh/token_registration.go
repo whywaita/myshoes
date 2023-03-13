@@ -14,13 +14,13 @@ var (
 
 // GetRunnerRegistrationToken get token for register runner
 // clientInstallation needs to response of `NewClientInstallation()`
-func GetRunnerRegistrationToken(ctx context.Context, gheDomain string, installationID int64, scope string) (string, error) {
+func GetRunnerRegistrationToken(ctx context.Context, installationID int64, scope string) (string, error) {
 	cachedToken := getRunnerRegisterTokenFromCache(installationID, scope)
 	if cachedToken != "" {
 		return cachedToken, nil
 	}
 
-	rrToken, expiresAt, err := generateRunnerRegisterToken(ctx, gheDomain, installationID, scope)
+	rrToken, expiresAt, err := generateRunnerRegisterToken(ctx, installationID, scope)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate runner register token: %w", err)
 	}
@@ -30,8 +30,8 @@ func GetRunnerRegistrationToken(ctx context.Context, gheDomain string, installat
 
 // generateRunnerRegistrationToken generate token for register runner
 // clientInstallation needs to response of `NewClientInstallation()`
-func generateRunnerRegisterToken(ctx context.Context, gheDomain string, installationID int64, scope string) (string, *time.Time, error) {
-	clientInstallation, err := NewClientInstallation(gheDomain, installationID)
+func generateRunnerRegisterToken(ctx context.Context, installationID int64, scope string) (string, *time.Time, error) {
+	clientInstallation, err := NewClientInstallation(installationID)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create a client installation: %w", err)
 	}

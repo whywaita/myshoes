@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/whywaita/myshoes/internal/config"
+
 	"github.com/whywaita/myshoes/pkg/logger"
 
 	"github.com/google/go-github/v47/github"
@@ -30,8 +32,8 @@ func GenerateGitHubAppsToken(ctx context.Context, clientApps *github.Client, ins
 
 // IsInstalledGitHubApp check installed GitHub Apps in gheDomain + inputScope
 // clientApps needs to response of `NewClientGitHubApps()`
-func IsInstalledGitHubApp(ctx context.Context, gheDomain, inputScope string) (int64, error) {
-	installations, err := GHlistInstallations(ctx, gheDomain)
+func IsInstalledGitHubApp(ctx context.Context, inputScope string) (int64, error) {
+	installations, err := GHlistInstallations(ctx)
 	if err != nil {
 		return -1, fmt.Errorf("failed to get list of installations: %w", err)
 	}
@@ -53,7 +55,7 @@ func IsInstalledGitHubApp(ctx context.Context, gheDomain, inputScope string) (in
 			case strings.EqualFold(*i.RepositorySelection, "selected"):
 				// "selected" can use GitHub Apps in only some repositories that permitted.
 				// So, need to check more using other endpoint.
-				err := isInstalledGitHubAppSelected(ctx, gheDomain, inputScope, *i.ID)
+				err := isInstalledGitHubAppSelected(ctx, inputScope, *i.ID)
 				if err == nil {
 					// found
 					return *i.ID, nil
@@ -62,11 +64,11 @@ func IsInstalledGitHubApp(ctx context.Context, gheDomain, inputScope string) (in
 		}
 	}
 
-	return -1, fmt.Errorf("%s/%s is not installed configured GitHub Apps", gheDomain, inputScope)
+	return -1, fmt.Errorf("%s/%s is not installed configured GitHub Apps", config.Config.GitHubURL, inputScope)
 }
 
-func isInstalledGitHubAppSelected(ctx context.Context, gheDomain, inputScope string, installationID int64) error {
-	installedRepository, err := GHlistAppsInstalledRepo(ctx, gheDomain, installationID)
+func isInstalledGitHubAppSelected(ctx context.Context, inputScope string, installationID int64) error {
+	installedRepository, err := GHlistAppsInstalledRepo(ctx, installationID)
 	if err != nil {
 		return fmt.Errorf("failed to get list of installed repositories: %w", err)
 	}
@@ -93,8 +95,8 @@ func isInstalledGitHubAppSelected(ctx context.Context, gheDomain, inputScope str
 	}
 }
 
-func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID int64) ([]*github.Repository, error) {
-	clientInstallation, err := NewClientInstallation(gheDomain, installationID)
+func listAppsInstalledRepo(ctx context.Context, installationID int64) ([]*github.Repository, error) {
+	clientInstallation, err := NewClientInstallation(installationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a client installation: %w", err)
 	}
@@ -121,8 +123,8 @@ func listAppsInstalledRepo(ctx context.Context, gheDomain string, installationID
 	return repositories, nil
 }
 
-func listInstallations(ctx context.Context, gheDomain string) ([]*github.Installation, error) {
-	clientApps, err := NewClientGitHubApps(gheDomain)
+func listInstallations(ctx context.Context) ([]*github.Installation, error) {
+	clientApps, err := NewClientGitHubApps()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a client Apps: %w", err)
 	}

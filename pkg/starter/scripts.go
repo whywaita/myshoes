@@ -7,10 +7,14 @@ import (
 	_ "embed" // TODO:
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"text/template"
+
+	"github.com/whywaita/myshoes/internal/config"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
+	"github.com/whywaita/myshoes/pkg/runner"
 )
 
 //go:embed scripts/RunnerService.js
@@ -43,11 +47,18 @@ func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target, r
 }
 
 func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target, runnerName string) (string, error) {
-	runnerUser := ""
-	if target.RunnerUser.Valid {
-		runnerUser = target.RunnerUser.String
+	runnerUser := config.Config.RunnerUser
+
+	targetRunnerVersion := s.runnerVersion
+	if strings.EqualFold(s.runnerVersion, "latest") {
+		latestVersion, err := gh.GetLatestRunnerVersion(ctx)
+		if err != nil {
+			return "", fmt.Errorf("failed to get latest version of actions/runner: %w", err)
+		}
+		targetRunnerVersion = latestVersion
 	}
-	runnerVersion, runnerTemporaryMode, err := datastore.GetRunnerTemporaryMode(target.RunnerVersion)
+
+	runnerVersion, runnerTemporaryMode, err := runner.GetRunnerTemporaryMode(targetRunnerVersion)
 	if err != nil {
 		return "", fmt.Errorf("failed to get runner version: %w", err)
 	}
@@ -57,18 +68,18 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		return "", fmt.Errorf("failed to get patched files: %w", err)
 	}
 
-	installationID, err := gh.IsInstalledGitHubApp(ctx, target.GHEDomain.String, target.Scope)
+	installationID, err := gh.IsInstalledGitHubApp(ctx, target.Scope)
 	if err != nil {
 		return "", fmt.Errorf("failed to get installlation id: %w", err)
 	}
-	token, err := gh.GetRunnerRegistrationToken(ctx, target.GHEDomain.String, installationID, target.Scope)
+	token, err := gh.GetRunnerRegistrationToken(ctx, installationID, target.Scope)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate runner register token: %w", err)
 	}
 
 	v := templateCreateLatestRunnerOnceValue{
 		Scope:                   target.Scope,
-		GHEDomain:               target.GHEDomain.String,
+		GHEDomain:               config.Config.GitHubURL,
 		RunnerRegistrationToken: token,
 		RunnerName:              runnerName,
 		RunnerUser:              runnerUser,

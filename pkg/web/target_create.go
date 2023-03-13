@@ -2,11 +2,14 @@ package web
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/whywaita/myshoes/internal/config"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -15,7 +18,7 @@ import (
 )
 
 func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
-	// input values: scope, gpt, ghe_domain, resource_type
+	// input values: scope, gpt, resource_type
 	ctx := r.Context()
 	inputTarget := TargetCreateParam{}
 	if err := json.NewDecoder(r.Body).Decode(&inputTarget); err != nil {
@@ -29,14 +32,14 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		outputErrorMsg(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	installationID, err := GHIsInstalledGitHubApp(ctx, inputTarget.GHEDomain, inputTarget.Scope)
+	installationID, err := GHIsInstalledGitHubApp(ctx, inputTarget.Scope)
 	if err != nil {
 		logger.Logf(false, "failed to check installed GitHub App: %+v", err)
 		outputErrorMsg(w, http.StatusBadRequest, "failed to check to install GitHub Apps. Are you installed?")
 		return
 	}
 
-	clientApps, err := GHNewClientApps(inputTarget.GHEDomain)
+	clientApps, err := GHNewClientApps()
 	if err != nil {
 		logger.Logf(false, "failed to client of GitHub Apps: %+v", err)
 		outputErrorMsg(w, http.StatusInternalServerError, "failed to client GitHub Apps")
@@ -50,12 +53,12 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	}
 
 	t := inputTarget.ToDS(token, *expiredAt)
-	if err := isValidScopeAndToken(ctx, t.Scope, t.GHEDomain.String, token); err != nil {
+	if err := isValidScopeAndToken(ctx, t.Scope, token); err != nil {
 		outputErrorMsg(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	target, err := ds.GetTargetByScope(ctx, t.GHEDomain.String, t.Scope)
+	target, err := ds.GetTargetByScope(ctx, t.Scope)
 	var targetUUID uuid.UUID
 
 	switch {
@@ -68,7 +71,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		}
 		targetUUID = *u
 	case err != nil:
-		logger.Logf(false, "failed to get target by scope [ghe_domain: %s scope: %s]: %+v", t.GHEDomain.String, t.Scope, err)
+		logger.Logf(false, "failed to get target by scope [ghe_domain: %s scope: %s]: %+v", config.Config.GitHubURL, t.Scope, err)
 		outputErrorMsg(w, http.StatusInternalServerError, "datastore error")
 		return
 
@@ -85,18 +88,14 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 			outputErrorMsg(w, http.StatusInternalServerError, "datastore recreate error")
 			return
 		}
-		resourceType, runnerVersion, runnerUser, providerURL := getWillUpdateTargetVariable(getWillUpdateTargetVariableOld{
-			resourceType:  target.ResourceType,
-			runnerVersion: target.RunnerVersion,
-			runnerUser:    target.RunnerUser,
-			providerURL:   target.ProviderURL,
+		resourceType, providerURL := getWillUpdateTargetVariable(getWillUpdateTargetVariableOld{
+			resourceType: target.ResourceType,
+			providerURL:  target.ProviderURL,
 		}, getWillUpdateTargetVariableNew{
-			resourceType:  inputTarget.ResourceType,
-			runnerVersion: inputTarget.RunnerVersion,
-			runnerUser:    inputTarget.RunnerUser,
-			providerURL:   inputTarget.ProviderURL,
+			resourceType: inputTarget.ResourceType,
+			providerURL:  inputTarget.ProviderURL,
 		})
-		if err := ds.UpdateTargetParam(ctx, target.UUID, resourceType, runnerVersion, runnerUser, providerURL); err != nil {
+		if err := ds.UpdateTargetParam(ctx, target.UUID, resourceType, providerURL); err != nil {
 			logger.Logf(false, "failed to update resource type in recreating target: %+v", err)
 			outputErrorMsg(w, http.StatusInternalServerError, "update resource type error")
 			return
@@ -118,13 +117,13 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	json.NewEncoder(w).Encode(ut)
 }
 
-func isValidScopeAndToken(ctx context.Context, scope, gheDomain, githubPersonalToken string) error {
-	if err := GHExistGitHubRepositoryFunc(scope, gheDomain, githubPersonalToken); err != nil {
+func isValidScopeAndToken(ctx context.Context, scope, githubPersonalToken string) error {
+	if err := GHExistGitHubRepositoryFunc(scope, githubPersonalToken); err != nil {
 		logger.Logf(false, "failed to found github repository: %+v", err)
 		return fmt.Errorf("github scope is invalid (maybe, repository is not found)")
 	}
 
-	client, err := gh.NewClient(githubPersonalToken, gheDomain)
+	client, err := gh.NewClient(githubPersonalToken)
 	if err != nil {
 		logger.Logf(false, "failed to create GitHub client: %+v", err)
 		return fmt.Errorf("invalid github token in input scope")
@@ -143,6 +142,14 @@ func createNewTarget(ctx context.Context, input datastore.Target, ds datastore.D
 	now := time.Now().UTC()
 	input.CreatedAt = now
 	input.UpdatedAt = now
+
+	input.GHEDomain = sql.NullString{}
+	if config.Config.GitHubURL != "https://github.com" {
+		input.GHEDomain = sql.NullString{
+			String: config.Config.GitHubURL,
+			Valid:  true,
+		}
+	}
 	if err := ds.CreateTarget(ctx, input); err != nil {
 		logger.Logf(false, "failed to create target in datastore: %+v", err)
 		return nil, fmt.Errorf("datastore create error")

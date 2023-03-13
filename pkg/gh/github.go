@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strings"
 	"sync"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/google/go-github/v47/github"
 	"github.com/m4ns0ur/httpcache"
 	"github.com/patrickmn/go-cache"
+	"github.com/whywaita/myshoes/internal/config"
 	"golang.org/x/oauth2"
 )
 
@@ -30,6 +30,8 @@ var (
 
 	// httpCache is shareable response cache
 	httpCache = httpcache.NewMemoryCache()
+	// runnerVersionCache is response cache for github.com/actions/runner
+	runnerVersionCacheTransport = httpcache.NewMemoryCacheTransport()
 	// appTransport is transport for GitHub Apps
 	appTransport = ghinstallation.AppsTransport{}
 	// installationTransports is map of ghinstallation.Transport for cache token of installation.
@@ -49,7 +51,7 @@ func InitializeCache(appID int64, appPEM []byte) error {
 }
 
 // NewClient create a client of GitHub
-func NewClient(token, gheDomain string) (*github.Client, error) {
+func NewClient(token string) (*github.Client, error) {
 	oauth2Transport := &oauth2.Transport{
 		Source: oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: token},
@@ -61,46 +63,46 @@ func NewClient(token, gheDomain string) (*github.Client, error) {
 		MarkCachedResponses: true,
 	}
 
-	if gheDomain == "" {
+	if !config.Config.IsGHES() {
 		return github.NewClient(&http.Client{Transport: transport}), nil
 	}
 
-	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: transport})
+	return github.NewEnterpriseClient(config.Config.GitHubURL, config.Config.GitHubURL, &http.Client{Transport: transport})
 }
 
 // NewClientGitHubApps create a client of GitHub using Private Key from GitHub Apps
 // header is "Authorization: Bearer YOUR_JWT"
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-a-github-app
-func NewClientGitHubApps(gheDomain string) (*github.Client, error) {
-	if gheDomain == "" {
+func NewClientGitHubApps() (*github.Client, error) {
+	if !config.Config.IsGHES() {
 		return github.NewClient(&http.Client{Transport: &appTransport}), nil
 	}
 
-	apiEndpoint, err := getAPIEndpoint(gheDomain)
+	apiEndpoint, err := getAPIEndpoint()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub API Endpoint: %w", err)
 	}
 
 	itr := appTransport
 	itr.BaseURL = apiEndpoint.String()
-	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: &appTransport})
+	return github.NewEnterpriseClient(config.Config.GitHubURL, config.Config.GitHubURL, &http.Client{Transport: &appTransport})
 }
 
 // NewClientInstallation create a client of GitHub using installation ID from GitHub Apps
 // header is "Authorization: token YOUR_INSTALLATION_ACCESS_TOKEN"
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-an-installation
-func NewClientInstallation(gheDomain string, installationID int64) (*github.Client, error) {
+func NewClientInstallation(installationID int64) (*github.Client, error) {
 	itr := getInstallationTransport(installationID)
 
-	if strings.EqualFold(gheDomain, "") || strings.EqualFold(gheDomain, "https://github.com") {
+	if !config.Config.IsGHES() {
 		return github.NewClient(&http.Client{Transport: itr}), nil
 	}
-	apiEndpoint, err := getAPIEndpoint(gheDomain)
+	apiEndpoint, err := getAPIEndpoint()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub API Endpoint: %w", err)
 	}
 	itr.BaseURL = apiEndpoint.String()
-	return github.NewEnterpriseClient(gheDomain, gheDomain, &http.Client{Transport: itr})
+	return github.NewEnterpriseClient(config.Config.GitHubURL, config.Config.GitHubURL, &http.Client{Transport: itr})
 }
 
 func setInstallationTransport(installationID int64, itr ghinstallation.Transport) {
@@ -153,8 +155,8 @@ func ExistRunnerReleases(runnerVersion string) error {
 }
 
 // ExistGitHubRepository check exist of GitHub repository
-func ExistGitHubRepository(scope, gheDomain string, accessToken string) error {
-	repoURL, err := getRepositoryURL(scope, gheDomain)
+func ExistGitHubRepository(scope string, accessToken string) error {
+	repoURL, err := getRepositoryURL(scope)
 	if err != nil {
 		return fmt.Errorf("failed to get repository url: %w", err)
 	}
@@ -180,7 +182,7 @@ func ExistGitHubRepository(scope, gheDomain string, accessToken string) error {
 	return fmt.Errorf("invalid response code (%d)", resp.StatusCode)
 }
 
-func getRepositoryURL(scope, gheDomain string) (string, error) {
+func getRepositoryURL(scope string) (string, error) {
 	// github.com
 	//   => https://api.github.com/repos/:owner/:repo
 	//   => https://api.github.com/orgs/:owner
@@ -193,7 +195,7 @@ func getRepositoryURL(scope, gheDomain string) (string, error) {
 		return "", fmt.Errorf("failed to detect valid scope")
 	}
 
-	apiEndpoint, err := getAPIEndpoint(gheDomain)
+	apiEndpoint, err := getAPIEndpoint()
 	if err != nil {
 		return "", fmt.Errorf("failed to get API Endpoint: %w", err)
 	}
@@ -204,10 +206,10 @@ func getRepositoryURL(scope, gheDomain string) (string, error) {
 	return apiEndpoint.String(), nil
 }
 
-func getAPIEndpoint(gheDomain string) (*url.URL, error) {
+func getAPIEndpoint() (*url.URL, error) {
 	var apiEndpoint *url.URL
-	if gheDomain != "" {
-		u, err := url.Parse(gheDomain)
+	if config.Config.IsGHES() {
+		u, err := url.Parse(config.Config.GitHubURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse GHE url: %w", err)
 		}

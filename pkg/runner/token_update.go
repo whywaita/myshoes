@@ -28,12 +28,12 @@ func (m *Manager) doTargetToken(ctx context.Context) error {
 		// do refresh
 		logger.Logf(true, "%s need to update GitHub token, will be update", target.UUID)
 
-		clientApps, err := gh.NewClientGitHubApps(target.GHEDomain.String)
+		clientApps, err := gh.NewClientGitHubApps()
 		if err != nil {
 			logger.Logf(false, "failed to create a client from Apps: %+v", err)
 			continue
 		}
-		installationID, err := gh.IsInstalledGitHubApp(ctx, target.GHEDomain.String, target.Scope)
+		installationID, err := gh.IsInstalledGitHubApp(ctx, target.Scope)
 		if err != nil {
 			logger.Logf(false, "failed to get installationID: %+v", err)
 			continue

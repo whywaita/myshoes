@@ -89,6 +89,18 @@ A config variables can set from environment values.
   - required
   - set path of myshoes-provider binary.
   - example) `./shoes-mock` `https://example.com/shoes-mock` `https://github.com/whywaita/myshoes-providers/releases/download/v0.1.0/shoes-lxd-linux-amd64`
+- `GITHUB_URL`
+  - default: `https://github.com`
+  - The URL of GitHub Enterprise Server.
+  - Please contain schema.
+- `RUNNER_VERSION`
+  - default: `latest`
+    - Use the latest version in starting job
+  - The version of `actions/runner`
+  - example) `v2.302.1`, `latest`
+
+For tuning values
+
 - `DEBUG`
   - default: false
   - show debugging log

@@ -15,7 +15,7 @@ import (
 // --once flag is not delete self-hosted runner when end of job. So, The origin list of runner from GitHub.
 func (m *Manager) removeRunnerModeOnce(ctx context.Context, t datastore.Target, runner datastore.Runner, ghRunners []*github.Runner) error {
 	owner, repo := t.OwnerRepo()
-	client, err := gh.NewClient(t.GitHubToken, t.GHEDomain.String)
+	client, err := gh.NewClient(t.GitHubToken)
 	if err != nil {
 		return fmt.Errorf("failed to create github client: %w", err)
 	}

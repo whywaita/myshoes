@@ -6,9 +6,10 @@ import (
 )
 
 // Config is config value
-var Config conf
+var Config Conf
 
-type conf struct {
+// Conf is type of Config
+type Conf struct {
 	GitHub struct {
 		AppID     int64
 		AppSecret []byte
@@ -27,6 +28,9 @@ type conf struct {
 
 	MaxConnectionsToBackend int64
 	MaxConcurrencyDeleting  int64
+
+	GitHubURL     string
+	RunnerVersion string
 }
 
 // Config Environment keys
@@ -37,11 +41,14 @@ const (
 	EnvMySQLURL                  = "MYSQL_URL"
 	EnvPort                      = "PORT"
 	EnvShoesPluginPath           = "PLUGIN"
+	EnvRunnerUser                = "RUNNER_USER"
 	EnvDebug                     = "DEBUG"
 	EnvStrict                    = "STRICT"
 	EnvModeWebhookType           = "MODE_WEBHOOK_TYPE"
 	EnvMaxConnectionsToBackend   = "MAX_CONNECTIONS_TO_BACKEND"
 	EnvMaxConcurrencyDeleting    = "MAX_CONCURRENCY_DELETING"
+	EnvGitHubURL                 = "GITHUB_URL"
+	EnvRunnerVersion             = "RUNNER_VERSION"
 )
 
 // ModeWebhookType is type value for GitHub webhook
@@ -85,4 +92,9 @@ func marshalModeWebhookType(in string) ModeWebhookType {
 	}
 
 	return ModeWebhookTypeUnknown
+}
+
+// IsGHES return myshoes for GitHub Enterprise Server
+func (c Conf) IsGHES() bool {
+	return !strings.EqualFold(c.GitHubURL, "https://github.com")
 }

@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-version"
-
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -32,7 +30,7 @@ var (
 type Datastore interface {
 	CreateTarget(ctx context.Context, target Target) error
 	GetTarget(ctx context.Context, id uuid.UUID) (*Target, error)
-	GetTargetByScope(ctx context.Context, gheDomain, scope string) (*Target, error)
+	GetTargetByScope(ctx context.Context, scope string) (*Target, error)
 	ListTargets(ctx context.Context) ([]Target, error)
 	DeleteTarget(ctx context.Context, id uuid.UUID) error
 
@@ -40,7 +38,7 @@ type Datastore interface {
 	UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus TargetStatus, description string) error
 	UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error
 
-	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newRunnerVersion, newRunnerUser, newProviderURL sql.NullString) error
+	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newProviderURL sql.NullString) error
 
 	EnqueueJob(ctx context.Context, job Job) error
 	ListJobs(ctx context.Context) ([]Job, error)
@@ -59,36 +57,19 @@ type Datastore interface {
 
 // Target is a target repository that will add auto-scaling runner.
 type Target struct {
-	UUID              uuid.UUID      `db:"uuid" json:"id"`
-	Scope             string         `db:"scope" json:"scope"` // repo (:owner/:repo) or org (:organization)
-	GitHubToken       string         `db:"github_token" json:"github_token"`
-	TokenExpiredAt    time.Time      `db:"token_expired_at" json:"token_expired_at"`
-	GHEDomain         sql.NullString `db:"ghe_domain" json:"ghe_domain"`
+	UUID  uuid.UUID `db:"uuid" json:"id"`
+	Scope string    `db:"scope" json:"scope"` // repo (:owner/:repo) or org (:organization)
+	// deprecated
+	GitHubToken    string         `db:"github_token" json:"github_token"`
+	TokenExpiredAt time.Time      `db:"token_expired_at" json:"token_expired_at"`
+	GHEDomain      sql.NullString `db:"ghe_domain" json:"ghe_domain"`
+
 	ResourceType      ResourceType   `db:"resource_type" json:"resource_type"`
-	RunnerUser        sql.NullString `db:"runner_user" json:"runner_user"`
-	RunnerVersion     sql.NullString `db:"runner_version" json:"runner_version"`
 	ProviderURL       sql.NullString `db:"provider_url" json:"provider_url"`
 	Status            TargetStatus   `db:"status" json:"status"`
 	StatusDescription sql.NullString `db:"status_description" json:"status_description"`
 	CreatedAt         time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt         time.Time      `db:"updated_at" json:"updated_at"`
-}
-
-// RepoURL return repository URL.
-func (t *Target) RepoURL() string {
-	serverURL := "https://github.com"
-	if t.GHEDomain.Valid {
-		serverURL = t.GHEDomain.String
-	}
-
-	s := strings.Split(serverURL, "://")
-
-	var u url.URL
-	u.Scheme = s[0]
-	u.Host = s[1]
-	u.Path = t.Scope
-
-	return u.String()
 }
 
 // OwnerRepo return :owner and :repo
@@ -195,7 +176,6 @@ type Runner struct {
 	Status         RunnerStatus   `db:"status"`
 	ResourceType   ResourceType   `db:"resource_type"`
 	RunnerUser     sql.NullString `db:"runner_user" json:"runner_user"`
-	RunnerVersion  sql.NullString `db:"runner_version" json:"runner_version"`
 	ProviderURL    sql.NullString `db:"provider_url" json:"provider_url"`
 	RepositoryURL  string         `db:"repository_url"`
 	RequestWebhook string         `db:"request_webhook"`
@@ -213,52 +193,3 @@ const (
 	RunnerStatusCompleted                   = "completed"
 	RunnerStatusReachHardLimit              = "reach_hard_limit"
 )
-
-const (
-	// DefaultRunnerVersion is default value of actions/runner
-	DefaultRunnerVersion = "v2.275.1"
-)
-
-// RunnerTemporaryMode is mode of temporary runner
-type RunnerTemporaryMode int
-
-// RunnerEphemeralModes variable
-const (
-	RunnerTemporaryUnknown RunnerTemporaryMode = iota
-	RunnerTemporaryOnce
-	RunnerTemporaryEphemeral
-)
-
-// StringFlag return flag
-func (rtm RunnerTemporaryMode) StringFlag() string {
-	switch rtm {
-	case RunnerTemporaryOnce:
-		return "--once"
-	case RunnerTemporaryEphemeral:
-		return "--ephemeral"
-	}
-	return "unknown"
-}
-
-// GetRunnerTemporaryMode get runner version and RunnerTemporaryMode
-func GetRunnerTemporaryMode(runnerVersion sql.NullString) (string, RunnerTemporaryMode, error) {
-	if !runnerVersion.Valid {
-		// not set, return default
-		return DefaultRunnerVersion, RunnerTemporaryOnce, nil
-	}
-
-	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
-	if err != nil {
-		return "", RunnerTemporaryUnknown, fmt.Errorf("failed to parse ephemeral runner version: %w", err)
-	}
-
-	inputVersion, err := version.NewVersion(runnerVersion.String)
-	if err != nil {
-		return "", RunnerTemporaryUnknown, fmt.Errorf("failed to parse input runner version: %w", err)
-	}
-
-	if ephemeralSupportVersion.GreaterThan(inputVersion) {
-		return runnerVersion.String, RunnerTemporaryOnce, nil
-	}
-	return runnerVersion.String, RunnerTemporaryEphemeral, nil
-}
