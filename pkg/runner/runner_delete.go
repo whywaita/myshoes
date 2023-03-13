@@ -41,9 +41,9 @@ func (m *Manager) do(ctx context.Context) error {
 
 	logger.Logf(true, "found %d targets in datastore", len(targets))
 	for _, target := range targets {
-		logger.Logf(true, "start to search runner in %s", target.RepoURL())
+		logger.Logf(true, "start to search runner in %s", target.Scope)
 		if err := m.removeRunners(ctx, target); err != nil {
-			logger.Logf(false, "failed to delete runners (target: %s): %+v", target.RepoURL(), err)
+			logger.Logf(false, "failed to delete runners (target: %s): %+v", target.Scope, err)
 		}
 	}
 
@@ -56,9 +56,15 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		return fmt.Errorf("failed to retrieve list of running runner: %w", err)
 	}
 
-	_, mode, err := datastore.GetRunnerTemporaryMode(t.RunnerVersion)
-	if err != nil {
-		return fmt.Errorf("failed to get runner mode: %w", err)
+	var mode TemporaryMode
+	if strings.EqualFold(m.runnerVersion, "latest") {
+		mode = TemporaryEphemeral
+	} else {
+		_, m, err := GetRunnerTemporaryMode(m.runnerVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get runner mode: %w", err)
+		}
+		mode = m
 	}
 
 	ghRunners, err := isRegisteredRunnerZeroInGitHub(ctx, t)
@@ -68,8 +74,8 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 
 	if len(ghRunners) == 0 && len(runners) == 0 {
 		switch mode {
-		case datastore.RunnerTemporaryOnce:
-			logger.Logf(false, "runner for queueing is not found in %s", t.RepoURL())
+		case TemporaryOnce:
+			logger.Logf(false, "runner for queueing is not found in %s", t.Scope)
 			if err := datastore.UpdateTargetStatus(ctx, m.ds, t.UUID, datastore.TargetStatusErr, ErrDescriptionRunnerForQueueingIsNotFound); err != nil {
 				logger.Logf(false, "failed to update target status (target ID: %s): %+v\n", t.UUID, err)
 			}
@@ -127,18 +133,23 @@ func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner d
 		logger.Logf(false, "%s is not running MustRunningTime", runner.UUID)
 		return nil
 	}
-
-	_, mode, err := datastore.GetRunnerTemporaryMode(runner.RunnerVersion)
-	if err != nil {
-		return fmt.Errorf("failed to get runner temporary mode: %w", err)
+	var mode TemporaryMode
+	if strings.EqualFold(m.runnerVersion, "latest") {
+		mode = TemporaryEphemeral
+	} else {
+		_, m, err := GetRunnerTemporaryMode(m.runnerVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get runner mode: %w", err)
+		}
+		mode = m
 	}
 
 	switch mode {
-	case datastore.RunnerTemporaryOnce:
+	case TemporaryOnce:
 		if err := m.removeRunnerModeOnce(ctx, t, runner, ghRunners); err != nil {
 			return fmt.Errorf("failed to remove runner (mode once): %w", err)
 		}
-	case datastore.RunnerTemporaryEphemeral:
+	case TemporaryEphemeral:
 		if err := m.removeRunnerModeEphemeral(ctx, t, runner, ghRunners); err != nil {
 			return fmt.Errorf("failed to remove runner (mode ephemeral): %w", err)
 		}
@@ -149,7 +160,7 @@ func (m *Manager) removeRunner(ctx context.Context, t datastore.Target, runner d
 
 func isRegisteredRunnerZeroInGitHub(ctx context.Context, t datastore.Target) ([]*github.Runner, error) {
 	owner, repo := t.OwnerRepo()
-	client, err := gh.NewClient(t.GitHubToken, t.GHEDomain.String)
+	client, err := gh.NewClient(t.GitHubToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create github client: %w", err)
 	}

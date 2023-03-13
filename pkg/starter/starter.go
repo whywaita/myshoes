@@ -2,6 +2,7 @@ package starter
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -30,15 +31,17 @@ var (
 
 // Starter is dispatcher for running job
 type Starter struct {
-	ds     datastore.Datastore
-	safety safety.Safety
+	ds            datastore.Datastore
+	safety        safety.Safety
+	runnerVersion string
 }
 
 // New create starter instance
-func New(ds datastore.Datastore, s safety.Safety) *Starter {
+func New(ds datastore.Datastore, s safety.Safety, runnerVersion string) *Starter {
 	return &Starter{
-		ds:     ds,
-		safety: s,
+		ds:            ds,
+		safety:        s,
+		runnerVersion: runnerVersion,
 	}
 }
 
@@ -190,14 +193,16 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 	}
 
 	r := datastore.Runner{
-		UUID:           job.UUID,
-		ShoesType:      shoesType,
-		IPAddress:      ipAddress,
-		TargetID:       job.TargetID,
-		CloudID:        cloudID,
-		ResourceType:   resourceType,
-		RunnerUser:     target.RunnerUser,
-		RunnerVersion:  target.RunnerVersion,
+		UUID:         job.UUID,
+		ShoesType:    shoesType,
+		IPAddress:    ipAddress,
+		TargetID:     job.TargetID,
+		CloudID:      cloudID,
+		ResourceType: resourceType,
+		RunnerUser: sql.NullString{
+			String: config.Config.RunnerUser,
+			Valid:  true,
+		},
 		ProviderURL:    target.ProviderURL,
 		RepositoryURL:  job.RepoURL(),
 		RequestWebhook: job.CheckEventJSON,
@@ -278,7 +283,7 @@ func deleteInstance(ctx context.Context, cloudID, checkEventJSON string) error {
 
 // checkRegisteredRunner check to register runner to GitHub
 func (s *Starter) checkRegisteredRunner(ctx context.Context, runnerName string, target datastore.Target) error {
-	client, err := gh.NewClient(target.GitHubToken, target.GHEDomain.String)
+	client, err := gh.NewClient(target.GitHubToken)
 	if err != nil {
 		return fmt.Errorf("failed to create github client: %w", err)
 	}

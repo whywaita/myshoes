@@ -3,7 +3,6 @@ package web_test
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -36,7 +35,7 @@ func parseResponse(resp *http.Response) ([]byte, int) {
 }
 
 func setStubFunctions() {
-	web.GHExistGitHubRepositoryFunc = func(scope, gheDomain string, githubPersonalToken string) error {
+	web.GHExistGitHubRepositoryFunc = func(scope string, githubPersonalToken string) error {
 		return nil
 	}
 
@@ -48,7 +47,7 @@ func setStubFunctions() {
 		return nil, nil
 	}
 
-	web.GHIsInstalledGitHubApp = func(ctx context.Context, gheDomain, inputScope string) (int64, error) {
+	web.GHIsInstalledGitHubApp = func(ctx context.Context, inputScope string) (int64, error) {
 		return testInstallationID, nil
 	}
 
@@ -56,7 +55,7 @@ func setStubFunctions() {
 		return testGitHubAppToken, &testTime, nil
 	}
 
-	web.GHNewClientApps = func(gheDomain string) (*github.Client, error) {
+	web.GHNewClientApps = func() (*github.Client, error) {
 		return &github.Client{}, nil
 	}
 }
@@ -69,56 +68,67 @@ func Test_handleTargetCreate(t *testing.T) {
 	setStubFunctions()
 
 	tests := []struct {
-		input string
-		want  *web.UserTarget
-		err   bool
+		input          string
+		inputGHEDomain string
+		want           *web.UserTarget
+		err            bool
 	}{
 		{
-			input: `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`,
+			input: `{"scope": "octocat", "resource_type": "micro", "runner_user": "runner"}`,
 			want: &web.UserTarget{
 				Scope:          "octocat",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeMicro.String(),
-				RunnerUser:     "ubuntu",
 				Status:         datastore.TargetStatusActive,
 			},
 			err: false,
 		},
 		{
-			input: `{"scope": "whywaita/whywaita", "ghe_domain": "github.example.com", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			input: `{"scope": "whywaita/whywaita", "resource_type": "nano", "runner_user": "runner"}`,
 			want: &web.UserTarget{
 				Scope:          "whywaita/whywaita",
 				TokenExpiredAt: testTime,
-				GHEDomain:      "github.example.com",
 				ResourceType:   datastore.ResourceTypeNano.String(),
-				RunnerUser:     "ubuntu",
+				Status:         datastore.TargetStatusActive,
+			},
+		},
+		{ // Confirm that no error occurs even if ghe_domain is specified
+			input: `{"scope": "whywaita/whywaita2", "resource_type": "nano", "runner_user": "runner", "ghe_domain": "https://example.com"}`,
+			want: &web.UserTarget{
+				Scope:          "whywaita/whywaita2",
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano.String(),
 				Status:         datastore.TargetStatusActive,
 			},
 		},
 	}
 
 	for _, test := range tests {
-		resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(test.input))
-		if !test.err && err != nil {
-			t.Fatalf("failed to POST request: %+v", err)
-		}
-		content, code := parseResponse(resp)
-		if code != http.StatusCreated {
-			t.Fatalf("must be response statuscode is 201, but got %d", code)
+		f := func() {
+			resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(test.input))
+			if !test.err && err != nil {
+				t.Fatalf("failed to POST request: %+v", err)
+			}
+			content, code := parseResponse(resp)
+			if code != http.StatusCreated {
+				t.Fatalf("must be response statuscode is 201, but got %d", code)
+			}
+
+			var gotContent web.UserTarget
+			if err := json.Unmarshal(content, &gotContent); err != nil {
+				t.Fatalf("failed to unmarshal resoponse content: %+v", err)
+			}
+
+			gotContent.UUID = uuid.UUID{}
+			gotContent.CreatedAt = time.Time{}
+			gotContent.UpdatedAt = time.Time{}
+
+			if diff := cmp.Diff(test.want, &gotContent); diff != "" {
+				t.Errorf("mismatch (-want +got):\n%s", diff)
+			}
 		}
 
-		var gotContent web.UserTarget
-		if err := json.Unmarshal(content, &gotContent); err != nil {
-			t.Fatalf("failed to unmarshal resoponse content: %+v", err)
-		}
-
-		gotContent.UUID = uuid.UUID{}
-		gotContent.CreatedAt = time.Time{}
-		gotContent.UpdatedAt = time.Time{}
-
-		if diff := cmp.Diff(test.want, &gotContent); diff != "" {
-			t.Errorf("mismatch (-want +got):\n%s", diff)
-		}
+		f()
 	}
 }
 
@@ -129,7 +139,7 @@ func Test_handleTargetCreate_alreadyRegistered(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "runner", "ghe_domain": "https://example.com"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -159,7 +169,7 @@ func Test_handleTargetCreate_recreated(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "runner", "ghe_domain": "https://example.com"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -218,7 +228,7 @@ func Test_handleTargetCreate_recreated_update(t *testing.T) {
 
 	setStubFunctions()
 
-	input := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu"}`
+	input := `{"scope": "octocat", "resource_type": "micro", "runner_user": "runner", "ghe_domain": "https://example.com"}`
 
 	// first create
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(input))
@@ -252,7 +262,7 @@ func Test_handleTargetCreate_recreated_update(t *testing.T) {
 	}
 
 	// second create
-	secondInput := `{"scope": "octocat", "ghe_domain": "", "resource_type": "micro", "runner_user": "ubuntu", "runner_version": "v0.000.1"}`
+	secondInput := `{"scope": "octocat", "resource_type": "micro", "runner_user": "runner", "ghe_domain": "https://example.com"}`
 
 	resp, err = http.Post(testURL+"/target", "application/json", bytes.NewBufferString(secondInput))
 	if err != nil {
@@ -270,9 +280,6 @@ func Test_handleTargetCreate_recreated_update(t *testing.T) {
 	if got.Status != datastore.TargetStatusActive {
 		t.Fatalf("must be status is active when recreated")
 	}
-	if got.RunnerVersion.String != "v0.000.1" {
-		t.Fatalf("must be update runner_version in second createm")
-	}
 }
 
 func Test_handleTargetList(t *testing.T) {
@@ -283,7 +290,7 @@ func Test_handleTargetList(t *testing.T) {
 	setStubFunctions()
 
 	for _, rt := range []string{"nano", "micro"} {
-		target := fmt.Sprintf(`{"scope": "repo%s", "resource_type": "%s", "runner_user": "ubuntu"}`,
+		target := fmt.Sprintf(`{"scope": "repo%s", "resource_type": "%s", "runner_user": "runner"}`,
 			rt, rt)
 		resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 		if err != nil {
@@ -306,14 +313,12 @@ func Test_handleTargetList(t *testing.T) {
 					Scope:          "reponano",
 					TokenExpiredAt: testTime,
 					ResourceType:   datastore.ResourceTypeNano.String(),
-					RunnerUser:     "ubuntu",
 					Status:         datastore.TargetStatusActive,
 				},
 				{
 					Scope:          "repomicro",
 					TokenExpiredAt: testTime,
 					ResourceType:   datastore.ResourceTypeMicro.String(),
-					RunnerUser:     "ubuntu",
 					Status:         datastore.TargetStatusActive,
 				},
 			},
@@ -354,7 +359,7 @@ func Test_handleTargetRead(t *testing.T) {
 
 	setStubFunctions()
 
-	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu"}`
+	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "runner"}`
 
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 	if err != nil {
@@ -382,7 +387,6 @@ func Test_handleTargetRead(t *testing.T) {
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeMicro.String(),
-				RunnerUser:     "ubuntu",
 				Status:         datastore.TargetStatusActive,
 			},
 		},
@@ -425,27 +429,34 @@ func Test_handleTargetUpdate(t *testing.T) {
 		err   bool
 	}{
 		{ // Update a few values
-			input: `{"scope": "repo", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			input: `{"scope": "repo", "resource_type": "nano"}`,
 			want: &web.UserTarget{
 				UUID:           uuid.UUID{},
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
-				RunnerUser:     "ubuntu",
-				RunnerVersion:  "",
+				ProviderURL:    "https://example.com/default-shoes",
+				Status:         datastore.TargetStatusActive,
+			},
+		},
+		{ // Confirm that no error occurs even if ghe_domain is specified
+			input: `{"scope": "repo", "resource_type": "nano", "ghe_domain": "https://example.com"}`,
+			want: &web.UserTarget{
+				UUID:           uuid.UUID{},
+				Scope:          "repo",
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano.String(),
 				ProviderURL:    "https://example.com/default-shoes",
 				Status:         datastore.TargetStatusActive,
 			},
 		},
 		{ // Update all values
-			input: `{"scope": "repo", "resource_type": "micro", "runner_user": "super-user", "runner_version": "v9.999.9", "provider_url": "https://example.com/shoes-provider"}`,
+			input: `{"scope": "repo", "resource_type": "micro", "provider_url": "https://example.com/shoes-provider"}`,
 			want: &web.UserTarget{
 				UUID:           uuid.UUID{},
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeMicro.String(),
-				RunnerUser:     "super-user",
-				RunnerVersion:  "v9.999.9",
 				ProviderURL:    "https://example.com/shoes-provider",
 				Status:         datastore.TargetStatusActive,
 			},
@@ -457,8 +468,6 @@ func Test_handleTargetUpdate(t *testing.T) {
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
-				RunnerUser:     "ubuntu",
-				RunnerVersion:  "",
 				ProviderURL:    "https://example.com/default-shoes",
 				Status:         datastore.TargetStatusActive,
 			},
@@ -470,8 +479,6 @@ func Test_handleTargetUpdate(t *testing.T) {
 				Scope:          "repo",
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano.String(),
-				RunnerUser:     "ubuntu",
-				RunnerVersion:  "",
 				ProviderURL:    "",
 				Status:         datastore.TargetStatusActive,
 			},
@@ -479,7 +486,7 @@ func Test_handleTargetUpdate(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu", "provider_url": "https://example.com/default-shoes"}`
+		target := `{"scope": "repo", "resource_type": "micro", "runner_user": "runner", "provider_url": "https://example.com/default-shoes"}`
 		respCreate, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 		if err != nil {
 			t.Fatalf("failed to POST request: %+v", err)
@@ -533,24 +540,14 @@ func Test_handleTargetUpdate_Error(t *testing.T) {
 		want     string
 	}{
 		{ // Invalid: must set scope
-			input:    `{"ghe_domain": "https://github.example.com", "resource_type": "nano", "runner_user": "ubuntu"}`,
+			input:    `{"resource_type": "nano", "runner_user": "runner"}`,
 			wantCode: http.StatusBadRequest,
 			want:     `{"error":"invalid input: can't updatable fields (Scope)"}`,
-		},
-		{ // Invalid: must set ghe_domain
-			input:    `{"scope": "repo", "resource_type": "nano", "runner_user": "ubuntu"}`,
-			wantCode: http.StatusBadRequest,
-			want:     `{"error":"invalid input: can't updatable fields (GHEDomain)"}`,
-		},
-		{ // Invalid: runner_version is semver
-			input:    `{"scope": "repo", "ghe_domain": "https://github.example.com", "resource_type": "nano", "runner_user": "ubuntu", "runner_version": "v2.100"}`,
-			wantCode: http.StatusBadRequest,
-			want:     `{"error": "runner_version must has version of major, sem, patch"}`,
 		},
 	}
 
 	for _, test := range tests {
-		target := `{"scope": "repo", "ghe_domain": "https://github.example.com", "resource_type": "micro", "runner_user": "ubuntu", "provider_url": "https://example.com/default-shoes"}`
+		target := `{"scope": "repo", "resource_type": "micro", "runner_user": "runner", "provider_url": "https://example.com/default-shoes"}`
 		respCreate, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 		if err != nil {
 			t.Fatalf("failed to POST request: %+v", err)
@@ -589,7 +586,7 @@ func Test_handleTargetDelete(t *testing.T) {
 
 	setStubFunctions()
 
-	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "ubuntu"}`
+	target := `{"scope": "repo", "resource_type": "micro", "runner_user": "runner"}`
 
 	resp, err := http.Post(testURL+"/target", "application/json", bytes.NewBufferString(target))
 	if err != nil {
@@ -618,11 +615,7 @@ func Test_handleTargetDelete(t *testing.T) {
 				GitHubToken:    testGitHubAppToken,
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeMicro,
-				RunnerUser: sql.NullString{
-					Valid:  true,
-					String: "ubuntu",
-				},
-				Status: datastore.TargetStatusDeleted,
+				Status:         datastore.TargetStatusDeleted,
 			},
 		},
 	}

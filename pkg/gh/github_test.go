@@ -1,6 +1,11 @@
 package gh
 
-import "testing"
+import (
+	"os"
+	"testing"
+
+	"github.com/whywaita/myshoes/internal/config"
+)
 
 func TestDetectScope(t *testing.T) {
 	tests := []struct {
@@ -35,9 +40,8 @@ func TestDetectScope(t *testing.T) {
 }
 
 type TestGetRepositoryURLInput struct {
-	scope          string
-	gheDomain      string
-	gheDomainValid bool
+	scope     string
+	gheDomain string
 }
 
 func TestGetRepositoryURL(t *testing.T) {
@@ -48,59 +52,72 @@ func TestGetRepositoryURL(t *testing.T) {
 	}{
 		{
 			input: TestGetRepositoryURLInput{
-				scope:          "org/repo",
-				gheDomain:      "",
-				gheDomainValid: false,
+				scope:     "org/repo",
+				gheDomain: "",
 			},
 			want: "https://api.github.com/repos/org/repo",
 			err:  nil,
 		},
 		{
 			input: TestGetRepositoryURLInput{
-				scope:          "org",
-				gheDomain:      "",
-				gheDomainValid: false,
+				scope:     "org",
+				gheDomain: "",
 			},
 			want: "https://api.github.com/orgs/org",
 			err:  nil,
 		},
 		{
 			input: TestGetRepositoryURLInput{
-				scope:          "org/repo",
-				gheDomain:      "github-enterprise.example.com",
-				gheDomainValid: true,
-			},
-			want: "github-enterprise.example.com/api/v3/repos/org/repo",
-			err:  nil,
-		},
-		{
-			input: TestGetRepositoryURLInput{
-				scope:          "org",
-				gheDomain:      "github-enterprise.example.com",
-				gheDomainValid: true,
-			},
-			want: "github-enterprise.example.com/api/v3/orgs/org",
-			err:  nil,
-		},
-		{
-			input: TestGetRepositoryURLInput{
-				scope:          "org/repo",
-				gheDomain:      "https://github-enterprise.example.com/",
-				gheDomainValid: true,
+				scope:     "org/repo",
+				gheDomain: "https://github-enterprise.example.com",
 			},
 			want: "https://github-enterprise.example.com/api/v3/repos/org/repo",
+			err:  nil,
+		},
+		{
+			input: TestGetRepositoryURLInput{
+				scope:     "org",
+				gheDomain: "https://github-enterprise.example.com",
+			},
+			want: "https://github-enterprise.example.com/api/v3/orgs/org",
+			err:  nil,
+		},
+		{
+			input: TestGetRepositoryURLInput{
+				scope:     "org/repo",
+				gheDomain: "https://github-enterprise.example.com/",
+			},
+			want: "https://github-enterprise.example.com/api/v3/repos/org/repo",
+			err:  nil,
+		},
+		{
+			input: TestGetRepositoryURLInput{
+				scope:     "org/repo",
+				gheDomain: "https://github-enterprise.example.com/github",
+			},
+			want: "https://github-enterprise.example.com/github/api/v3/repos/org/repo",
 			err:  nil,
 		},
 	}
 
 	for _, test := range tests {
-		got, err := getRepositoryURL(test.input.scope, test.input.gheDomain)
-		if err != test.err {
-			t.Fatalf("getRepositoryURL want err %+v, but return err %+v", test.err, err)
-		}
+		f := func() {
+			if test.input.gheDomain != "" {
+				t.Setenv("GITHUB_URL", test.input.gheDomain)
+				defer os.Unsetenv("GITHUB_URL")
+			}
 
-		if got != test.want {
-			t.Fatalf("want %s, but got %s", test.want, got)
+			config.LoadWithDefault()
+
+			got, err := getRepositoryURL(test.input.scope)
+			if err != test.err {
+				t.Fatalf("getRepositoryURL want err %+v, but return err %+v", test.err, err)
+			}
+
+			if got != test.want {
+				t.Fatalf("want %s, but got %s", test.want, got)
+			}
 		}
+		f()
 	}
 }

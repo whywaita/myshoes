@@ -60,10 +60,6 @@ func TestMySQL_CreateRunner(t *testing.T) {
 					String: "runner",
 					Valid:  true,
 				},
-				RunnerVersion: sql.NullString{
-					String: "v0.0.0",
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: "./shoes-test",
 					Valid:  true,
@@ -79,10 +75,6 @@ func TestMySQL_CreateRunner(t *testing.T) {
 				ResourceType: datastore.ResourceTypeNano,
 				RunnerUser: sql.NullString{
 					String: "runner",
-					Valid:  true,
-				},
-				RunnerVersion: sql.NullString{
-					String: "v0.0.0",
 					Valid:  true,
 				},
 				ProviderURL: sql.NullString{
@@ -409,7 +401,7 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 
 func getRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
-	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook, runner_user, runner_version, provider_url FROM runner_detail WHERE runner_id = ?`
+	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook, runner_user, provider_url FROM runner_detail WHERE runner_id = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)

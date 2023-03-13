@@ -9,7 +9,7 @@ import (
 )
 
 func setStubFunctions() {
-	GHlistInstallations = func(ctx context.Context, gheDomain string) ([]*github.Installation, error) {
+	GHlistInstallations = func(ctx context.Context) ([]*github.Installation, error) {
 		i10 := int64(10)
 		i11 := int64(11)
 		i12 := int64(12)
@@ -49,7 +49,7 @@ func setStubFunctions() {
 		}, nil
 	}
 
-	GHlistAppsInstalledRepo = func(ctx context.Context, gheDomain string, installationID int64) ([]*github.Repository, error) {
+	GHlistAppsInstalledRepo = func(ctx context.Context, installationID int64) ([]*github.Repository, error) {
 		fullName1 := "example-selected/sample-registered"
 		return []*github.Repository{
 			{
@@ -121,7 +121,7 @@ func Test_IsInstalledGitHubApp(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := IsInstalledGitHubApp(context.Background(), test.input.gheDomain, test.input.scope)
+		got, err := IsInstalledGitHubApp(context.Background(), test.input.scope)
 		if !test.err && err != nil {
 			t.Fatalf("failed to check GitHub Apps: %+v", err)
 		}

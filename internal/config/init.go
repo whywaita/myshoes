@@ -13,15 +13,19 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/go-version"
 )
 
 // Load load config from environment
 func Load() {
+	c := LoadWithDefault()
+
 	appID, err := strconv.ParseInt(os.Getenv(EnvGitHubAppID), 10, 64)
 	if err != nil {
 		log.Panicf("failed to parse %s: %+v", EnvGitHubAppID, err)
 	}
-	Config.GitHub.AppID = appID
+	c.GitHub.AppID = appID
 
 	pemBase64ed := os.Getenv(EnvGitHubAppPrivateKeyBase64)
 	if pemBase64ed == "" {
@@ -31,7 +35,7 @@ func Load() {
 	if err != nil {
 		log.Panicf("failed to decode base64 %s: %+v", EnvGitHubAppPrivateKeyBase64, err)
 	}
-	Config.GitHub.PEMByte = pemByte
+	c.GitHub.PEMByte = pemByte
 	block, _ := pem.Decode(pemByte)
 	if block == nil {
 		log.Panicf("%s is invalid format, please input private key ", EnvGitHubAppPrivateKeyBase64)
@@ -40,29 +44,19 @@ func Load() {
 	if err != nil {
 		log.Panicf("%s is invalid format, failed to parse private key: %+v", EnvGitHubAppPrivateKeyBase64, err)
 	}
-	Config.GitHub.PEM = key
+	c.GitHub.PEM = key
 
 	appSecret := os.Getenv(EnvGitHubAppSecret)
 	if appSecret == "" {
 		log.Panicf("%s must be set", EnvGitHubAppSecret)
 	}
-	Config.GitHub.AppSecret = []byte(appSecret)
+	c.GitHub.AppSecret = []byte(appSecret)
 
 	mysqlURL := os.Getenv(EnvMySQLURL)
 	if mysqlURL == "" {
 		log.Panicf("%s must be set", EnvMySQLURL)
 	}
-	Config.MySQLDSN = mysqlURL
-
-	p := os.Getenv(EnvPort)
-	if p == "" {
-		p = "8080"
-	}
-	pp, err := strconv.Atoi(p)
-	if err != nil {
-		log.Panicf("failed to parse PORT: %+v", err)
-	}
-	Config.Port = pp
+	c.MySQLDSN = mysqlURL
 
 	pluginPath := os.Getenv(EnvShoesPluginPath)
 	if pluginPath == "" {
@@ -76,47 +70,105 @@ func Load() {
 	if err != nil {
 		log.Panicf("failed to check plugin binary: %+v", err)
 	}
-	Config.ShoesPluginPath = absPath
+	c.ShoesPluginPath = absPath
 	log.Printf("use plugin path is %s\n", Config.ShoesPluginPath)
 
-	debug := os.Getenv(EnvDebug)
-	if debug == "true" {
-		Config.Debug = true
-	} else {
-		Config.Debug = false
+	Config = c
+}
+
+// LoadWithDefault load only value that has default value
+func LoadWithDefault() Conf {
+	var c Conf
+
+	p := "8080"
+	if os.Getenv(EnvPort) != "" {
+		p = os.Getenv(EnvPort)
+	}
+	pp, err := strconv.Atoi(p)
+	if err != nil {
+		log.Panicf("failed to parse PORT: %+v", err)
+	}
+	c.Port = pp
+
+	runnerUser := "runner"
+	if os.Getenv(EnvRunnerUser) != "" {
+		runnerUser = os.Getenv(EnvRunnerUser)
+	}
+	c.RunnerUser = runnerUser
+
+	c.Debug = false
+	if os.Getenv(EnvDebug) == "true" {
+		c.Debug = true
 	}
 
-	Config.Strict = true
+	c.Strict = true
 	if os.Getenv(EnvStrict) == "false" {
-		Config.Strict = false
+		c.Strict = false
 	}
 
-	Config.ModeWebhookType = ModeWebhookTypeCheckRun
+	c.ModeWebhookType = ModeWebhookTypeCheckRun
 	if os.Getenv(EnvModeWebhookType) != "" {
 		mwt := marshalModeWebhookType(os.Getenv(EnvModeWebhookType))
 
 		if mwt == ModeWebhookTypeUnknown {
 			log.Panicf("%s is invalid webhook type", os.Getenv(EnvModeWebhookType))
 		}
-		Config.ModeWebhookType = mwt
+		c.ModeWebhookType = mwt
 	}
 
-	Config.MaxConnectionsToBackend = 50
+	c.MaxConnectionsToBackend = 50
 	if os.Getenv(EnvMaxConnectionsToBackend) != "" {
 		numberPB, err := strconv.ParseInt(os.Getenv(EnvMaxConnectionsToBackend), 10, 64)
 		if err != nil {
 			log.Panicf("failed to convert int64 %s: %+v", EnvMaxConnectionsToBackend, err)
 		}
-		Config.MaxConnectionsToBackend = numberPB
+		c.MaxConnectionsToBackend = numberPB
 	}
-	Config.MaxConcurrencyDeleting = 1
+	c.MaxConcurrencyDeleting = 1
 	if os.Getenv(EnvMaxConcurrencyDeleting) != "" {
 		numberCD, err := strconv.ParseInt(os.Getenv(EnvMaxConcurrencyDeleting), 10, 64)
 		if err != nil {
 			log.Panicf("failed to convert int64 %s: %+v", EnvMaxConcurrencyDeleting, err)
 		}
-		Config.MaxConcurrencyDeleting = numberCD
+		c.MaxConcurrencyDeleting = numberCD
 	}
+
+	c.GitHubURL = "https://github.com"
+	if os.Getenv(EnvGitHubURL) != "" {
+		u, err := url.Parse(os.Getenv(EnvGitHubURL))
+		if err != nil {
+			log.Panicf("failed to parse URL %s: %+v", os.Getenv(EnvGitHubURL), err)
+		}
+
+		if strings.EqualFold(u.Scheme, "") {
+			log.Panicf("%s must has scheme (value: %s)", EnvGitHubURL, os.Getenv(EnvGitHubURL))
+		}
+		if strings.EqualFold(u.Host, "") {
+			log.Panicf("%s must has host (value: %s)", EnvGitHubURL, os.Getenv(EnvGitHubURL))
+		}
+
+		c.GitHubURL = os.Getenv(EnvGitHubURL)
+	}
+
+	if os.Getenv(EnvRunnerVersion) == "" {
+		c.RunnerVersion = "latest"
+	} else {
+		// valid value: "latest" or "vX.XXX.X"
+		switch os.Getenv(EnvRunnerVersion) {
+		case "latest":
+			c.RunnerVersion = "latest"
+		default:
+			_, err := version.NewVersion(os.Getenv(EnvRunnerVersion))
+			if err != nil {
+				log.Panicf("failed to parse input runner version: %+v", err)
+			}
+
+			c.RunnerVersion = os.Getenv(EnvRunnerVersion)
+		}
+	}
+
+	Config = c
+	return c
 }
 
 func checkBinary(p string) (string, error) {

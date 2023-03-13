@@ -28,9 +28,6 @@ you need to register a target that repository or organization.
 - `scope`: set target scope for an auto-scaling runner.
   - Repository example: `octocat/hello-worlds`
   - Organization example: `octocat`
-- `ghe_domain`: set domain of your GitHub Enterprise Server.
-  - Example: `https://github.example.com`
-  - Please contain schema.
 - `runner_user`: set linux username that executes runner. you need to set exist user.
   - DO NOT set `root`. It can't run GitHub Actions runner in root permission.
   - Example: `ubuntu`
@@ -41,7 +38,7 @@ you need to register a target that repository or organization.
 Example (create a target):
 
 ```bash
-$ curl -XPOST -d '{"scope": "octocat/hello-world", "ghe_domain": "https://github.example.com", "resource_type": "micro", "runner_user": "ubuntu"}' ${your_shoes_host}/target
+$ curl -XPOST -d '{"scope": "octocat/hello-world", "resource_type": "micro", "runner_user": "ubuntu"}' ${your_shoes_host}/target
 ```
 
 You can check registered targets.
@@ -53,7 +50,6 @@ curl -XGET ${your_shoes_host}/target | jq .
     "id": "477f6073-90d1-47d8-958f-4707cea61e8d",
     "scope": "octocat",
     "token_expired_at": "2006-01-02T15:04:05Z",
-    "ghe_domain": "https://github.example.com",
     "resource_type": "micro",
     "runner_user": "ubuntu",
     "runner_version": "",
@@ -78,8 +74,8 @@ For example,
 So please configure it.
 
 ```bash
-$ curl -XPOST -d '{"scope": "octocat", "ghe_domain": "", "resource_type": "nano", "runner_user": "ubuntu"}' ${your_shoes_host}/target
-$ curl -XPOST -d '{"scope": "octocat/huge-repository", "ghe_domain": "", "resource_type": "4xlarge", "runner_user": "ubuntu"}' ${your_shoes_host}/target
+$ curl -XPOST -d '{"scope": "octocat", "resource_type": "nano", "runner_user": "ubuntu"}' ${your_shoes_host}/target
+$ curl -XPOST -d '{"scope": "octocat/huge-repository", "resource_type": "4xlarge", "runner_user": "ubuntu"}' ${your_shoes_host}/target
 
 $ curl -XGET ${your_shoes_host}/target | jq .
 [
@@ -87,7 +83,6 @@ $ curl -XGET ${your_shoes_host}/target | jq .
     "id": "477f6073-90d1-47d8-958f-4707cea61e8d",
     "scope": "octocat",
     "token_expired_at": "2006-01-02T15:04:05Z",
-    "ghe_domain": "",
     "resource_type": "nano",
     "runner_user": "ubuntu",
     "runner_version": "",
@@ -101,7 +96,6 @@ $ curl -XGET ${your_shoes_host}/target | jq .
     "id": "3775e3b6-08e0-4abc-830d-fd5325397de0",
     "scope": "octocat/huge-repository",
     "token_expired_at": "2006-01-02T15:04:05Z",
-    "ghe_domain": "",
     "resource_type": "4xlarge",
     "runner_user": "ubuntu",
     "runner_version": "",
@@ -120,7 +114,7 @@ In this configuration, myshoes will create under it.
 - In `octocat/normal-repository2`, will create `nano`
 - In `octocat/huge-repository`, will create `4xlarge`
 
-### Create an offline runner (only one)
+### Create an offline runner (only use `check_run` mode)
 
 GitHub Actions need offline runner if queueing job.
 Please create an offline runner in the target repository.
