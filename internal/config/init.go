@@ -90,6 +90,12 @@ func LoadWithDefault() Conf {
 	}
 	c.Port = pp
 
+	runnerUser := "runner"
+	if os.Getenv(EnvRunnerUser) != "" {
+		runnerUser = os.Getenv(EnvRunnerUser)
+	}
+	c.RunnerUser = runnerUser
+
 	c.Debug = false
 	if os.Getenv(EnvDebug) == "true" {
 		c.Debug = true

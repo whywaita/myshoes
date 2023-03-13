@@ -38,7 +38,7 @@ type Datastore interface {
 	UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus TargetStatus, description string) error
 	UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error
 
-	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newRunnerUser, newProviderURL sql.NullString) error
+	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newProviderURL sql.NullString) error
 
 	EnqueueJob(ctx context.Context, job Job) error
 	ListJobs(ctx context.Context) ([]Job, error)
@@ -60,11 +60,11 @@ type Target struct {
 	UUID  uuid.UUID `db:"uuid" json:"id"`
 	Scope string    `db:"scope" json:"scope"` // repo (:owner/:repo) or org (:organization)
 	// deprecated
-	GitHubToken    string    `db:"github_token" json:"github_token"`
-	TokenExpiredAt time.Time `db:"token_expired_at" json:"token_expired_at"`
+	GitHubToken    string         `db:"github_token" json:"github_token"`
+	TokenExpiredAt time.Time      `db:"token_expired_at" json:"token_expired_at"`
+	GHEDomain      sql.NullString `db:"ghe_domain" json:"ghe_domain"`
 
 	ResourceType      ResourceType   `db:"resource_type" json:"resource_type"`
-	RunnerUser        sql.NullString `db:"runner_user" json:"runner_user"`
 	ProviderURL       sql.NullString `db:"provider_url" json:"provider_url"`
 	Status            TargetStatus   `db:"status" json:"status"`
 	StatusDescription sql.NullString `db:"status_description" json:"status_description"`

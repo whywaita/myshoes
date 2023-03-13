@@ -41,6 +41,7 @@ const (
 	EnvMySQLURL                  = "MYSQL_URL"
 	EnvPort                      = "PORT"
 	EnvShoesPluginPath           = "PLUGIN"
+	EnvRunnerUser                = "RUNNER_USER"
 	EnvDebug                     = "DEBUG"
 	EnvStrict                    = "STRICT"
 	EnvModeWebhookType           = "MODE_WEBHOOK_TYPE"
