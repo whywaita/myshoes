@@ -20,8 +20,8 @@ var testTargetID = uuid.FromStringOrNil("8a72d42c-372c-4e0d-9c6a-4304d44af137")
 var testTargetID2 = uuid.FromStringOrNil("d14ccfea-b123-4ada-974e-bbff0937e9c7")
 var testScopeOrg = "octocat"
 var testScopeRepo = "octocat/hello-world"
+var testScopeRepo2 = "octocat/hello-world2"
 var testGitHubToken = "this-code-is-github-token"
-var testRunnerVersion = "v999.99.9"
 var testRunnerUser = "testing-super-user"
 var testProviderURL = "/shoes-mock"
 var testTime = time.Date(2037, 9, 3, 0, 0, 0, 0, time.UTC)
@@ -43,10 +43,6 @@ func TestMySQL_CreateTarget(t *testing.T) {
 				GitHubToken:    testGitHubToken,
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -59,10 +55,40 @@ func TestMySQL_CreateTarget(t *testing.T) {
 				TokenExpiredAt: testTime,
 				Status:         datastore.TargetStatusActive,
 				ResourceType:   datastore.ResourceTypeNano,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
 					Valid:  true,
 				},
+			},
+			err: false,
+		},
+		{
+			input: datastore.Target{
+				UUID:           testTargetID2,
+				Scope:          testScopeRepo2,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
+				GHEDomain: sql.NullString{
+					String: "https://example.com",
+					Valid:  true,
+				},
+				ResourceType: datastore.ResourceTypeNano,
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+			},
+			want: &datastore.Target{
+				UUID:           testTargetID2,
+				Scope:          testScopeRepo2,
+				GitHubToken:    testGitHubToken,
+				TokenExpiredAt: testTime,
+				GHEDomain: sql.NullString{
+					String: "https://example.com",
+					Valid:  true,
+				},
+				Status:       datastore.TargetStatusActive,
+				ResourceType: datastore.ResourceTypeNano,
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -102,10 +128,6 @@ func TestMySQL_GetTarget(t *testing.T) {
 		GitHubToken:    testGitHubToken,
 		TokenExpiredAt: testTime,
 		ResourceType:   datastore.ResourceTypeNano,
-		RunnerVersion: sql.NullString{
-			String: testRunnerVersion,
-			Valid:  true,
-		},
 		ProviderURL: sql.NullString{
 			String: testProviderURL,
 			Valid:  true,
@@ -129,10 +151,6 @@ func TestMySQL_GetTarget(t *testing.T) {
 				TokenExpiredAt: testTime,
 				Status:         datastore.TargetStatusActive,
 				ResourceType:   datastore.ResourceTypeNano,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -178,10 +196,6 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 				TokenExpiredAt: testTime,
 				Status:         datastore.TargetStatusActive,
 				ResourceType:   datastore.ResourceTypeNano,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -194,10 +208,6 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 					GitHubToken:    testGitHubToken,
 					TokenExpiredAt: testTime,
 					ResourceType:   datastore.ResourceTypeNano,
-					RunnerVersion: sql.NullString{
-						String: testRunnerVersion,
-						Valid:  true,
-					},
 					ProviderURL: sql.NullString{
 						String: testProviderURL,
 						Valid:  true,
@@ -216,10 +226,6 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 				TokenExpiredAt: testTime,
 				Status:         datastore.TargetStatusActive,
 				ResourceType:   datastore.ResourceTypeNano,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -232,10 +238,6 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 					GitHubToken:    testGitHubToken,
 					TokenExpiredAt: testTime,
 					ResourceType:   datastore.ResourceTypeNano,
-					RunnerVersion: sql.NullString{
-						String: testRunnerVersion,
-						Valid:  true,
-					},
 					ProviderURL: sql.NullString{
 						String: testProviderURL,
 						Valid:  true,
@@ -250,10 +252,6 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 					GitHubToken:    testGitHubToken,
 					TokenExpiredAt: testTime,
 					ResourceType:   datastore.ResourceTypeNano,
-					RunnerVersion: sql.NullString{
-						String: testRunnerVersion,
-						Valid:  true,
-					},
 					ProviderURL: sql.NullString{
 						String: testProviderURL,
 						Valid:  true,
@@ -280,10 +278,6 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 				TokenExpiredAt: testTime,
 				Status:         datastore.TargetStatusActive,
 				ResourceType:   datastore.ResourceTypeNano,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -296,10 +290,6 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 					GitHubToken:    testGitHubToken,
 					TokenExpiredAt: testTime,
 					ResourceType:   datastore.ResourceTypeNano,
-					RunnerVersion: sql.NullString{
-						String: testRunnerVersion,
-						Valid:  true,
-					},
 					ProviderURL: sql.NullString{
 						String: testProviderURL,
 						Valid:  true,
@@ -318,10 +308,6 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 					GitHubToken:    testGitHubToken,
 					TokenExpiredAt: testTime,
 					ResourceType:   datastore.ResourceTypeNano,
-					RunnerVersion: sql.NullString{
-						String: testRunnerVersion,
-						Valid:  true,
-					},
 					ProviderURL: sql.NullString{
 						String: testProviderURL,
 						Valid:  true,
@@ -368,10 +354,6 @@ func TestMySQL_ListTargets(t *testing.T) {
 		GitHubToken:    testGitHubToken,
 		TokenExpiredAt: testTime,
 		ResourceType:   datastore.ResourceTypeNano,
-		RunnerVersion: sql.NullString{
-			String: testRunnerVersion,
-			Valid:  true,
-		},
 		ProviderURL: sql.NullString{
 			String: testProviderURL,
 			Valid:  true,
@@ -395,10 +377,6 @@ func TestMySQL_ListTargets(t *testing.T) {
 					TokenExpiredAt: testTime,
 					Status:         datastore.TargetStatusActive,
 					ResourceType:   datastore.ResourceTypeNano,
-					RunnerVersion: sql.NullString{
-						String: testRunnerVersion,
-						Valid:  true,
-					},
 					ProviderURL: sql.NullString{
 						String: testProviderURL,
 						Valid:  true,
@@ -436,10 +414,6 @@ func TestMySQL_DeleteTarget(t *testing.T) {
 		GitHubToken:    testGitHubToken,
 		TokenExpiredAt: testTime,
 		ResourceType:   datastore.ResourceTypeNano,
-		RunnerVersion: sql.NullString{
-			String: testRunnerVersion,
-			Valid:  true,
-		},
 		ProviderURL: sql.NullString{
 			String: testProviderURL,
 			Valid:  true,
@@ -461,10 +435,6 @@ func TestMySQL_DeleteTarget(t *testing.T) {
 				GitHubToken:    testGitHubToken,
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -520,10 +490,6 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 				GitHubToken:    testGitHubToken,
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -546,10 +512,6 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 				GitHubToken:    testGitHubToken,
 				TokenExpiredAt: testTime,
 				ResourceType:   datastore.ResourceTypeNano,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -572,10 +534,6 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 			GitHubToken:    testGitHubToken,
 			TokenExpiredAt: testTime,
 			ResourceType:   datastore.ResourceTypeNano,
-			RunnerVersion: sql.NullString{
-				String: testRunnerVersion,
-				Valid:  true,
-			},
 			ProviderURL: sql.NullString{
 				String: testProviderURL,
 				Valid:  true,
@@ -633,10 +591,6 @@ func TestMySQL_UpdateToken(t *testing.T) {
 				GitHubToken:    "new-token",
 				TokenExpiredAt: testTime.Add(1 * time.Hour),
 				ResourceType:   datastore.ResourceTypeNano,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -659,10 +613,6 @@ func TestMySQL_UpdateToken(t *testing.T) {
 			GitHubToken:    testGitHubToken,
 			TokenExpiredAt: testTime,
 			ResourceType:   datastore.ResourceTypeNano,
-			RunnerVersion: sql.NullString{
-				String: testRunnerVersion,
-				Valid:  true,
-			},
 			ProviderURL: sql.NullString{
 				String: testProviderURL,
 				Valid:  true,
@@ -701,10 +651,9 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 	testDB, _ := testutils.GetTestDB()
 
 	type input struct {
-		resourceType  datastore.ResourceType
-		runnerVersion sql.NullString
-		runnerUser    sql.NullString
-		providerURL   sql.NullString
+		resourceType datastore.ResourceType
+		runnerUser   sql.NullString
+		providerURL  sql.NullString
 	}
 
 	tests := []struct {
@@ -715,10 +664,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 		{
 			input: input{
 				resourceType: datastore.ResourceTypeLarge,
-				runnerVersion: sql.NullString{
-					String: "",
-					Valid:  false,
-				},
 				runnerUser: sql.NullString{
 					String: "",
 					Valid:  false,
@@ -732,14 +677,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 				Scope:        testScopeRepo,
 				GitHubToken:  testGitHubToken,
 				ResourceType: datastore.ResourceTypeLarge,
-				RunnerVersion: sql.NullString{
-					String: "",
-					Valid:  false,
-				},
-				RunnerUser: sql.NullString{
-					String: "",
-					Valid:  false,
-				},
 				ProviderURL: sql.NullString{
 					String: "",
 					Valid:  false,
@@ -755,10 +692,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 		{
 			input: input{
 				resourceType: datastore.ResourceTypeLarge,
-				runnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				runnerUser: sql.NullString{
 					String: testRunnerUser,
 					Valid:  true,
@@ -772,14 +705,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 				Scope:        testScopeRepo,
 				GitHubToken:  testGitHubToken,
 				ResourceType: datastore.ResourceTypeLarge,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
-				RunnerUser: sql.NullString{
-					String: testRunnerUser,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -795,10 +720,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 		{
 			input: input{
 				resourceType: datastore.ResourceTypeLarge,
-				runnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
 				runnerUser: sql.NullString{
 					String: testRunnerUser,
 					Valid:  true,
@@ -812,14 +733,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 				Scope:        testScopeRepo,
 				GitHubToken:  testGitHubToken,
 				ResourceType: datastore.ResourceTypeLarge,
-				RunnerVersion: sql.NullString{
-					String: testRunnerVersion,
-					Valid:  true,
-				},
-				RunnerUser: sql.NullString{
-					String: testRunnerUser,
-					Valid:  true,
-				},
 				ProviderURL: sql.NullString{
 					String: "",
 					Valid:  false,
@@ -842,14 +755,6 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 			GitHubToken:    testGitHubToken,
 			TokenExpiredAt: testTime,
 			ResourceType:   datastore.ResourceTypeNano,
-			RunnerVersion: sql.NullString{
-				String: "",
-				Valid:  false,
-			},
-			RunnerUser: sql.NullString{
-				String: "",
-				Valid:  false,
-			},
 			ProviderURL: sql.NullString{
 				String: "test-default-string",
 				Valid:  true,
@@ -858,7 +763,7 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 			t.Fatalf("failed to create target: %+v", err)
 		}
 
-		if err := testDatastore.UpdateTargetParam(context.Background(), tID, test.input.resourceType, test.input.runnerVersion, test.input.runnerUser, test.input.providerURL); err != nil {
+		if err := testDatastore.UpdateTargetParam(context.Background(), tID, test.input.resourceType, test.input.providerURL); err != nil {
 			t.Fatalf("failed to UpdateResourceTyoe: %+v", err)
 		}
 
@@ -885,7 +790,7 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 
 func getTargetFromSQL(testDB *sqlx.DB, uuid uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
+	query := `SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)

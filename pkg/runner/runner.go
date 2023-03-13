@@ -2,8 +2,10 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/hashicorp/go-version"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/logger"
 )
@@ -24,13 +26,15 @@ var (
 
 // Manager is runner management
 type Manager struct {
-	ds datastore.Datastore
+	ds            datastore.Datastore
+	runnerVersion string
 }
 
 // New create a Manager
-func New(ds datastore.Datastore) *Manager {
+func New(ds datastore.Datastore, runnerVersion string) *Manager {
 	return &Manager{
-		ds: ds,
+		ds:            ds,
+		runnerVersion: runnerVersion,
 	}
 }
 
@@ -71,4 +75,43 @@ func (m *Manager) Loop(ctx context.Context) error {
 			return nil
 		}
 	}
+}
+
+// TemporaryMode is mode of temporary runner
+type TemporaryMode int
+
+// RunnerEphemeralModes variable
+const (
+	TemporaryUnknown TemporaryMode = iota
+	TemporaryOnce
+	TemporaryEphemeral
+)
+
+// StringFlag return flag
+func (rtm TemporaryMode) StringFlag() string {
+	switch rtm {
+	case TemporaryOnce:
+		return "--once"
+	case TemporaryEphemeral:
+		return "--ephemeral"
+	}
+	return "unknown"
+}
+
+// GetRunnerTemporaryMode get runner version and RunnerTemporaryMode
+func GetRunnerTemporaryMode(runnerVersion string) (string, TemporaryMode, error) {
+	ephemeralSupportVersion, err := version.NewVersion("v2.282.0")
+	if err != nil {
+		return "", TemporaryUnknown, fmt.Errorf("failed to parse ephemeral runner version: %w", err)
+	}
+
+	inputVersion, err := version.NewVersion(runnerVersion)
+	if err != nil {
+		return "", TemporaryUnknown, fmt.Errorf("failed to parse input runner version: %w", err)
+	}
+
+	if ephemeralSupportVersion.GreaterThan(inputVersion) {
+		return runnerVersion, TemporaryOnce, nil
+	}
+	return runnerVersion, TemporaryEphemeral, nil
 }

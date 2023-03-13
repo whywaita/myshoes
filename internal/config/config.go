@@ -29,7 +29,8 @@ type Conf struct {
 	MaxConnectionsToBackend int64
 	MaxConcurrencyDeleting  int64
 
-	GitHubURL string
+	GitHubURL     string
+	RunnerVersion string
 }
 
 // Config Environment keys
@@ -40,12 +41,14 @@ const (
 	EnvMySQLURL                  = "MYSQL_URL"
 	EnvPort                      = "PORT"
 	EnvShoesPluginPath           = "PLUGIN"
+	EnvRunnerUser                = "RUNNER_USER"
 	EnvDebug                     = "DEBUG"
 	EnvStrict                    = "STRICT"
 	EnvModeWebhookType           = "MODE_WEBHOOK_TYPE"
 	EnvMaxConnectionsToBackend   = "MAX_CONNECTIONS_TO_BACKEND"
 	EnvMaxConcurrencyDeleting    = "MAX_CONCURRENCY_DELETING"
 	EnvGitHubURL                 = "GITHUB_URL"
+	EnvRunnerVersion             = "RUNNER_VERSION"
 )
 
 // ModeWebhookType is type value for GitHub webhook

@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/go-version"
 )
 
 // Load load config from environment
@@ -88,6 +90,12 @@ func LoadWithDefault() Conf {
 	}
 	c.Port = pp
 
+	runnerUser := "runner"
+	if os.Getenv(EnvRunnerUser) != "" {
+		runnerUser = os.Getenv(EnvRunnerUser)
+	}
+	c.RunnerUser = runnerUser
+
 	c.Debug = false
 	if os.Getenv(EnvDebug) == "true" {
 		c.Debug = true
@@ -105,7 +113,7 @@ func LoadWithDefault() Conf {
 		if mwt == ModeWebhookTypeUnknown {
 			log.Panicf("%s is invalid webhook type", os.Getenv(EnvModeWebhookType))
 		}
-		Config.ModeWebhookType = mwt
+		c.ModeWebhookType = mwt
 	}
 
 	c.MaxConnectionsToBackend = 50
@@ -140,6 +148,23 @@ func LoadWithDefault() Conf {
 		}
 
 		c.GitHubURL = os.Getenv(EnvGitHubURL)
+	}
+
+	if os.Getenv(EnvRunnerVersion) == "" {
+		c.RunnerVersion = "latest"
+	} else {
+		// valid value: "latest" or "vX.XXX.X"
+		switch os.Getenv(EnvRunnerVersion) {
+		case "latest":
+			c.RunnerVersion = "latest"
+		default:
+			_, err := version.NewVersion(os.Getenv(EnvRunnerVersion))
+			if err != nil {
+				log.Panicf("failed to parse input runner version: %+v", err)
+			}
+
+			c.RunnerVersion = os.Getenv(EnvRunnerVersion)
+		}
 	}
 
 	Config = c

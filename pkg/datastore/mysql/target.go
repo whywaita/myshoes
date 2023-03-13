@@ -15,17 +15,16 @@ import (
 func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error {
 	expiredAtRFC3339 := target.TokenExpiredAt.Format("2006-01-02 15:04:05")
 
-	query := `INSERT INTO targets(uuid, scope, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO targets(uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, provider_url) VALUES (?, ?, ?, ?, ?, ?, ?)`
 	if _, err := m.Conn.ExecContext(
 		ctx,
 		query,
 		target.UUID,
 		target.Scope,
+		target.GHEDomain,
 		target.GitHubToken,
 		expiredAtRFC3339,
 		target.ResourceType,
-		target.RunnerUser,
-		target.RunnerVersion,
 		target.ProviderURL,
 	); err != nil {
 		return fmt.Errorf("failed to execute INSERT query: %w", err)
@@ -37,7 +36,7 @@ func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error
 // GetTarget get a target
 func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target, error) {
 	var t datastore.Target
-	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
+	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
 	if err := m.Conn.GetContext(ctx, &t, query, id.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
@@ -52,7 +51,7 @@ func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target,
 // GetTargetByScope get a target from scope
 func (m *MySQL) GetTargetByScope(ctx context.Context, scope string) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets WHERE scope = "%s"`, scope)
+	query := fmt.Sprintf(`SELECT uuid, scope, github_token, token_expired_at, resource_type, provider_url, status, status_description, created_at, updated_at FROM targets WHERE scope = "%s"`, scope)
 	if err := m.Conn.GetContext(ctx, &t, query); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
@@ -67,7 +66,7 @@ func (m *MySQL) GetTargetByScope(ctx context.Context, scope string) (*datastore.
 // ListTargets get a all target
 func (m *MySQL) ListTargets(ctx context.Context) ([]datastore.Target, error) {
 	var ts []datastore.Target
-	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, runner_user, runner_version, provider_url, status, status_description, created_at, updated_at FROM targets`
+	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, provider_url, status, status_description, created_at, updated_at FROM targets`
 	if err := m.Conn.SelectContext(ctx, &ts, query); err != nil {
 		return nil, fmt.Errorf("failed to SELECT query: %w", err)
 	}
@@ -106,9 +105,9 @@ func (m *MySQL) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken st
 }
 
 // UpdateTargetParam update parameter of target
-func (m *MySQL) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType, newRunnerVersion, newRunnerUser, newProviderURL sql.NullString) error {
-	query := `UPDATE targets SET resource_type = ?, runner_version = ?, runner_user = ?, provider_url = ? WHERE uuid = ?`
-	if _, err := m.Conn.ExecContext(ctx, query, newResourceType, newRunnerVersion, newRunnerUser, newProviderURL, targetID.String()); err != nil {
+func (m *MySQL) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType, newProviderURL sql.NullString) error {
+	query := `UPDATE targets SET resource_type = ?, provider_url = ? WHERE uuid = ?`
+	if _, err := m.Conn.ExecContext(ctx, query, newResourceType, newProviderURL, targetID.String()); err != nil {
 		return fmt.Errorf("failed to execute UPDATE query: %w", err)
 	}
 
