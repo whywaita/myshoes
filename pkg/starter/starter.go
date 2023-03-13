@@ -167,6 +167,9 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 
 		return fmt.Errorf("failed to bung (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
+	if resourceType == 0 {
+		resourceType = target.ResourceType
+	}
 
 	runnerName := runner.ToName(job.UUID.String())
 	if config.Config.Strict {
