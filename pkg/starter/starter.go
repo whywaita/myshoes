@@ -170,7 +170,7 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 
 		return fmt.Errorf("failed to bung (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
-	if resourceType == 0 {
+	if resourceType == datastore.ResourceTypeUnknown {
 		resourceType = target.ResourceType
 	}
 
@@ -237,23 +237,23 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.
 
 	script, err := s.getSetupScript(ctx, target, runnerName)
 	if err != nil {
-		return "", "", "", 0, fmt.Errorf("failed to get setup scripts: %w", err)
+		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to get setup scripts: %w", err)
 	}
 
 	client, teardown, err := shoes.GetClient()
 	if err != nil {
-		return "", "", "", 0, fmt.Errorf("failed to get plugin client: %w", err)
+		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to get plugin client: %w", err)
 	}
 	defer teardown()
 
 	labels, err := gh.ExtractRunsOnLabels([]byte(job.CheckEventJSON))
 	if err != nil {
-		return "", "", "", 0, fmt.Errorf("failed to extract labels: %w", err)
+		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to extract labels: %w", err)
 	}
 
 	cloudID, ipAddress, shoesType, resourceType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType, labels)
 	if err != nil {
-		return "", "", "", 0, fmt.Errorf("failed to add instance: %w", err)
+		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to add instance: %w", err)
 	}
 
 	logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
