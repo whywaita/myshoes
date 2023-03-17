@@ -88,10 +88,10 @@ func (c *GRPCClient) AddInstance(ctx context.Context, runnerName, setupScript st
 	}
 	resp, err := c.client.AddInstance(ctx, req)
 	if err != nil {
-		return "", "", "", datastore.ResourceType(0), fmt.Errorf("failed to AddInstance: %w", err)
+		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to AddInstance: %w", err)
 	}
 
-	return resp.CloudId, resp.IpAddress, resp.ShoesType, datastore.ResourceType(resp.ResourceType), nil
+	return resp.CloudId, resp.IpAddress, resp.ShoesType, datastore.UnmarshalResourceType(resp.ResourceType), nil
 }
 
 // DeleteInstance delete instance for runner
