@@ -32,6 +32,7 @@ message AddInstanceResponse {
   string cloud_id = 1;
   string shoes_type = 2;
   string ip_address = 3;
+  ResourceType resource_type = 4;
 }
 
 message DeleteInstanceRequest {
