@@ -33,7 +33,7 @@ func ExistGitHubRunnerWithRunner(runners []*github.Runner, runnerName string) (*
 
 // ListRunners get runners that registered repository or org
 func ListRunners(ctx context.Context, client *github.Client, owner, repo string) ([]*github.Runner, error) {
-	if cachedRs, found := responseCache.Get(getCacheKey(owner, repo)); found {
+	if cachedRs, found := responseCache.Get(getCacheKeyListRunners(owner, repo)); found {
 		return cachedRs.([]*github.Runner), nil
 	}
 
@@ -58,13 +58,13 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 		opts.Page = resp.NextPage
 	}
 
-	responseCache.Set(getCacheKey(owner, repo), rs, 1*time.Second)
+	responseCache.Set(getCacheKeyListRunners(owner, repo), rs, 1*time.Second)
 	logger.Logf(true, "found %d runners in GitHub", len(rs))
 
 	return rs, nil
 }
 
-func getCacheKey(owner, repo string) string {
+func getCacheKeyListRunners(owner, repo string) string {
 	return fmt.Sprintf("owner-%s-repo-%s", owner, repo)
 }
 

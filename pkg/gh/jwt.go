@@ -96,6 +96,10 @@ func isInstalledGitHubAppSelected(ctx context.Context, inputScope string, instal
 }
 
 func listAppsInstalledRepo(ctx context.Context, installationID int64) ([]*github.Repository, error) {
+	if cacheListAppsRepo, found := responseCache.Get(getCacheKeyListAppsRepo(installationID)); found {
+		return cacheListAppsRepo.([]*github.Repository), nil
+	}
+
 	clientInstallation, err := NewClientInstallation(installationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a client installation: %w", err)
@@ -120,10 +124,21 @@ func listAppsInstalledRepo(ctx context.Context, installationID int64) ([]*github
 		opts.Page = resp.NextPage
 	}
 
+	responseCache.Set(getCacheKeyListAppsRepo(installationID), repositories, 1*time.Second)
+
 	return repositories, nil
 }
 
+func getCacheKeyListAppsRepo(installationID int64) string {
+	return fmt.Sprintf("installation-id-%d", installationID)
+}
+
 func listInstallations(ctx context.Context) ([]*github.Installation, error) {
+	cacheKey := "response-installations"
+	if cacheIs, found := responseCache.Get(cacheKey); found {
+		return cacheIs.([]*github.Installation), nil
+	}
+
 	clientApps, err := NewClientGitHubApps()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a client Apps: %w", err)
@@ -147,5 +162,8 @@ func listInstallations(ctx context.Context) ([]*github.Installation, error) {
 		}
 		opts.Page = resp.NextPage
 	}
+
+	responseCache.Set(cacheKey, installations, 1*time.Second)
+
 	return installations, nil
 }
