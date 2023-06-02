@@ -48,6 +48,7 @@ func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target, r
 
 func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target, runnerName string) (string, error) {
 	runnerUser := config.Config.RunnerUser
+	githubURL := config.Config.GitHubURL
 
 	targetRunnerVersion := s.runnerVersion
 	if strings.EqualFold(s.runnerVersion, "latest") {
@@ -77,6 +78,11 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		return "", fmt.Errorf("failed to generate runner register token: %w", err)
 	}
 
+	var labels []string
+	if githubURL != "" && githubURL != "https://github.com" {
+		labels = append(labels, "dependabot")
+	}
+
 	v := templateCreateLatestRunnerOnceValue{
 		Scope:                   target.Scope,
 		GHEDomain:               config.Config.GitHubURL,
@@ -86,6 +92,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		RunnerVersion:           runnerVersion,
 		RunnerServiceJS:         runnerServiceJs,
 		RunnerArg:               runnerTemporaryMode.StringFlag(),
+		AdditionalLabels:        labelsToOneLine(labels),
 	}
 
 	t, err := template.New("templateCreateLatestRunnerOnce").Parse(templateCreateLatestRunnerOnce)
@@ -97,6 +104,14 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		return "", fmt.Errorf("failed to execute scripts: %w", err)
 	}
 	return buff.String(), nil
+}
+
+func labelsToOneLine(labels []string) string {
+	if len(labels) == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf(",%s", strings.Join(labels, ","))
 }
 
 const templateCompressedScript = `#!/bin/bash
@@ -121,6 +136,7 @@ type templateCreateLatestRunnerOnceValue struct {
 	RunnerVersion           string
 	RunnerServiceJS         string
 	RunnerArg               string
+	AdditionalLabels        string
 }
 
 // templateCreateLatestRunnerOnce is script template of setup runner.
@@ -290,10 +306,10 @@ echo
 echo "Configuring ${runner_name} @ $runner_url"
 {{ if eq .RunnerArg "--once" -}}
 echo "./config.sh --unattended --url $runner_url --token *** --name $runner_name --labels myshoes"
-${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes
+${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes{{.AdditionalLabels}}
 {{ else -}}
 echo "./config.sh --unattended --url $runner_url --token *** --name $runner_name --labels myshoes {{.RunnerArg}}"
-${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes {{.RunnerArg}}
+${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes{{.AdditionalLabels}} {{.RunnerArg}}
 {{ end }}
 
 
