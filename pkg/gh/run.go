@@ -27,23 +27,15 @@ func ListRuns(ctx context.Context, client *github.Client, owner, repo string) ([
 			PerPage: 10,
 		},
 	}
-	var js []*github.WorkflowRun
-	for {
-		logger.Logf(true, "get workflow runs from GitHub, now recent %d runs", len(js))
-		runs, resp, err := listRuns(ctx, client, owner, repo, opts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list workflow runs: %w", err)
-		}
-		storeRateLimit(getRateLimitKey(owner, repo), resp.Rate)
-		js = append(js, runs.WorkflowRuns...)
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
+	logger.Logf(true, "get workflow runs from GitHub, now recent %d runs", opts.PerPage)
+	runs, resp, err := listRuns(ctx, client, owner, repo, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list workflow runs: %w", err)
 	}
-	responseCache.Set(getRunsCacheKey(owner, repo), js, 1*time.Second)
-	logger.Logf(true, "found %d workflow runs in GitHub", len(js))
-	return js, nil
+	storeRateLimit(getRateLimitKey(owner, repo), resp.Rate)
+	responseCache.Set(getRunsCacheKey(owner, repo), runs.WorkflowRuns, 1*time.Second)
+	logger.Logf(true, "found %d workflow runs in GitHub", len(runs.WorkflowRuns))
+	return runs.WorkflowRuns, nil
 }
 
 func getRunsCacheKey(owner, repo string) string {
