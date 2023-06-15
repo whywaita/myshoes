@@ -27,7 +27,7 @@ func ListRuns(ctx context.Context, client *github.Client, owner, repo string) ([
 			PerPage: 10,
 		},
 	}
-	logger.Logf(true, "get workflow runs from GitHub, now recent %d runs", opts.PerPage)
+	logger.Logf(true, "get workflow runs of %s/%s, now recent %d runs", owner, repo, opts.PerPage)
 	runs, resp, err := listRuns(ctx, client, owner, repo, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list workflow runs: %w", err)

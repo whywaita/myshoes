@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
+	"github.com/whywaita/myshoes/pkg/logger"
 )
 
 const githubName = "github"
@@ -30,7 +32,7 @@ func (ScraperGitHub) Help() string {
 	return "Collect from GitHub"
 }
 
-func (s *ScraperGitHub) Scrape(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
+func (s ScraperGitHub) Scrape(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
 	if err := scrapePendingJobs(ctx, ds, ch); err != nil {
 		return fmt.Errorf("failed to scrape pending jobs: %w", err)
 	}
@@ -52,14 +54,18 @@ func scrapePendingJobs(ctx context.Context, ds datastore.Datastore, ch chan<- pr
 	result := map[string]float64{}
 
 	for _, t := range targets {
-		client, err := gh.NewClient(t.GitHubToken)
+		client, err := gh.NewClientGitHubApps()
 		if err != nil {
 			return fmt.Errorf("failed to list pending jobs: %w", err)
 		}
 		owner, repo := t.OwnerRepo()
+		if repo == "" {
+			continue
+		}
 		runs, err := gh.ListRuns(ctx, client, owner, repo)
 		if err != nil {
-			return fmt.Errorf("failed to list pending jobs: %w", err)
+			logger.Logf(false, "failed to list pending jobs: %+v", err)
+			continue
 		}
 		if len(runs) == 0 {
 			ch <- prometheus.MustNewConstMetric(
