@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/whywaita/myshoes/internal/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -15,85 +14,73 @@ import (
 const githubName = "github"
 
 var (
-	githubPendingJobsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, datastoreName, "pending_jobs"),
-		"Number of pending jobs",
+	githubPendingRunsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, githubName, "pending_runs"),
+		"Number of pending runs",
 		[]string{"target_id"}, nil,
 	)
 )
 
+// ScraperGitHub is scraper implement for GitHub
 type ScraperGitHub struct{}
 
+// Name return name
 func (ScraperGitHub) Name() string {
 	return githubName
 }
 
+// Help return help
 func (ScraperGitHub) Help() string {
 	return "Collect from GitHub"
 }
 
+// Scrape scrape metrics
 func (s ScraperGitHub) Scrape(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
-	if err := scrapePendingJobs(ctx, ds, ch); err != nil {
-		return fmt.Errorf("failed to scrape pending jobs: %w", err)
+	if err := scrapePendingRuns(ctx, ds, ch); err != nil {
+		return fmt.Errorf("failed to scrape pending runs: %w", err)
 	}
 	return nil
 }
 
-func scrapePendingJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
+func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
 	targets, err := ds.ListTargets(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to list pending jobs: %w", err)
+		return fmt.Errorf("failed to list pending runs: %w", err)
 	}
 	if len(targets) == 0 {
 		ch <- prometheus.MustNewConstMetric(
-			githubPendingJobsDesc, prometheus.GaugeValue, 0, "none",
+			githubPendingRunsDesc, prometheus.GaugeValue, 0, "none",
 		)
 		return nil
 	}
 
-	result := map[string]float64{}
-
 	for _, t := range targets {
-		client, err := gh.NewClientGitHubApps()
-		if err != nil {
-			return fmt.Errorf("failed to list pending jobs: %w", err)
-		}
 		owner, repo := t.OwnerRepo()
+		var pendings float64
 		if repo == "" {
 			continue
 		}
-		runs, err := gh.ListRuns(ctx, client, owner, repo)
+		runs, err := gh.ListRuns(ctx, owner, repo, t.Scope)
 		if err != nil {
-			logger.Logf(false, "failed to list pending jobs: %+v", err)
+			logger.Logf(false, "failed to list pending runs: %+v", err)
 			continue
 		}
+
 		if len(runs) == 0 {
 			ch <- prometheus.MustNewConstMetric(
-				githubPendingJobsDesc, prometheus.GaugeValue, 0, t.UUID.String(),
+				githubPendingRunsDesc, prometheus.GaugeValue, 0, t.UUID.String(),
 			)
 			continue
 		}
 		for _, r := range runs {
-			jobs, err := gh.ListJobs(ctx, client, owner, repo, r.GetID())
-			if err != nil {
-				return fmt.Errorf("failed to list pending jobs: %w", err)
-			}
-			if len(jobs) == 0 {
-				ch <- prometheus.MustNewConstMetric(
-					githubPendingJobsDesc, prometheus.GaugeValue, 0, t.UUID.String(),
-				)
-				continue
-			}
-			for _, j := range jobs {
-				if j.GetStatus() == "pending" && time.Since(j.GetStartedAt().Time) >= 30 {
-					result[t.UUID.String()]++
+			if r.GetStatus() == "queued" || r.GetStatus() == "pending" {
+				if time.Since(r.CreatedAt.Time).Minutes() >= 30 {
+					pendings++
 				}
 			}
 		}
-	}
-	for targetID, number := range result {
 		ch <- prometheus.MustNewConstMetric(
-			githubPendingJobsDesc, prometheus.GaugeValue, number, targetID,
+			githubPendingRunsDesc, prometheus.GaugeValue, pendings, t.UUID.String(),
 		)
 	}
 	return nil

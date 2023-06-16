@@ -17,9 +17,19 @@ func listRuns(ctx context.Context, client *github.Client, owner, repo string, op
 	return runs, resp, nil
 }
 
-func ListRuns(ctx context.Context, client *github.Client, owner, repo string) ([]*github.WorkflowRun, error) {
+// ListRuns get workflow runs that registered repository
+func ListRuns(ctx context.Context, owner, repo, scope string) ([]*github.WorkflowRun, error) {
 	if cachedRs, found := responseCache.Get(getRunsCacheKey(owner, repo)); found {
+		logger.Logf(true, "found workflow runs (cache hit) in %s/%s", owner, repo)
 		return cachedRs.([]*github.WorkflowRun), nil
+	}
+	installationID, err := IsInstalledGitHubApp(ctx, scope)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pending runs (%s/%s): %w", owner, repo, err)
+	}
+	client, err := NewClientInstallation(installationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list workflow runs (%s/%s): %w", owner, repo, err)
 	}
 	var opts = &github.ListWorkflowRunsOptions{
 		ListOptions: github.ListOptions{
@@ -27,14 +37,14 @@ func ListRuns(ctx context.Context, client *github.Client, owner, repo string) ([
 			PerPage: 10,
 		},
 	}
-	logger.Logf(true, "get workflow runs of %s/%s, now recent %d runs", owner, repo, opts.PerPage)
+	logger.Logf(true, "get workflow runs of %s/%s, recent %d runs", owner, repo, opts.PerPage)
 	runs, resp, err := listRuns(ctx, client, owner, repo, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list workflow runs: %w", err)
+		return nil, fmt.Errorf("failed to list workflow runs (%s/%s): %w", owner, repo, err)
 	}
 	storeRateLimit(getRateLimitKey(owner, repo), resp.Rate)
-	responseCache.Set(getRunsCacheKey(owner, repo), runs.WorkflowRuns, 1*time.Second)
-	logger.Logf(true, "found %d workflow runs in GitHub", len(runs.WorkflowRuns))
+	responseCache.Set(getRunsCacheKey(owner, repo), runs.WorkflowRuns, 5*time.Minute)
+	logger.Logf(true, "found %d workflow runs in %s/%s", len(runs.WorkflowRuns), owner, repo)
 	return runs.WorkflowRuns, nil
 }
 
