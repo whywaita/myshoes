@@ -17,7 +17,7 @@ var (
 	githubPendingRunsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, githubName, "pending_runs"),
 		"Number of pending runs",
-		[]string{"target_id"}, nil,
+		[]string{"target_id", "scope"}, nil,
 	)
 )
 
@@ -43,13 +43,16 @@ func (s ScraperGitHub) Scrape(ctx context.Context, ds datastore.Datastore, ch ch
 }
 
 func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
-	targets, err := ds.ListTargets(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to list pending runs: %w", err)
-	}
+	var targets []*datastore.Target
+	gh.ActiveTargets.Range(func(key, _ any) bool {
+		scope := key.(string)
+		target, _ := ds.GetTargetByScope(ctx, scope)
+		targets = append(targets, target)
+		return true
+	})
 	if len(targets) == 0 {
 		ch <- prometheus.MustNewConstMetric(
-			githubPendingRunsDesc, prometheus.GaugeValue, 0, "none",
+			githubPendingRunsDesc, prometheus.GaugeValue, 0, "none", "none",
 		)
 		return nil
 	}
@@ -60,7 +63,7 @@ func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- pr
 		if repo == "" {
 			continue
 		}
-		runs, err := gh.ListRuns(ctx, owner, repo, t.Scope)
+		runs, err := gh.ListRuns(ctx, owner, repo)
 		if err != nil {
 			logger.Logf(false, "failed to list pending runs: %+v", err)
 			continue
@@ -68,7 +71,7 @@ func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- pr
 
 		if len(runs) == 0 {
 			ch <- prometheus.MustNewConstMetric(
-				githubPendingRunsDesc, prometheus.GaugeValue, 0, t.UUID.String(),
+				githubPendingRunsDesc, prometheus.GaugeValue, 0, t.UUID.String(), t.Scope,
 			)
 			continue
 		}
@@ -80,7 +83,7 @@ func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- pr
 			}
 		}
 		ch <- prometheus.MustNewConstMetric(
-			githubPendingRunsDesc, prometheus.GaugeValue, pendings, t.UUID.String(),
+			githubPendingRunsDesc, prometheus.GaugeValue, pendings, t.UUID.String(), t.Scope,
 		)
 	}
 	return nil

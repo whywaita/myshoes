@@ -78,7 +78,15 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 	}
 }
 
-func receivePingWebhook(_ context.Context, _ *github.PingEvent) error {
+func storeActiveTarget(repoName string, installationID int64) {
+	gh.ActiveTargets.Store(repoName, installationID)
+}
+
+func receivePingWebhook(_ context.Context, event *github.PingEvent) error {
+	repoName := event.GetRepo().GetFullName()
+	installationID := event.GetInstallation().GetID()
+
+	storeActiveTarget(repoName, installationID)
 	return nil
 }
 
@@ -99,7 +107,7 @@ func receiveCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 	if err != nil {
 		return fmt.Errorf("failed to json.Marshal: %w", err)
 	}
-
+	storeActiveTarget(repoName, installationID)
 	return processCheckRun(ctx, ds, repoName, repoURL, installationID, jb)
 }
 
@@ -188,6 +196,7 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 		return fmt.Errorf("failed to json.Marshal: %w", err)
 	}
 
+	storeActiveTarget(repoName, installationID)
 	return processCheckRun(ctx, ds, repoName, repoURL, installationID, jb)
 }
 
