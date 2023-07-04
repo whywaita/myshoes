@@ -13,6 +13,9 @@ import (
 // ActiveTargets stores targets by recently received webhook
 var ActiveTargets = sync.Map{}
 
+// PendingRuns stores queued / pending workflow runs
+var PendingRuns = sync.Map{}
+
 func listRuns(ctx context.Context, client *github.Client, owner, repo string, opts *github.ListWorkflowRunsOptions) (*github.WorkflowRuns, *github.Response, error) {
 	runs, resp, err := client.Actions.ListRepositoryWorkflowRuns(ctx, owner, repo, opts)
 	if err != nil {
@@ -22,7 +25,7 @@ func listRuns(ctx context.Context, client *github.Client, owner, repo string, op
 }
 
 // ListRuns get workflow runs that registered repository
-func ListRuns(ctx context.Context, owner, repo string) ([]*github.WorkflowRun, error) {
+func ListRuns(owner, repo string) ([]*github.WorkflowRun, error) {
 	if cachedRs, expiration, found := responseCache.GetWithExpiration(getRunsCacheKey(owner, repo)); found {
 		if time.Until(expiration).Minutes() <= 1 {
 			go updateCache(context.Background(), owner, repo)
@@ -34,9 +37,13 @@ func ListRuns(ctx context.Context, owner, repo string) ([]*github.WorkflowRun, e
 	return []*github.WorkflowRun{}, nil
 }
 
-
 func getRunsCacheKey(owner, repo string) string {
 	return fmt.Sprintf("runs-owner-%s-repo-%s", owner, repo)
+}
+
+// ClearRunsCache clear github workflow run caches
+func ClearRunsCache(owner, repo string) {
+	responseCache.Delete(getRunsCacheKey(owner, repo))
 }
 
 func updateCache(ctx context.Context, owner, repo string) {

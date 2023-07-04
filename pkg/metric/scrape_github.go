@@ -43,48 +43,35 @@ func (s ScraperGitHub) Scrape(ctx context.Context, ds datastore.Datastore, ch ch
 }
 
 func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
-	var targets []*datastore.Target
-	gh.ActiveTargets.Range(func(key, _ any) bool {
-		scope := key.(string)
-		target, _ := ds.GetTargetByScope(ctx, scope)
-		targets = append(targets, target)
-		return true
-	})
-	if len(targets) == 0 {
-		ch <- prometheus.MustNewConstMetric(
-			githubPendingRunsDesc, prometheus.GaugeValue, 0, "none", "none",
-		)
-		return nil
-	}
-
-	for _, t := range targets {
-		owner, repo := t.OwnerRepo()
+	gh.ActiveTargets.Range(func(key, value any) bool {
 		var pendings float64
-		if repo == "" {
-			continue
+		scope := key.(string)
+		installationID := value.(int64)
+		target, err := ds.GetTargetByScope(ctx, scope)
+		if err != nil {
+			logger.Logf(false, "failed to get target by scope (%s): %+v", scope, err)
+			return true
 		}
-		runs, err := gh.ListRuns(ctx, owner, repo)
+		owner, repo := target.OwnerRepo()
+		if repo == "" {
+			return true
+		}
+		runs, err := gh.ListRuns(owner, repo)
 		if err != nil {
 			logger.Logf(false, "failed to list pending runs: %+v", err)
-			continue
+			return true
 		}
 
-		if len(runs) == 0 {
-			ch <- prometheus.MustNewConstMetric(
-				githubPendingRunsDesc, prometheus.GaugeValue, 0, t.UUID.String(), t.Scope,
-			)
-			continue
-		}
 		for _, r := range runs {
 			if r.GetStatus() == "queued" || r.GetStatus() == "pending" {
 				if time.Since(r.CreatedAt.Time).Minutes() >= 30 {
 					pendings++
+					gh.PendingRuns.Store(installationID, r)
 				}
 			}
 		}
-		ch <- prometheus.MustNewConstMetric(
-			githubPendingRunsDesc, prometheus.GaugeValue, pendings, t.UUID.String(), t.Scope,
-		)
-	}
+		ch <- prometheus.MustNewConstMetric(githubPendingRunsDesc, prometheus.GaugeValue, pendings, target.UUID.String(), target.Scope)
+		return true
+	})
 	return nil
 }
