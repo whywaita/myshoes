@@ -78,7 +78,15 @@ func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 	}
 }
 
-func receivePingWebhook(_ context.Context, _ *github.PingEvent) error {
+func storeActiveTarget(repoName string, installationID int64) {
+	gh.ActiveTargets.Store(repoName, installationID)
+}
+
+func receivePingWebhook(_ context.Context, event *github.PingEvent) error {
+	repoName := event.GetRepo().GetFullName()
+	installationID := event.GetInstallation().GetID()
+
+	storeActiveTarget(repoName, installationID)
 	return nil
 }
 
@@ -99,7 +107,7 @@ func receiveCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 	if err != nil {
 		return fmt.Errorf("failed to json.Marshal: %w", err)
 	}
-
+	storeActiveTarget(repoName, installationID)
 	return processCheckRun(ctx, ds, repoName, repoURL, installationID, jb)
 }
 
@@ -125,14 +133,14 @@ func processCheckRun(ctx context.Context, ds datastore.Datastore, repoName, repo
 	}
 
 	logger.Logf(false, "receive webhook repository: %s/%s", domain, repoName)
-	target, err := searchRepo(ctx, ds, repoName)
+	target, err := datastore.SearchRepo(ctx, ds, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to search registered target: %w", err)
 	}
 
 	if !target.CanReceiveJob() {
 		// do nothing if status is cannot receive
-		logger.Logf(false, "%s/%s is %s now, do nothing", target.Status, domain, repoName)
+		logger.Logf(false, "%s/%s is %s now, do nothing", domain, repoName, target.Status)
 		return nil
 	}
 
@@ -188,6 +196,7 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 		return fmt.Errorf("failed to json.Marshal: %w", err)
 	}
 
+	storeActiveTarget(repoName, installationID)
 	return processCheckRun(ctx, ds, repoName, repoURL, installationID, jb)
 }
 
@@ -198,30 +207,4 @@ func isRequestedMyshoesLabel(labels []string) bool {
 		}
 	}
 	return false
-}
-
-// searchRepo search datastore.Target from datastore
-// format of repo is "orgs/repos"
-func searchRepo(ctx context.Context, ds datastore.Datastore, repo string) (*datastore.Target, error) {
-	sep := strings.Split(repo, "/")
-	if len(sep) != 2 {
-		return nil, fmt.Errorf("incorrect repo format ex: orgs/repo")
-	}
-
-	// use repo scope if set repo
-	repoTarget, err := ds.GetTargetByScope(ctx, repo)
-	if err == nil && repoTarget.CanReceiveJob() {
-		return repoTarget, nil
-	} else if err != nil && err != datastore.ErrNotFound {
-		return nil, fmt.Errorf("failed to get target from repo: %w", err)
-	}
-
-	// repo is not found, so search org target
-	org := sep[0]
-	orgTarget, err := ds.GetTargetByScope(ctx, org)
-	if err != nil || !orgTarget.CanReceiveJob() {
-		return nil, fmt.Errorf("failed to get target from organization: %w", err)
-	}
-
-	return orgTarget, nil
 }

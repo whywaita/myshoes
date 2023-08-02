@@ -125,6 +125,32 @@ func UpdateTargetStatus(ctx context.Context, ds Datastore, targetID uuid.UUID, n
 	return nil
 }
 
+// SearchRepo search datastore.Target from datastore
+// format of repo is "orgs/repos"
+func SearchRepo(ctx context.Context, ds Datastore, repo string) (*Target, error) {
+	sep := strings.Split(repo, "/")
+	if len(sep) != 2 {
+		return nil, fmt.Errorf("incorrect repo format ex: orgs/repo")
+	}
+
+	// use repo scope if set repo
+	repoTarget, err := ds.GetTargetByScope(ctx, repo)
+	if err == nil && repoTarget.CanReceiveJob() {
+		return repoTarget, nil
+	} else if err != nil && err != ErrNotFound {
+		return nil, fmt.Errorf("failed to get target from repo: %w", err)
+	}
+
+	// repo is not found, so search org target
+	org := sep[0]
+	orgTarget, err := ds.GetTargetByScope(ctx, org)
+	if err != nil || !orgTarget.CanReceiveJob() {
+		return nil, fmt.Errorf("failed to get target from organization: %w", err)
+	}
+
+	return orgTarget, nil
+}
+
 // TargetStatus is status for target
 type TargetStatus string
 

@@ -16,9 +16,15 @@ func parseEventJSON(in []byte) (interface{}, error) {
 		return checkRun, nil
 	}
 
-	var workflowJob *github.WorkflowJobEvent
+	var workflowJobEvent *github.WorkflowJobEvent
+	err = json.Unmarshal(in, &workflowJobEvent)
+	if err == nil && workflowJobEvent.GetWorkflowJob() != nil {
+		return workflowJobEvent, nil
+	}
+
+	var workflowJob *github.WorkflowJob
 	err = json.Unmarshal(in, &workflowJob)
-	if err == nil && workflowJob.GetWorkflowJob() != nil {
+	if err == nil && workflowJob != nil {
 		return workflowJob, nil
 	}
 
@@ -36,6 +42,8 @@ func ExtractRunsOnLabels(in []byte) ([]string, error) {
 	case *github.WorkflowJobEvent:
 		// workflow_job has labels, can extract labels
 		return t.GetWorkflowJob().Labels, nil
+	case *github.WorkflowJob:
+		return t.Labels, nil
 	}
 
 	return []string{}, nil
