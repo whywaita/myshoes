@@ -71,7 +71,7 @@ func Load() {
 		log.Panicf("failed to check plugin binary: %+v", err)
 	}
 	c.ShoesPluginPath = absPath
-	log.Printf("use plugin path is %s\n", Config.ShoesPluginPath)
+	log.Printf("use plugin path is %s\n", c.ShoesPluginPath)
 
 	Config = c
 }
