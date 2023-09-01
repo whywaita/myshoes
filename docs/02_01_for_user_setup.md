@@ -28,9 +28,6 @@ you need to register a target that repository or organization.
 - `scope`: set target scope for an auto-scaling runner.
   - Repository example: `octocat/hello-worlds`
   - Organization example: `octocat`
-- `runner_user`: set linux username that executes runner. you need to set exist user.
-  - DO NOT set `root`. It can't run GitHub Actions runner in root permission.
-  - Example: `ubuntu`
 - `resource_type`: set instance size for a runner.
   - We will describe later.
   - Please teach it from myshoes admin.
@@ -38,7 +35,7 @@ you need to register a target that repository or organization.
 Example (create a target):
 
 ```bash
-$ curl -XPOST -d '{"scope": "octocat/hello-world", "resource_type": "micro", "runner_user": "ubuntu"}' ${your_shoes_host}/target
+$ curl -XPOST -d '{"scope": "octocat/hello-world", "resource_type": "micro"}' ${your_shoes_host}/target
 ```
 
 You can check registered targets.
@@ -51,8 +48,6 @@ curl -XGET ${your_shoes_host}/target | jq .
     "scope": "octocat",
     "token_expired_at": "2006-01-02T15:04:05Z",
     "resource_type": "micro",
-    "runner_user": "ubuntu",
-    "runner_version": "",
     "provider_url": "",
     "status": "active",
     "status_description": "",
@@ -74,8 +69,8 @@ For example,
 So please configure it.
 
 ```bash
-$ curl -XPOST -d '{"scope": "octocat", "resource_type": "nano", "runner_user": "ubuntu"}' ${your_shoes_host}/target
-$ curl -XPOST -d '{"scope": "octocat/huge-repository", "resource_type": "4xlarge", "runner_user": "ubuntu"}' ${your_shoes_host}/target
+$ curl -XPOST -d '{"scope": "octocat", "resource_type": "nano"}' ${your_shoes_host}/target
+$ curl -XPOST -d '{"scope": "octocat/huge-repository", "resource_type": "4xlarge"}' ${your_shoes_host}/target
 
 $ curl -XGET ${your_shoes_host}/target | jq .
 [
@@ -84,8 +79,6 @@ $ curl -XGET ${your_shoes_host}/target | jq .
     "scope": "octocat",
     "token_expired_at": "2006-01-02T15:04:05Z",
     "resource_type": "nano",
-    "runner_user": "ubuntu",
-    "runner_version": "",
     "provider_url": "",
     "status": "active",
     "status_description": "",
@@ -97,8 +90,6 @@ $ curl -XGET ${your_shoes_host}/target | jq .
     "scope": "octocat/huge-repository",
     "token_expired_at": "2006-01-02T15:04:05Z",
     "resource_type": "4xlarge",
-    "runner_user": "ubuntu",
-    "runner_version": "",
     "provider_url": "",
     "status": "active",
     "status_description": "",
