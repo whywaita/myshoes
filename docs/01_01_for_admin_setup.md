@@ -98,6 +98,11 @@ A config variables can set from environment values.
     - Use the latest version in starting job
   - The version of `actions/runner`
   - example) `v2.302.1`, `latest`
+- `RUNNER_USER`
+  - default: `runner`
+  - set linux username that executes runner. you need to set exist user.
+    - DO NOT set root. It can't run GitHub Actions runner in root permission.
+    - Example: `ubuntu`
 
 For tuning values
 
