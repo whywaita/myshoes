@@ -43,7 +43,7 @@ func IntegrationTestRunner(m *testing.M) int {
 	if err := pool.Retry(func() error {
 		var err error
 		dsn := fmt.Sprintf("root:%s@(localhost:%s)/mysql", mysqlRootPassword, resource.GetPort("3306/tcp"))
-		testDatastore, err = mysql.New(dsn)
+		testDatastore, err = mysql.New(dsn, make(chan<- struct{}))
 		if err != nil {
 			log.Fatalf("failed to create datastore instance: %s", err)
 		}

@@ -17,6 +17,13 @@ func (m *MySQL) EnqueueJob(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to execute INSERT query: %w", err)
 	}
 
+	select {
+	case m.notifyEnqueueCh <- struct{}{}:
+		// notified to starter
+	default:
+		// no capacity on channel, do not block
+	}
+
 	return nil
 }
 

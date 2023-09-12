@@ -46,13 +46,15 @@ type myShoes struct {
 
 // newShoes create myshoes.
 func newShoes() (*myShoes, error) {
-	ds, err := mysql.New(config.Config.MySQLDSN)
+	notifyEnqueueCh := make(chan struct{}, 1)
+
+	ds, err := mysql.New(config.Config.MySQLDSN, notifyEnqueueCh)
 	if err != nil {
 		return nil, fmt.Errorf("failed to mysql.New: %w", err)
 	}
 
 	unlimit := unlimited.Unlimited{}
-	s := starter.New(ds, unlimit, config.Config.RunnerVersion)
+	s := starter.New(ds, unlimit, config.Config.RunnerVersion, notifyEnqueueCh)
 
 	manager := runner.New(ds, config.Config.RunnerVersion)
 
