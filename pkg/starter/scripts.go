@@ -344,7 +344,7 @@ trap - TERM INT
 wait \$PID
 EOF
 
-cat << EOF > ./bin/RunnerService.js
+cat << 'EOF' > ./bin/RunnerService.js
 {{.RunnerServiceJS}}
 EOF
 
