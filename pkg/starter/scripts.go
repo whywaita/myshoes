@@ -280,6 +280,10 @@ runner_file=$(get_runner_file_name ${RUNNER_VERSION} ${runner_plat})
 if [ -f "${RUNNER_BASE_DIRECTORY}/runner/config.sh" ]; then
     # already extracted
     echo "${RUNNER_BASE_DIRECTORY}/runner/config.sh exists. skipping download and extract."
+elif [ -f "/usr/local/etc/runner-${RUNNER_VERSION}/config.sh" ]; then
+    echo "runner-${RUNNER_VERSION} cache is found. skipping download and extract."
+    rm -r ./runner
+    mv /usr/local/etc/runner-${RUNNER_VERSION} ./runner
 elif [ -f "${runner_file}" ]; then
     echo "${runner_file} exists. skipping download."
     extract_runner ${runner_file} ${RUNNER_USER}
