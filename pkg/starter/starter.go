@@ -32,6 +32,9 @@ var (
 	// CountWaiting is count of waiting job
 	CountWaiting atomic.Int64
 
+	// CountRecovered is count of recovered job per target
+	CountRecovered = sync.Map{}
+
 	inProgress = sync.Map{}
 
 	reQueuedJobs = sync.Map{}
@@ -408,6 +411,8 @@ func (s *Starter) reRunWorkflow(ctx context.Context) {
 							continue
 						}
 						reQueuedJobs.Store(j.GetID(), time.Now().Add(30*time.Minute))
+						countRecovered, _ := CountRecovered.LoadOrStore(target.Scope, 0)
+						CountRecovered.Store(target.Scope, countRecovered.(int)+1)
 					}
 				}
 				gh.PendingRuns.Delete(installationID)
