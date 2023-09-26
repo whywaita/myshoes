@@ -3,6 +3,7 @@ package metric
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/whywaita/myshoes/internal/config"
@@ -95,7 +96,7 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 
 	const labelRunner = "runner"
 	configRunnerDeletingMax := config.Config.MaxConcurrencyDeleting
-	countRunnerDeletingNow := runner.ConcurrencyDeleting
+	countRunnerDeletingNow := atomic.LoadInt64(&runner.ConcurrencyDeleting)
 
 	ch <- prometheus.MustNewConstMetric(
 		memoryRunnerMaxConcurrencyDeleting, prometheus.GaugeValue, float64(configRunnerDeletingMax), labelRunner)
