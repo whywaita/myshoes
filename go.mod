@@ -1,6 +1,8 @@
 module github.com/whywaita/myshoes
 
-go 1.18
+go 1.21
+
+toolchain go1.21.1
 
 require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4

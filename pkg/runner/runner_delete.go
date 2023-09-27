@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/go-github/v47/github"
@@ -28,7 +29,7 @@ type Runner struct {
 
 var (
 	// ConcurrencyDeleting is value of concurrency
-	ConcurrencyDeleting int64 = 0
+	ConcurrencyDeleting atomic.Int64
 )
 
 func (m *Manager) do(ctx context.Context) error {
@@ -92,7 +93,7 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 
 	sem := semaphore.NewWeighted(config.Config.MaxConcurrencyDeleting)
 	var eg errgroup.Group
-	ConcurrencyDeleting = 0
+	ConcurrencyDeleting.Store(0)
 
 	for _, runner := range runners {
 		runner := runner
@@ -100,12 +101,12 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("failed to Acquire: %w", err)
 		}
-		ConcurrencyDeleting++
+		ConcurrencyDeleting.Add(1)
 
 		eg.Go(func() error {
 			defer func() {
 				sem.Release(1)
-				ConcurrencyDeleting--
+				ConcurrencyDeleting.Add(-1)
 			}()
 
 			if err := m.removeRunner(ctx, t, runner, ghRunners); err != nil {
