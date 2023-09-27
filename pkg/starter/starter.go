@@ -358,7 +358,7 @@ func (s *Starter) reRunWorkflow(ctx context.Context) {
 					if value, ok := reQueuedJobs.Load(j.GetID()); ok {
 						expired := value.(time.Time)
 						if time.Until(expired) <= 0 {
-							reQueuedJobs.Delete(run.GetID())
+							reQueuedJobs.Delete(j.GetID())
 						}
 						continue
 					}
