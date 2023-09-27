@@ -11,10 +11,12 @@ import (
 // MySQL is implement datastore in MySQL
 type MySQL struct {
 	Conn *sqlx.DB
+
+	notifyEnqueueCh chan<- struct{}
 }
 
 // New create mysql connection
-func New(dsn string) (*MySQL, error) {
+func New(dsn string, notifyEnqueueCh chan<- struct{}) (*MySQL, error) {
 	u, err := getMySQLURL(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get MySQL URL: %w", err)
@@ -26,7 +28,8 @@ func New(dsn string) (*MySQL, error) {
 	}
 
 	return &MySQL{
-		Conn: conn,
+		Conn:            conn,
+		notifyEnqueueCh: notifyEnqueueCh,
 	}, nil
 }
 

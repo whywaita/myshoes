@@ -39,17 +39,19 @@ var (
 
 // Starter is dispatcher for running job
 type Starter struct {
-	ds            datastore.Datastore
-	safety        safety.Safety
-	runnerVersion string
+	ds              datastore.Datastore
+	safety          safety.Safety
+	runnerVersion   string
+	notifyEnqueueCh <-chan struct{}
 }
 
 // New create starter instance
-func New(ds datastore.Datastore, s safety.Safety, runnerVersion string) *Starter {
+func New(ds datastore.Datastore, s safety.Safety, runnerVersion string, notifyEnqueueCh <-chan struct{}) *Starter {
 	return &Starter{
-		ds:            ds,
-		safety:        s,
-		runnerVersion: runnerVersion,
+		ds:              ds,
+		safety:          s,
+		runnerVersion:   runnerVersion,
+		notifyEnqueueCh: notifyEnqueueCh,
 	}
 }
 
@@ -79,6 +81,11 @@ func (s *Starter) Loop(ctx context.Context) error {
 		for {
 			select {
 			case <-ticker.C:
+				if err := s.dispatcher(ctx, ch); err != nil {
+					logger.Logf(false, "failed to starter: %+v", err)
+				}
+			case <-s.notifyEnqueueCh:
+				ticker.Reset(10 * time.Second)
 				if err := s.dispatcher(ctx, ch); err != nil {
 					logger.Logf(false, "failed to starter: %+v", err)
 				}
