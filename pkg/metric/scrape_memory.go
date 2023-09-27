@@ -85,8 +85,8 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 	ch <- prometheus.MustNewConstMetric(
 		memoryStarterMaxRunning, prometheus.GaugeValue, float64(configMax), labelStarter)
 
-	countRunning := starter.CountRunning
-	countWaiting := starter.CountWaiting
+	countRunning := starter.CountRunning.Load()
+	countWaiting := starter.CountWaiting.Load()
 
 	ch <- prometheus.MustNewConstMetric(
 		memoryStarterQueueRunning, prometheus.GaugeValue, float64(countRunning), labelStarter)

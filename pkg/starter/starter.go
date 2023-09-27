@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/exp/slices"
@@ -27,9 +28,9 @@ import (
 
 var (
 	// CountRunning is count of running semaphore
-	CountRunning = 0
+	CountRunning atomic.Int64
 	// CountWaiting is count of waiting job
-	CountWaiting = 0
+	CountWaiting atomic.Int64
 
 	inProgress = sync.Map{}
 
@@ -123,12 +124,12 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 			}
 
 			logger.Logf(true, "found new job: %s", job.UUID)
-			CountWaiting++
+			CountWaiting.Add(1)
 			if err := sem.Acquire(ctx, 1); err != nil {
 				return fmt.Errorf("failed to Acquire: %w", err)
 			}
-			CountWaiting--
-			CountRunning++
+			CountWaiting.Add(-1)
+			CountRunning.Add(1)
 
 			inProgress.Store(job.UUID, struct{}{})
 
@@ -136,7 +137,7 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 				defer func() {
 					sem.Release(1)
 					inProgress.Delete(job.UUID)
-					CountRunning--
+					CountRunning.Add(-1)
 				}()
 
 				if err := s.processJob(ctx, job); err != nil {
