@@ -353,6 +353,18 @@ cat << 'EOF' > ./bin/RunnerService.js
 EOF
 
 #---------------------------------------
+# Configure run commands
+#---------------------------------------
+
+# Configure job management hooks if script files exist
+if [ -e "/myshoes-actions-runner-hook-job-started.sh" ]; then
+	export ACTIONS_RUNNER_HOOK_JOB_STARTED="/myshoes-actions-runner-hook-job-started.sh"
+fi
+if [ -e "/myshoes-actions-runner-hook-job-completed.sh" ]; then
+	export ACTIONS_RUNNER_HOOK_JOB_COMPLETED="/myshoes-actions-runner-hook-job-completed.sh"
+fi
+
+#---------------------------------------
 # run!
 #---------------------------------------
 {{ if eq .RunnerArg "--once" -}}
