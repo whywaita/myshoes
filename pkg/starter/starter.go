@@ -181,6 +181,8 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to retrieve relational target: (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
 
+	CountRecovered.LoadOrStore(target.Scope, 0)
+
 	cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
 	defer cancel()
 	cloudID, ipAddress, shoesType, resourceType, err := s.bung(cctx, job, *target)
