@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/datastore/mysql"
 	"github.com/whywaita/myshoes/pkg/gh"

@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/config"
 )
 
 func TestDetectScope(t *testing.T) {

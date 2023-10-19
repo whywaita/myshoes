@@ -11,7 +11,8 @@ import (
 
 	"github.com/google/go-github/v47/github"
 	uuid "github.com/satori/go.uuid"
-	"github.com/whywaita/myshoes/internal/config"
+
+	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 

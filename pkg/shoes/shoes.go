@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 
 	pb "github.com/whywaita/myshoes/api/proto.go"
-	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 
 	"google.golang.org/grpc"

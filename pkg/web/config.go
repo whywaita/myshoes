@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/logger"
 )
 
