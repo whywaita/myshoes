@@ -10,12 +10,7 @@ var Config Conf
 
 // Conf is type of Config
 type Conf struct {
-	GitHub struct {
-		AppID     int64
-		AppSecret []byte
-		PEMByte   []byte
-		PEM       *rsa.PrivateKey
-	}
+	GitHub GitHubApp
 
 	MySQLDSN        string
 	Port            int
@@ -31,6 +26,14 @@ type Conf struct {
 
 	GitHubURL     string
 	RunnerVersion string
+}
+
+// GitHubApp is type of config value
+type GitHubApp struct {
+	AppID     int64
+	AppSecret []byte
+	PEMByte   []byte
+	PEM       *rsa.PrivateKey
 }
 
 // Config Environment keys
