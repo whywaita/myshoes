@@ -255,7 +255,8 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.
 	logger.Logf(false, "start create instance (job: %s)", job.UUID)
 	runnerName := runner.ToName(job.UUID.String())
 
-	script, err := s.getSetupScript(ctx, target, runnerName)
+	targetScope := getTargetScope(target, job)
+	script, err := s.getSetupScript(ctx, targetScope, runnerName)
 	if err != nil {
 		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to get setup scripts: %w", err)
 	}
@@ -279,6 +280,15 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.
 	logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
 
 	return cloudID, ipAddress, shoesType, resourceType, nil
+}
+
+// getTargetScope from target, but receive from job if datastore.target.Scope is empty
+// this function is for datastore that don't store target.
+func getTargetScope(target datastore.Target, job datastore.Job) string {
+	if target.Scope == "" {
+		return job.Repository
+	}
+	return target.Scope
 }
 
 func deleteInstance(ctx context.Context, cloudID, checkEventJSON string) error {
