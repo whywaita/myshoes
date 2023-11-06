@@ -78,7 +78,7 @@ A config variables can set from environment values.
 - GitHub Apps information
   - required
   - `GITHUB_APP_ID`
-  - `GITHUB_APP_SECRET` (if you set)
+  - `GITHUB_APP_SECRET` (if you set `Webhook secret` for your GitHub App)
   - `GITHUB_PRIVATE_KEY_BASE64`
     - base64 encoded private key from GitHub Apps
     - `$ cat privatekey.pem | base64 -w 0`
