@@ -30,6 +30,11 @@ var (
 		"waiting queue in starter",
 		[]string{"starter"}, nil,
 	)
+	memoryStarterRecoveredRuns = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "starter_recovered_runs"),
+		"recovered runs in starter",
+		[]string{"starter"}, nil,
+	)
 	memoryGitHubRateLimitRemaining = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, memoryName, "github_rate_limit_remaining"),
 		"The number of rate limit remaining",
@@ -73,6 +78,9 @@ func (ScraperMemory) Scrape(ctx context.Context, ds datastore.Datastore, ch chan
 	if err := scrapeGitHubValues(ch); err != nil {
 		return fmt.Errorf("failed to scrape GitHub values: %w", err)
 	}
+	if err := scrapeRecoveredRuns(ch); err != nil {
+		return fmt.Errorf("failed to scrape recovered runs: %w", err)
+	}
 
 	return nil
 }
@@ -102,6 +110,16 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 	ch <- prometheus.MustNewConstMetric(
 		memoryRunnerQueueConcurrencyDeleting, prometheus.GaugeValue, float64(countRunnerDeletingNow), labelRunner)
 
+	return nil
+}
+
+func scrapeRecoveredRuns(ch chan<- prometheus.Metric) error {
+	starter.CountRecovered.Range(func(key, value interface{}) bool {
+		ch <- prometheus.MustNewConstMetric(
+			memoryStarterRecoveredRuns, prometheus.GaugeValue, float64(value.(int)), key.(string),
+		)
+		return true
+	})
 	return nil
 }
 

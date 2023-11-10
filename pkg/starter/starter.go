@@ -32,6 +32,9 @@ var (
 	// CountWaiting is count of waiting job
 	CountWaiting atomic.Int64
 
+	// CountRecovered is count of recovered job per target
+	CountRecovered = sync.Map{}
+
 	inProgress = sync.Map{}
 
 	reQueuedJobs = sync.Map{}
@@ -177,6 +180,8 @@ func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
 	if err != nil {
 		return fmt.Errorf("failed to retrieve relational target: (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
+
+	CountRecovered.LoadOrStore(target.Scope, 0)
 
 	cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
 	defer cancel()
@@ -408,6 +413,8 @@ func (s *Starter) reRunWorkflow(ctx context.Context) {
 							continue
 						}
 						reQueuedJobs.Store(j.GetID(), time.Now().Add(30*time.Minute))
+						countRecovered, _ := CountRecovered.LoadOrStore(target.Scope, 0)
+						CountRecovered.Store(target.Scope, countRecovered.(int)+1)
 					}
 				}
 				gh.PendingRuns.Delete(installationID)
