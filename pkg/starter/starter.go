@@ -7,11 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
@@ -378,8 +378,10 @@ func (s *Starter) reRunWorkflow(ctx context.Context) {
 				}
 				continue
 			}
-			if !slices.Contains(j.Labels, "self-hosted") && !slices.Contains(j.Labels, "myshoes") {
-				continue
+			for _, label := range j.Labels {
+				if !(strings.EqualFold(label, "self-hosted")) {
+					continue
+				}
 			}
 			if j.GetStatus() == "queued" {
 				repoURL := run.GetRepository().GetHTMLURL()
@@ -415,7 +417,7 @@ func (s *Starter) reRunWorkflow(ctx context.Context) {
 					logger.Logf(false, "failed to enqueue job: %+v", err)
 					continue
 				}
-				reQueuedJobs.Store(j.GetID(), time.Now().Add(30*time.Minute))
+				reQueuedJobs.Store(j.GetID(), time.Now().Add(12*time.Hour))
 				countRecovered, _ := CountRecovered.LoadOrStore(target.Scope, 0)
 				CountRecovered.Store(target.Scope, countRecovered.(int)+1)
 			}
