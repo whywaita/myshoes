@@ -370,6 +370,7 @@ func (s *Starter) reRunWorkflow(ctx context.Context) {
 			return true
 		}
 
+	JL: // job loop
 		for _, j := range jobs.Jobs {
 			if value, ok := reQueuedJobs.Load(j.GetID()); ok {
 				expired := value.(time.Time)
@@ -380,7 +381,7 @@ func (s *Starter) reRunWorkflow(ctx context.Context) {
 			}
 			for _, label := range j.Labels {
 				if !(strings.EqualFold(label, "self-hosted")) {
-					continue
+					continue JL
 				}
 			}
 			if j.GetStatus() == "queued" {
