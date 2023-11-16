@@ -19,7 +19,6 @@ require (
 	github.com/r3labs/diff/v2 v2.15.1
 	github.com/satori/go.uuid v1.2.0
 	goji.io v2.0.2+incompatible
-	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/grpc v1.45.0
