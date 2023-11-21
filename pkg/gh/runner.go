@@ -85,8 +85,8 @@ func listRunners(ctx context.Context, client *github.Client, owner, repo string,
 }
 
 // GetLatestRunnerVersion get a latest version of actions/runner
-func GetLatestRunnerVersion(ctx context.Context, scope string) (string, error) {
-	client, err := NewClientGitHubApps()
+func GetLatestRunnerVersion(ctx context.Context, scope, token string) (string, error) {
+	client, err := NewClient(token)
 	if err != nil {
 		return "", fmt.Errorf("failed to create GitHub client: %w", err)
 	}
@@ -94,16 +94,18 @@ func GetLatestRunnerVersion(ctx context.Context, scope string) (string, error) {
 	switch DetectScope(scope) {
 	case Repository:
 		owner, repo := DivideScope(scope)
-		applications, _, err := client.Actions.ListRunnerApplicationDownloads(ctx, owner, repo)
+		applications, resp, err := client.Actions.ListRunnerApplicationDownloads(ctx, owner, repo)
 		if err != nil {
 			return "", fmt.Errorf("failed to get latest runner version: %w", err)
 		}
+		storeRateLimit(getRateLimitKey(owner, repo), resp.Rate)
 		return getRunnerVersion(applications)
 	case Organization:
-		applications, _, err := client.Actions.ListOrganizationRunnerApplicationDownloads(ctx, scope)
+		applications, resp, err := client.Actions.ListOrganizationRunnerApplicationDownloads(ctx, scope)
 		if err != nil {
 			return "", fmt.Errorf("failed to get latest runner version: %w", err)
 		}
+		storeRateLimit(getRateLimitKey(scope, ""), resp.Rate)
 		return getRunnerVersion(applications)
 	}
 	return "", fmt.Errorf("invalid scope: %s", scope)
