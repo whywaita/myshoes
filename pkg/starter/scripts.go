@@ -52,7 +52,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 
 	targetRunnerVersion := s.runnerVersion
 	if strings.EqualFold(s.runnerVersion, "latest") {
-		latestVersion, err := gh.GetLatestRunnerVersion(ctx)
+		latestVersion, err := gh.GetLatestRunnerVersion(ctx, target.Scope, target.GitHubToken)
 		if err != nil {
 			return "", fmt.Errorf("failed to get latest version of actions/runner: %w", err)
 		}
