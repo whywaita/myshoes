@@ -65,7 +65,7 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 
 	if len(jobs) == 0 {
 		ch <- prometheus.MustNewConstMetric(
-			datastoreJobsDesc, prometheus.GaugeValue, 0, "none",
+			datastoreJobsDesc, prometheus.GaugeValue, 0, "none", "none",
 		)
 		return nil
 	}
@@ -86,17 +86,16 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 		if err != nil {
 			return fmt.Errorf("failed to extract runs-on labels: %w", err)
 		}
-		if len(runsOnLabels) == 0 {
-			// if runs-on is empty, set "none"
-			runsOnLabels = []string{"none"}
-		}
-		runsOnConcat := strings.Join(runsOnLabels, ",") // e.g. "self-hosted,linux"
 
+		runsOnConcat := "none"
+		if len(runsOnLabels) != 0 {
+			runsOnConcat = strings.Join(runsOnLabels, ",") // e.g. "self-hosted,linux"
+		}
 		key := fmt.Sprintf("%s-_-%s", j.TargetID.String(), runsOnConcat)
 		stored[key]++
 	}
 	for key, number := range stored {
-		// key: target_id-runs-on
+		// key: target_id-_-runs-on
 		// value: number of jobs
 		split := strings.Split(key, "-_-")
 		ch <- prometheus.MustNewConstMetric(
