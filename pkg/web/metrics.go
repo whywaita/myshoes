@@ -11,7 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func handleMetrics(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+func HandleMetrics(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	ctx := r.Context()
 
 	registry := prometheus.NewRegistry()

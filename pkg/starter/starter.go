@@ -147,7 +147,7 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 					CountRunning.Add(-1)
 				}()
 
-				if err := s.processJob(ctx, job); err != nil {
+				if err := s.ProcessJob(ctx, job); err != nil {
 					logger.Logf(false, "failed to process job: %+v\n", err)
 				}
 			}(job)
@@ -158,7 +158,8 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 	}
 }
 
-func (s *Starter) processJob(ctx context.Context, job datastore.Job) error {
+// ProcessJob is process job
+func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 	logger.Logf(false, "start job (job id: %s)\n", job.UUID.String())
 
 	isOK, err := s.safety.Check(&job)

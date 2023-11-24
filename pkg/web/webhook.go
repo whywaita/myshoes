@@ -18,7 +18,7 @@ import (
 	"github.com/whywaita/myshoes/pkg/logger"
 )
 
-func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+func HandleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	ctx := r.Context()
 
 	payload, err := github.ValidatePayload(r, config.Config.GitHub.AppSecret)

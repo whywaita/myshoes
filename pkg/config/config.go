@@ -12,10 +12,11 @@ var Config Conf
 type Conf struct {
 	GitHub GitHubApp
 
-	MySQLDSN        string
-	Port            int
-	ShoesPluginPath string
-	RunnerUser      string
+	MySQLDSN              string
+	Port                  int
+	ShoesPluginPath       string
+	ShoesPluginOutputPath string
+	RunnerUser            string
 
 	Debug           bool
 	Strict          bool // check to registered runner before delete job
@@ -44,6 +45,7 @@ const (
 	EnvMySQLURL                  = "MYSQL_URL"
 	EnvPort                      = "PORT"
 	EnvShoesPluginPath           = "PLUGIN"
+	EnvShoesPluginOutputPath     = "PLUGIN_OUTPUT"
 	EnvRunnerUser                = "RUNNER_USER"
 	EnvDebug                     = "DEBUG"
 	EnvStrict                    = "STRICT"

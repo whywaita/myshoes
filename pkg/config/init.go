@@ -121,6 +121,11 @@ func LoadWithDefault() Conf {
 		}
 	}
 
+	c.ShoesPluginOutputPath = "."
+	if os.Getenv(EnvShoesPluginOutputPath) != "" {
+		c.ShoesPluginOutputPath = os.Getenv(EnvShoesPluginOutputPath)
+	}
+
 	Config = c
 	return c
 }
@@ -229,7 +234,7 @@ func fetch(p string) (string, error) {
 	case "http", "https":
 		return fetchHTTP(u)
 	default:
-		return "", fmt.Errorf("unsupported fetch schema")
+		return "", fmt.Errorf("unsupported fetch schema (scheme: %s)", u.Scheme)
 	}
 }
 
@@ -237,15 +242,19 @@ func fetch(p string) (string, error) {
 // save to current directory.
 func fetchHTTP(u *url.URL) (string, error) {
 	log.Printf("fetch plugin binary from %s\n", u.String())
-	pwd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to working directory: %w", err)
+	dir := Config.ShoesPluginOutputPath
+	if strings.EqualFold(dir, ".") {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to working directory: %w", err)
+		}
+		dir = pwd
 	}
 
 	p := strings.Split(u.Path, "/")
 	fileName := p[len(p)-1]
 
-	fp := filepath.Join(pwd, fileName)
+	fp := filepath.Join(dir, fileName)
 	f, err := os.Create(fp)
 	if err != nil {
 		return "", fmt.Errorf("failed to create os file: %w", err)
