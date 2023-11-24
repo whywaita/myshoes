@@ -22,8 +22,8 @@ func getPatchedFiles() (string, error) {
 	return runnerService, nil
 }
 
-func (s *Starter) getSetupScript(ctx context.Context, targetScope, runnerName string) (string, error) {
-	rawScript, err := s.getSetupRawScript(ctx, targetScope, runnerName)
+func (s *Starter) getSetupScript(ctx context.Context, targetScope, targetToken, runnerName string) (string, error) {
+	rawScript, err := s.getSetupRawScript(ctx, targetScope, targetToken, runnerName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get raw setup scripts: %w", err)
 	}
@@ -44,13 +44,13 @@ func (s *Starter) getSetupScript(ctx context.Context, targetScope, runnerName st
 	return fmt.Sprintf(templateCompressedScript, encoded), nil
 }
 
-func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName string) (string, error) {
+func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, targetToken, runnerName string) (string, error) {
 	runnerUser := config.Config.RunnerUser
 	githubURL := config.Config.GitHubURL
 
 	targetRunnerVersion := s.runnerVersion
 	if strings.EqualFold(s.runnerVersion, "latest") {
-		latestVersion, err := gh.GetLatestRunnerVersion(ctx, target.Scope, target.GitHubToken)
+		latestVersion, err := gh.GetLatestRunnerVersion(ctx, targetScope, targetToken)
 		if err != nil {
 			return "", fmt.Errorf("failed to get latest version of actions/runner: %w", err)
 		}
