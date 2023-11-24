@@ -39,5 +39,8 @@ jobs:
        uses: actions/checkout@v3
        with:
          fetch-depth: 1
-     - name: docker build
-       run: docker build .
+     - name: Build container image
+       uses: docker/build-push-action@v2
+       with:
+         push: false
+         tags: ${{ steps.meta.outputs.tags }}
