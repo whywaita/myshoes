@@ -85,7 +85,19 @@ func listRunners(ctx context.Context, client *github.Client, owner, repo string,
 }
 
 // GetLatestRunnerVersion get a latest version of actions/runner
-func GetLatestRunnerVersion(ctx context.Context, scope, token string) (string, error) {
+func GetLatestRunnerVersion(ctx context.Context, scope string) (string, error) {
+	clientApps, err := NewClientGitHubApps()
+	if err != nil {
+		return "", fmt.Errorf("failed to create a client from Apps: %+v", err)
+	}
+	installationID, err := IsInstalledGitHubApp(ctx, scope)
+	if err != nil {
+		return "", fmt.Errorf("failed to get installlation id: %w", err)
+	}
+	token, _, err := GenerateGitHubAppsToken(ctx, clientApps, installationID, scope)
+	if err != nil {
+		return "", fmt.Errorf("failed to get registration token: %w", err)
+	}
 	client, err := NewClient(token)
 	if err != nil {
 		return "", fmt.Errorf("failed to create GitHub client: %w", err)
