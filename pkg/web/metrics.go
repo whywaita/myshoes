@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// HandleMetrics handle metrics endpoint
 func HandleMetrics(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	ctx := r.Context()
 

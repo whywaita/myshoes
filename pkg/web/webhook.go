@@ -18,6 +18,7 @@ import (
 	"github.com/whywaita/myshoes/pkg/logger"
 )
 
+// HandleGitHubEvent handle GitHub webhook event
 func HandleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	ctx := r.Context()
 
