@@ -85,11 +85,41 @@ func listRunners(ctx context.Context, client *github.Client, owner, repo string,
 }
 
 // GetLatestRunnerVersion get a latest version of actions/runner
-func GetLatestRunnerVersion(ctx context.Context) (string, error) {
-	client := github.NewClient(runnerVersionCacheTransport.Client())
-	release, _, err := client.Repositories.GetLatestRelease(ctx, "actions", "runner")
+func GetLatestRunnerVersion(ctx context.Context, scope, token string) (string, error) {
+	client, err := NewClient(token)
 	if err != nil {
-		return "", fmt.Errorf("failed to get latest runner version: %w", err)
+		return "", fmt.Errorf("failed to create GitHub client: %w", err)
 	}
-	return *release.TagName, nil
+
+	switch DetectScope(scope) {
+	case Repository:
+		owner, repo := DivideScope(scope)
+		applications, resp, err := client.Actions.ListRunnerApplicationDownloads(ctx, owner, repo)
+		if err != nil {
+			return "", fmt.Errorf("failed to get latest runner version: %w", err)
+		}
+		storeRateLimit(getRateLimitKey(owner, repo), resp.Rate)
+		return getRunnerVersion(applications)
+	case Organization:
+		applications, resp, err := client.Actions.ListOrganizationRunnerApplicationDownloads(ctx, scope)
+		if err != nil {
+			return "", fmt.Errorf("failed to get latest runner version: %w", err)
+		}
+		storeRateLimit(getRateLimitKey(scope, ""), resp.Rate)
+		return getRunnerVersion(applications)
+	}
+	return "", fmt.Errorf("invalid scope: %s", scope)
+}
+
+func getRunnerVersion(applications []*github.RunnerApplicationDownload) (string, error) {
+	// filename": "actions-runner-linux-x64-2.164.0.tar.gz"
+	for _, app := range applications {
+		if *app.OS == "linux" && *app.Architecture == "x64" {
+			v := strings.ReplaceAll(*app.Filename, "actions-runner-linux-x64-", "")
+			v = strings.ReplaceAll(v, ".tar.gz", "")
+			return fmt.Sprintf("v%s", v), nil
+		}
+	}
+
+	return "", fmt.Errorf("not found runner version")
 }

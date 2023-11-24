@@ -50,7 +50,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName
 
 	targetRunnerVersion := s.runnerVersion
 	if strings.EqualFold(s.runnerVersion, "latest") {
-		latestVersion, err := gh.GetLatestRunnerVersion(ctx)
+		latestVersion, err := gh.GetLatestRunnerVersion(ctx, target.Scope, target.GitHubToken)
 		if err != nil {
 			return "", fmt.Errorf("failed to get latest version of actions/runner: %w", err)
 		}
@@ -349,6 +349,18 @@ EOF
 cat << 'EOF' > ./bin/RunnerService.js
 {{.RunnerServiceJS}}
 EOF
+
+#---------------------------------------
+# Configure run commands
+#---------------------------------------
+
+# Configure job management hooks if script files exist
+if [ -e "/myshoes-actions-runner-hook-job-started.sh" ]; then
+	export ACTIONS_RUNNER_HOOK_JOB_STARTED="/myshoes-actions-runner-hook-job-started.sh"
+fi
+if [ -e "/myshoes-actions-runner-hook-job-completed.sh" ]; then
+	export ACTIONS_RUNNER_HOOK_JOB_COMPLETED="/myshoes-actions-runner-hook-job-completed.sh"
+fi
 
 #---------------------------------------
 # run!

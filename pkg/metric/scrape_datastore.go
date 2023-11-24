@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/gh"
 )
 
 const datastoreName = "datastore"
@@ -16,7 +18,7 @@ var (
 	datastoreJobsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, datastoreName, "jobs"),
 		"Number of jobs",
-		[]string{"target_id"}, nil,
+		[]string{"target_id", "runs_on"}, nil,
 	)
 	datastoreTargetsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, datastoreName, "targets"),
@@ -63,7 +65,7 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 
 	if len(jobs) == 0 {
 		ch <- prometheus.MustNewConstMetric(
-			datastoreJobsDesc, prometheus.GaugeValue, 0, "none",
+			datastoreJobsDesc, prometheus.GaugeValue, 0, "none", "none",
 		)
 		return nil
 	}
@@ -77,13 +79,27 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 	ch <- prometheus.MustNewConstMetric(
 		datastoreJobDurationOldest, prometheus.GaugeValue, time.Since(oldestJob.CreatedAt).Seconds(), oldestJob.UUID.String())
 
-	result := map[string]float64{} // key: target_id, value: number
+	stored := map[string]float64{}
+	// job separate target_id and runs-on labels
 	for _, j := range jobs {
-		result[j.TargetID.String()]++
+		runsOnLabels, err := gh.ExtractRunsOnLabels([]byte(j.CheckEventJSON))
+		if err != nil {
+			return fmt.Errorf("failed to extract runs-on labels: %w", err)
+		}
+
+		runsOnConcat := "none"
+		if len(runsOnLabels) != 0 {
+			runsOnConcat = strings.Join(runsOnLabels, ",") // e.g. "self-hosted,linux"
+		}
+		key := fmt.Sprintf("%s-_-%s", j.TargetID.String(), runsOnConcat)
+		stored[key]++
 	}
-	for targetID, number := range result {
+	for key, number := range stored {
+		// key: target_id-_-runs-on
+		// value: number of jobs
+		split := strings.Split(key, "-_-")
 		ch <- prometheus.MustNewConstMetric(
-			datastoreJobsDesc, prometheus.GaugeValue, number, targetID,
+			datastoreJobsDesc, prometheus.GaugeValue, number, split[0], split[1],
 		)
 	}
 

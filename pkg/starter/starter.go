@@ -7,11 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
@@ -31,6 +31,9 @@ var (
 	CountRunning atomic.Int64
 	// CountWaiting is count of waiting job
 	CountWaiting atomic.Int64
+
+	// CountRecovered is count of recovered job per target
+	CountRecovered = sync.Map{}
 
 	inProgress = sync.Map{}
 
@@ -63,8 +66,16 @@ func (s *Starter) Loop(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
-		s.reRunWorkflow(ctx)
-		return nil
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				s.reRunWorkflow(ctx)
+			case <-ctx.Done():
+				return nil
+			}
+		}
 	})
 
 	eg.Go(func() error {
@@ -178,6 +189,8 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 	if err != nil {
 		return fmt.Errorf("failed to retrieve relational target: (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
+
+	CountRecovered.LoadOrStore(target.Scope, 0)
 
 	cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
 	defer cancel()
@@ -347,84 +360,82 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, runnerName string, 
 }
 
 func (s *Starter) reRunWorkflow(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			gh.PendingRuns.Range(func(key, value any) bool {
-				installationID := key.(int64)
-				run := value.(*github.WorkflowRun)
-				client, err := gh.NewClientInstallation(installationID)
-				if err != nil {
-					logger.Logf(false, "failed to create GitHub client: %+v", err)
-					return true
-				}
-
-				owner := run.GetRepository().GetOwner().GetLogin()
-				repo := run.GetRepository().GetName()
-				repoName := run.GetRepository().GetFullName()
-
-				jobs, _, err := client.Actions.ListWorkflowJobs(ctx, owner, repo, run.GetID(), &github.ListWorkflowJobsOptions{
-					Filter: "latest",
-				})
-				if err != nil {
-					logger.Logf(false, "failed to get workflow jobs: %+v", err)
-					return true
-				}
-
-				for _, j := range jobs.Jobs {
-					if value, ok := reQueuedJobs.Load(j.GetID()); ok {
-						expired := value.(time.Time)
-						if time.Until(expired) <= 0 {
-							reQueuedJobs.Delete(j.GetID())
-						}
-						continue
-					}
-					if !slices.Contains(j.Labels, "self-hosted") && !slices.Contains(j.Labels, "myshoes") {
-						continue
-					}
-					if j.GetStatus() == "queued" {
-						repoURL := run.GetRepository().GetHTMLURL()
-						u, err := url.Parse(repoURL)
-						if err != nil {
-							logger.Logf(false, "failed to parse repository url from event: %+v", err)
-							continue
-						}
-						var domain string
-						gheDomain := ""
-						if u.Host != "github.com" {
-							gheDomain = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
-							domain = gheDomain
-						} else {
-							domain = "https://github.com"
-						}
-
-						logger.Logf(false, "receive webhook repository: %s/%s", domain, repoName)
-						target, err := datastore.SearchRepo(ctx, s.ds, repoName)
-						if err != nil {
-							logger.Logf(false, "failed to search registered target: %+v", err)
-							continue
-						}
-						jobID := uuid.NewV4()
-						jobJSON, _ := json.Marshal(j)
-						job := datastore.Job{
-							UUID:           jobID,
-							TargetID:       target.UUID,
-							Repository:     repoName,
-							CheckEventJSON: string(jobJSON),
-						}
-						if err := s.ds.EnqueueJob(ctx, job); err != nil {
-							logger.Logf(false, "failed to enqueue job: %+v", err)
-							continue
-						}
-						reQueuedJobs.Store(j.GetID(), time.Now().Add(30*time.Minute))
-					}
-				}
-				gh.PendingRuns.Delete(installationID)
-				gh.ClearRunsCache(owner, repo)
-				return true
-			})
+	gh.PendingRuns.Range(func(key, value any) bool {
+		installationID := key.(int64)
+		run := value.(*github.WorkflowRun)
+		client, err := gh.NewClientInstallation(installationID)
+		if err != nil {
+			logger.Logf(false, "failed to create GitHub client: %+v", err)
+			return true
 		}
-	}
+
+		owner := run.GetRepository().GetOwner().GetLogin()
+		repo := run.GetRepository().GetName()
+		repoName := run.GetRepository().GetFullName()
+
+		jobs, _, err := client.Actions.ListWorkflowJobs(ctx, owner, repo, run.GetID(), &github.ListWorkflowJobsOptions{
+			Filter: "latest",
+		})
+		if err != nil {
+			logger.Logf(false, "failed to get workflow jobs: %+v", err)
+			return true
+		}
+
+	JL: // job loop
+		for _, j := range jobs.Jobs {
+			if value, ok := reQueuedJobs.Load(j.GetID()); ok {
+				expired := value.(time.Time)
+				if time.Until(expired) <= 0 {
+					reQueuedJobs.Delete(j.GetID())
+				}
+				continue
+			}
+			for _, label := range j.Labels {
+				if !(strings.EqualFold(label, "self-hosted")) {
+					continue JL
+				}
+			}
+			if j.GetStatus() == "queued" {
+				repoURL := run.GetRepository().GetHTMLURL()
+				u, err := url.Parse(repoURL)
+				if err != nil {
+					logger.Logf(false, "failed to parse repository url from event: %+v", err)
+					continue
+				}
+				var domain string
+				gheDomain := ""
+				if u.Host != "github.com" {
+					gheDomain = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+					domain = gheDomain
+				} else {
+					domain = "https://github.com"
+				}
+
+				logger.Logf(false, "receive webhook repository: %s/%s", domain, repoName)
+				target, err := datastore.SearchRepo(ctx, s.ds, repoName)
+				if err != nil {
+					logger.Logf(false, "failed to search registered target: %+v", err)
+					continue
+				}
+				jobID := uuid.NewV4()
+				jobJSON, _ := json.Marshal(j)
+				job := datastore.Job{
+					UUID:           jobID,
+					TargetID:       target.UUID,
+					Repository:     repoName,
+					CheckEventJSON: string(jobJSON),
+				}
+				if err := s.ds.EnqueueJob(ctx, job); err != nil {
+					logger.Logf(false, "failed to enqueue job: %+v", err)
+					continue
+				}
+				reQueuedJobs.Store(j.GetID(), time.Now().Add(12*time.Hour))
+				countRecovered, _ := CountRecovered.LoadOrStore(target.Scope, 0)
+				CountRecovered.Store(target.Scope, countRecovered.(int)+1)
+			}
+		}
+		gh.PendingRuns.Delete(installationID)
+		gh.ClearRunsCache(owner, repo)
+		return true
+	})
 }
