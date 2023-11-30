@@ -21,57 +21,11 @@ import (
 func Load() {
 	c := LoadWithDefault()
 
-	appID, err := strconv.ParseInt(os.Getenv(EnvGitHubAppID), 10, 64)
-	if err != nil {
-		log.Panicf("failed to parse %s: %+v", EnvGitHubAppID, err)
-	}
-	c.GitHub.AppID = appID
+	ga := LoadGitHubApps()
+	c.GitHub = *ga
 
-	pemBase64ed := os.Getenv(EnvGitHubAppPrivateKeyBase64)
-	if pemBase64ed == "" {
-		log.Panicf("%s must be set", EnvGitHubAppPrivateKeyBase64)
-	}
-	pemByte, err := base64.StdEncoding.DecodeString(pemBase64ed)
-	if err != nil {
-		log.Panicf("failed to decode base64 %s: %+v", EnvGitHubAppPrivateKeyBase64, err)
-	}
-	c.GitHub.PEMByte = pemByte
-	block, _ := pem.Decode(pemByte)
-	if block == nil {
-		log.Panicf("%s is invalid format, please input private key ", EnvGitHubAppPrivateKeyBase64)
-	}
-	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		log.Panicf("%s is invalid format, failed to parse private key: %+v", EnvGitHubAppPrivateKeyBase64, err)
-	}
-	c.GitHub.PEM = key
-
-	appSecret := os.Getenv(EnvGitHubAppSecret)
-	if appSecret == "" {
-		log.Panicf("%s must be set", EnvGitHubAppSecret)
-	}
-	c.GitHub.AppSecret = []byte(appSecret)
-
-	mysqlURL := os.Getenv(EnvMySQLURL)
-	if mysqlURL == "" {
-		log.Panicf("%s must be set", EnvMySQLURL)
-	}
-	c.MySQLDSN = mysqlURL
-
-	pluginPath := os.Getenv(EnvShoesPluginPath)
-	if pluginPath == "" {
-		log.Panicf("%s must be set", EnvShoesPluginPath)
-	}
-	fp, err := fetch(pluginPath)
-	if err != nil {
-		log.Panicf("failed to fetch plugin binary: %+v", err)
-	}
-	absPath, err := checkBinary(fp)
-	if err != nil {
-		log.Panicf("failed to check plugin binary: %+v", err)
-	}
-	c.ShoesPluginPath = absPath
-	log.Printf("use plugin path is %s\n", c.ShoesPluginPath)
+	pluginPath := LoadPluginPath()
+	c.ShoesPluginPath = pluginPath
 
 	Config = c
 }
@@ -167,8 +121,78 @@ func LoadWithDefault() Conf {
 		}
 	}
 
+	c.ShoesPluginOutputPath = "."
+	if os.Getenv(EnvShoesPluginOutputPath) != "" {
+		c.ShoesPluginOutputPath = os.Getenv(EnvShoesPluginOutputPath)
+	}
+
 	Config = c
 	return c
+}
+
+// LoadGitHubApps load config for GitHub Apps
+func LoadGitHubApps() *GitHubApp {
+	var ga GitHubApp
+	appID, err := strconv.ParseInt(os.Getenv(EnvGitHubAppID), 10, 64)
+	if err != nil {
+		log.Panicf("failed to parse %s: %+v", EnvGitHubAppID, err)
+	}
+	ga.AppID = appID
+
+	pemBase64ed := os.Getenv(EnvGitHubAppPrivateKeyBase64)
+	if pemBase64ed == "" {
+		log.Panicf("%s must be set", EnvGitHubAppPrivateKeyBase64)
+	}
+	pemByte, err := base64.StdEncoding.DecodeString(pemBase64ed)
+	if err != nil {
+		log.Panicf("failed to decode base64 %s: %+v", EnvGitHubAppPrivateKeyBase64, err)
+	}
+	ga.PEMByte = pemByte
+
+	block, _ := pem.Decode(pemByte)
+	if block == nil {
+		log.Panicf("%s is invalid format, please input private key ", EnvGitHubAppPrivateKeyBase64)
+	}
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		log.Panicf("%s is invalid format, failed to parse private key: %+v", EnvGitHubAppPrivateKeyBase64, err)
+	}
+	ga.PEM = key
+
+	appSecret := os.Getenv(EnvGitHubAppSecret)
+	if appSecret == "" {
+		log.Panicf("%s must be set", EnvGitHubAppSecret)
+	}
+	ga.AppSecret = []byte(appSecret)
+
+	return &ga
+}
+
+// LoadMySQLURL load MySQL URL from environment
+func LoadMySQLURL() string {
+	mysqlURL := os.Getenv(EnvMySQLURL)
+	if mysqlURL == "" {
+		log.Panicf("%s must be set", EnvMySQLURL)
+	}
+	return mysqlURL
+}
+
+// LoadPluginPath load plugin path from environment
+func LoadPluginPath() string {
+	pluginPath := os.Getenv(EnvShoesPluginPath)
+	if pluginPath == "" {
+		log.Panicf("%s must be set", EnvShoesPluginPath)
+	}
+	fp, err := fetch(pluginPath)
+	if err != nil {
+		log.Panicf("failed to fetch plugin binary: %+v", err)
+	}
+	absPath, err := checkBinary(fp)
+	if err != nil {
+		log.Panicf("failed to check plugin binary: %+v", err)
+	}
+	log.Printf("use plugin path is %s\n", absPath)
+	return absPath
 }
 
 func checkBinary(p string) (string, error) {
@@ -210,7 +234,7 @@ func fetch(p string) (string, error) {
 	case "http", "https":
 		return fetchHTTP(u)
 	default:
-		return "", fmt.Errorf("unsupported fetch schema")
+		return "", fmt.Errorf("unsupported fetch schema (scheme: %s)", u.Scheme)
 	}
 }
 
@@ -218,15 +242,19 @@ func fetch(p string) (string, error) {
 // save to current directory.
 func fetchHTTP(u *url.URL) (string, error) {
 	log.Printf("fetch plugin binary from %s\n", u.String())
-	pwd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to working directory: %w", err)
+	dir := Config.ShoesPluginOutputPath
+	if strings.EqualFold(dir, ".") {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to working directory: %w", err)
+		}
+		dir = pwd
 	}
 
 	p := strings.Split(u.Path, "/")
 	fileName := p[len(p)-1]
 
-	fp := filepath.Join(pwd, fileName)
+	fp := filepath.Join(dir, fileName)
 	f, err := os.Create(fp)
 	if err != nil {
 		return "", fmt.Errorf("failed to create os file: %w", err)

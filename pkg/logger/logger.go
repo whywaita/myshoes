@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/config"
 )
 
 var (

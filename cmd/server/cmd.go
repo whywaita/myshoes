@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/datastore/mysql"
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -22,6 +22,9 @@ import (
 
 func init() {
 	config.Load()
+	mysqlURL := config.LoadMySQLURL()
+	config.Config.MySQLDSN = mysqlURL
+
 	if err := gh.InitializeCache(config.Config.GitHub.AppID, config.Config.GitHub.PEMByte); err != nil {
 		log.Panicf("failed to create a cache: %+v", err)
 	}

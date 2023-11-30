@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/whywaita/myshoes/internal/config"
+	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/logger"
 
@@ -34,7 +34,7 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 
 	mux.HandleFunc(pat.Post("/github/events"), func(w http.ResponseWriter, r *http.Request) {
 		apacheLogging(r)
-		handleGitHubEvent(w, r, ds)
+		HandleGitHubEvent(w, r, ds)
 	})
 
 	// REST API for targets
@@ -72,7 +72,7 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 	// metrics endpoint
 	mux.HandleFunc(pat.Get("/metrics"), func(w http.ResponseWriter, r *http.Request) {
 		apacheLogging(r)
-		handleMetrics(w, r, ds)
+		HandleMetrics(w, r, ds)
 	})
 
 	return mux

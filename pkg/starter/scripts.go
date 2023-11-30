@@ -10,9 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/whywaita/myshoes/internal/config"
-
-	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/runner"
 )
@@ -24,8 +22,8 @@ func getPatchedFiles() (string, error) {
 	return runnerService, nil
 }
 
-func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target, runnerName string) (string, error) {
-	rawScript, err := s.getSetupRawScript(ctx, target, runnerName)
+func (s *Starter) getSetupScript(ctx context.Context, targetScope, runnerName string) (string, error) {
+	rawScript, err := s.getSetupRawScript(ctx, targetScope, runnerName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get raw setup scripts: %w", err)
 	}
@@ -46,13 +44,13 @@ func (s *Starter) getSetupScript(ctx context.Context, target datastore.Target, r
 	return fmt.Sprintf(templateCompressedScript, encoded), nil
 }
 
-func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target, runnerName string) (string, error) {
+func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName string) (string, error) {
 	runnerUser := config.Config.RunnerUser
 	githubURL := config.Config.GitHubURL
 
 	targetRunnerVersion := s.runnerVersion
 	if strings.EqualFold(s.runnerVersion, "latest") {
-		latestVersion, err := gh.GetLatestRunnerVersion(ctx, target.Scope, target.GitHubToken)
+		latestVersion, err := gh.GetLatestRunnerVersion(ctx, targetScope)
 		if err != nil {
 			return "", fmt.Errorf("failed to get latest version of actions/runner: %w", err)
 		}
@@ -69,11 +67,11 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 		return "", fmt.Errorf("failed to get patched files: %w", err)
 	}
 
-	installationID, err := gh.IsInstalledGitHubApp(ctx, target.Scope)
+	installationID, err := gh.IsInstalledGitHubApp(ctx, targetScope)
 	if err != nil {
 		return "", fmt.Errorf("failed to get installlation id: %w", err)
 	}
-	token, err := gh.GetRunnerRegistrationToken(ctx, installationID, target.Scope)
+	token, err := gh.GetRunnerRegistrationToken(ctx, installationID, targetScope)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate runner register token: %w", err)
 	}
@@ -84,7 +82,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, target datastore.Target
 	}
 
 	v := templateCreateLatestRunnerOnceValue{
-		Scope:                   target.Scope,
+		Scope:                   targetScope,
 		GHEDomain:               config.Config.GitHubURL,
 		RunnerRegistrationToken: token,
 		RunnerName:              runnerName,

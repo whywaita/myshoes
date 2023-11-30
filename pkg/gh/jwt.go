@@ -6,8 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whywaita/myshoes/internal/config"
-
+	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/logger"
 
 	"github.com/google/go-github/v47/github"

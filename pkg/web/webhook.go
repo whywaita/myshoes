@@ -11,13 +11,15 @@ import (
 
 	"github.com/google/go-github/v47/github"
 	uuid "github.com/satori/go.uuid"
-	"github.com/whywaita/myshoes/internal/config"
+
+	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
 )
 
-func handleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
+// HandleGitHubEvent handle GitHub webhook event
+func HandleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	ctx := r.Context()
 
 	payload, err := github.ValidatePayload(r, config.Config.GitHub.AppSecret)

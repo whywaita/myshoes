@@ -10,17 +10,13 @@ var Config Conf
 
 // Conf is type of Config
 type Conf struct {
-	GitHub struct {
-		AppID     int64
-		AppSecret []byte
-		PEMByte   []byte
-		PEM       *rsa.PrivateKey
-	}
+	GitHub GitHubApp
 
-	MySQLDSN        string
-	Port            int
-	ShoesPluginPath string
-	RunnerUser      string
+	MySQLDSN              string
+	Port                  int
+	ShoesPluginPath       string
+	ShoesPluginOutputPath string
+	RunnerUser            string
 
 	Debug           bool
 	Strict          bool // check to registered runner before delete job
@@ -33,6 +29,14 @@ type Conf struct {
 	RunnerVersion string
 }
 
+// GitHubApp is type of config value
+type GitHubApp struct {
+	AppID     int64
+	AppSecret []byte
+	PEMByte   []byte
+	PEM       *rsa.PrivateKey
+}
+
 // Config Environment keys
 const (
 	EnvGitHubAppID               = "GITHUB_APP_ID"
@@ -41,6 +45,7 @@ const (
 	EnvMySQLURL                  = "MYSQL_URL"
 	EnvPort                      = "PORT"
 	EnvShoesPluginPath           = "PLUGIN"
+	EnvShoesPluginOutputPath     = "PLUGIN_OUTPUT"
 	EnvRunnerUser                = "RUNNER_USER"
 	EnvDebug                     = "DEBUG"
 	EnvStrict                    = "STRICT"
