@@ -192,6 +192,11 @@ var (
 )
 
 func sanitizeGitHubRunner(ghRunner github.Runner, dsRunner datastore.Runner) error {
+	if ghRunner.GetBusy() {
+		// runner is busy, so not will delete
+		return ErrNotWillDeleteRunner
+	}
+
 	switch ghRunner.GetStatus() {
 	case StatusWillDelete:
 		if err := sanitizeRunner(dsRunner, MustRunningTime); err != nil {
