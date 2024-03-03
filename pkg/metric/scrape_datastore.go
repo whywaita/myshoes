@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,7 +19,7 @@ var (
 	datastoreJobsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, datastoreName, "jobs"),
 		"Number of jobs",
-		[]string{"target_id", "runs_on"}, nil,
+		[]string{"target_id", "runs_on", "oldest_created_at_duration_seconds"}, nil,
 	)
 	datastoreTargetsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, datastoreName, "targets"),
@@ -79,7 +80,12 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 	ch <- prometheus.MustNewConstMetric(
 		datastoreJobDurationOldest, prometheus.GaugeValue, time.Since(oldestJob.CreatedAt).Seconds(), oldestJob.UUID.String())
 
-	stored := map[string]float64{}
+	type storedValue struct {
+		oldestCreatedAt *time.Time
+		Count           float64
+	}
+
+	stored := map[string]storedValue{}
 	// job separate target_id and runs-on labels
 	for _, j := range jobs {
 		runsOnLabels, err := gh.ExtractRunsOnLabels([]byte(j.CheckEventJSON))
@@ -92,14 +98,39 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 			runsOnConcat = strings.Join(runsOnLabels, ",") // e.g. "self-hosted,linux"
 		}
 		key := fmt.Sprintf("%s-_-%s", j.TargetID.String(), runsOnConcat)
-		stored[key]++
+		v, ok := stored[key]
+		if !ok {
+			stored[key] = storedValue{
+				oldestCreatedAt: &j.CreatedAt,
+				Count:           1,
+			}
+		} else {
+			if v.oldestCreatedAt == nil || j.CreatedAt.Before(*v.oldestCreatedAt) {
+				stored[key] = storedValue{
+					oldestCreatedAt: &j.CreatedAt,
+					Count:           v.Count + 1,
+				}
+			} else {
+				stored[key] = storedValue{
+					oldestCreatedAt: v.oldestCreatedAt,
+					Count:           v.Count + 1,
+				}
+			}
+		}
 	}
-	for key, number := range stored {
+	for key, value := range stored {
 		// key: target_id-_-runs-on
-		// value: number of jobs
+		// value: storedValue
+
+		duration := strconv.FormatFloat(time.Since(*value.oldestCreatedAt).Seconds(), 'f', -1, 64)
+
 		split := strings.Split(key, "-_-")
 		ch <- prometheus.MustNewConstMetric(
-			datastoreJobsDesc, prometheus.GaugeValue, number, split[0], split[1],
+			datastoreJobsDesc, prometheus.GaugeValue,
+			value.Count,
+			split[0], // target_id
+			split[1], // runs-on
+			duration, // oldest created_at
 		)
 	}
 
