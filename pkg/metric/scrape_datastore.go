@@ -75,7 +75,7 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 		return jobs[i].CreatedAt.Before(jobs[j].CreatedAt)
 	})
 	type storedValue struct {
-		OldestJob *datastore.Job
+		OldestJob datastore.Job
 		Count     float64
 	}
 
@@ -95,18 +95,18 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 		v, ok := stored[key]
 		if !ok {
 			stored[key] = storedValue{
-				OldestJob: &j,
+				OldestJob: j,
 				Count:     1,
 			}
 		} else {
-			if v.OldestJob == nil || j.CreatedAt.Before(v.OldestJob.CreatedAt) {
+			if j.CreatedAt.Before(v.OldestJob.CreatedAt) {
 				stored[key] = storedValue{
-					OldestJob: &j,
+					OldestJob: j,
 					Count:     v.Count + 1,
 				}
 			} else {
 				stored[key] = storedValue{
-					OldestJob: &j,
+					OldestJob: v.OldestJob,
 					Count:     v.Count + 1,
 				}
 			}
