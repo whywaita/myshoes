@@ -66,7 +66,7 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 
 	if len(jobs) == 0 {
 		ch <- prometheus.MustNewConstMetric(
-			datastoreJobsDesc, prometheus.GaugeValue, 0, "none", "none",
+			datastoreJobsDesc, prometheus.GaugeValue, 0, "none", "none", "none",
 		)
 		return nil
 	}
