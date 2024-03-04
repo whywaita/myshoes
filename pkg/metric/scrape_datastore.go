@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +18,7 @@ var (
 	datastoreJobsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, datastoreName, "jobs"),
 		"Number of jobs",
-		[]string{"target_id", "runs_on", "oldest_created_at_duration_seconds"}, nil,
+		[]string{"target_id", "runs_on"}, nil,
 	)
 	datastoreTargetsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, datastoreName, "targets"),
@@ -29,7 +28,7 @@ var (
 	datastoreJobDurationOldest = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, datastoreName, "job_duration_oldest_seconds"),
 		"Duration time of oldest job",
-		[]string{"job_id"}, nil,
+		[]string{"job_id", "runs_on"}, nil,
 	)
 )
 
@@ -66,7 +65,7 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 
 	if len(jobs) == 0 {
 		ch <- prometheus.MustNewConstMetric(
-			datastoreJobsDesc, prometheus.GaugeValue, 0, "none", "none", "none",
+			datastoreJobsDesc, prometheus.GaugeValue, 0, "none", "none",
 		)
 		return nil
 	}
@@ -75,14 +74,9 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 		// oldest job is first
 		return jobs[i].CreatedAt.Before(jobs[j].CreatedAt)
 	})
-
-	oldestJob := jobs[0]
-	ch <- prometheus.MustNewConstMetric(
-		datastoreJobDurationOldest, prometheus.GaugeValue, time.Since(oldestJob.CreatedAt).Seconds(), oldestJob.UUID.String())
-
 	type storedValue struct {
-		oldestCreatedAt *time.Time
-		Count           float64
+		OldestJob *datastore.Job
+		Count     float64
 	}
 
 	stored := map[string]storedValue{}
@@ -101,19 +95,19 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 		v, ok := stored[key]
 		if !ok {
 			stored[key] = storedValue{
-				oldestCreatedAt: &j.CreatedAt,
-				Count:           1,
+				OldestJob: &j,
+				Count:     1,
 			}
 		} else {
-			if v.oldestCreatedAt == nil || j.CreatedAt.Before(*v.oldestCreatedAt) {
+			if v.OldestJob == nil || j.CreatedAt.Before(v.OldestJob.CreatedAt) {
 				stored[key] = storedValue{
-					oldestCreatedAt: &j.CreatedAt,
-					Count:           v.Count + 1,
+					OldestJob: &j,
+					Count:     v.Count + 1,
 				}
 			} else {
 				stored[key] = storedValue{
-					oldestCreatedAt: v.oldestCreatedAt,
-					Count:           v.Count + 1,
+					OldestJob: &j,
+					Count:     v.Count + 1,
 				}
 			}
 		}
@@ -122,16 +116,22 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 		// key: target_id-_-runs-on
 		// value: storedValue
 
-		duration := strconv.FormatFloat(time.Since(*value.oldestCreatedAt).Seconds(), 'f', -1, 64)
-
 		split := strings.Split(key, "-_-")
 		ch <- prometheus.MustNewConstMetric(
 			datastoreJobsDesc, prometheus.GaugeValue,
 			value.Count,
 			split[0], // target_id
 			split[1], // runs-on
-			duration, // oldest created_at
 		)
+
+		ch <- prometheus.MustNewConstMetric(
+			datastoreJobDurationOldest,
+			prometheus.GaugeValue,
+			time.Since(value.OldestJob.CreatedAt).Seconds(),
+			value.OldestJob.UUID.String(),
+			split[1],
+		)
+
 	}
 
 	return nil
