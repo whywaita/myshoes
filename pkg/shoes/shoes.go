@@ -13,6 +13,8 @@ import (
 	"github.com/whywaita/myshoes/pkg/datastore"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // GetClient retrieve ShoesClient use shoes-plugin
@@ -88,6 +90,10 @@ func (c *GRPCClient) AddInstance(ctx context.Context, runnerName, setupScript st
 	}
 	resp, err := c.client.AddInstance(ctx, req)
 	if err != nil {
+		// will delete a job if labels of a job are invalid
+		if stat, _ := status.FromError(err); stat.Code() == codes.InvalidArgument {
+			return "", "", "", datastore.ResourceTypeUnknown, err
+		}
 		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to AddInstance: %w", err)
 	}
 

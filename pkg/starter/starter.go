@@ -14,6 +14,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/google/go-github/v47/github"
 	uuid "github.com/satori/go.uuid"
@@ -198,6 +200,18 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 	if err != nil {
 		logger.Logf(false, "failed to bung (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
+		if stat, _ := status.FromError(err); stat.Code() == codes.InvalidArgument {
+			if err := s.ds.DeleteJob(ctx, job.UUID); err != nil {
+				logger.Logf(false, "failed to delete job: %+v\n", err)
+
+				if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("job id: %s", job.UUID)); err != nil {
+					return fmt.Errorf("failed to update target status (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
+				}
+
+				return fmt.Errorf("failed to delete job: %w", err)
+			}
+		}
+
 		if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("failed to create an instance (job ID: %s)", job.UUID)); err != nil {
 			return fmt.Errorf("failed to update target status (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 		}
@@ -288,6 +302,9 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.
 
 	cloudID, ipAddress, shoesType, resourceType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType, labels)
 	if err != nil {
+		if stat, _ := status.FromError(err); stat.Code() == codes.InvalidArgument {
+			return "", "", "", datastore.ResourceTypeUnknown, err
+		}
 		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to add instance: %w", err)
 	}
 
