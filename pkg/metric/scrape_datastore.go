@@ -142,6 +142,7 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 	starter.DeletedJobMap.Range(func(key, value interface{}) bool {
 		runsOn := key.(string)
 		number := value.(int)
+		fmt.Println("deleted jobs", runsOn, number)
 		ch <- prometheus.MustNewConstMetric(
 			datastoreDeletedJobsDesc, prometheus.CounterValue, float64(number), runsOn,
 		)
