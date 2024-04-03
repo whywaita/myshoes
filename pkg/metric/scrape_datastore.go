@@ -7,13 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whywaita/myshoes/pkg/gh"
-
-	"github.com/whywaita/myshoes/pkg/starter"
-
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
+	"github.com/whywaita/myshoes/pkg/starter"
 )
 
 const datastoreName = "datastore"
@@ -67,6 +66,10 @@ func (ScraperDatastore) Scrape(ctx context.Context, ds datastore.Datastore, ch c
 }
 
 func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
+	if err := scrapeJobCounter(ctx, ds, ch); err != nil {
+		return fmt.Errorf("failed to scrape job counter: %w", err)
+	}
+
 	jobs, err := ds.ListJobs(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list jobs: %w", err)
@@ -138,7 +141,10 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 		)
 	}
 
-	// scrape deleted jobs
+	return nil
+}
+
+func scrapeJobCounter(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
 	starter.DeletedJobMap.Range(func(key, value interface{}) bool {
 		runsOn := key.(string)
 		number := value.(int)
@@ -147,7 +153,6 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 		)
 		return true
 	})
-
 	return nil
 }
 

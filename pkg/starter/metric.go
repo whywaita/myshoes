@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/whywaita/myshoes/pkg/gh"
-
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/gh"
 )
 
 var (
