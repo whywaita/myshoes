@@ -15,10 +15,12 @@ var (
 )
 
 func incrementDeleteJobMap(j datastore.Job) error {
+	fmt.Println("incrementDeleteJobMap")
 	runsOnConcat, err := gh.ConcatLabels(j.CheckEventJSON)
 	if err != nil {
 		return fmt.Errorf("failed to concat labels: %+v", err)
 	}
+	fmt.Println("incrementDeleteJobMap", runsOnConcat)
 	v, ok := DeletedJobMap.Load(runsOnConcat)
 	if !ok {
 		DeletedJobMap.Store(runsOnConcat, 1)
