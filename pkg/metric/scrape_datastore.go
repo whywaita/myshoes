@@ -7,9 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/whywaita/myshoes/pkg/gh"
+
+	"github.com/whywaita/myshoes/pkg/starter"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/whywaita/myshoes/pkg/datastore"
-	"github.com/whywaita/myshoes/pkg/gh"
+	"github.com/whywaita/myshoes/pkg/logger"
 )
 
 const datastoreName = "datastore"
@@ -29,6 +33,11 @@ var (
 		prometheus.BuildFQName(namespace, datastoreName, "job_duration_oldest_seconds"),
 		"Duration time of oldest job",
 		[]string{"job_id", "runs_on"}, nil,
+	)
+	datastoreDeletedJobsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, datastoreName, "deleted_jobs"),
+		"Number of deleted jobs",
+		[]string{"runs_on"}, nil,
 	)
 )
 
@@ -82,14 +91,10 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 	stored := map[string]storedValue{}
 	// job separate target_id and runs-on labels
 	for _, j := range jobs {
-		runsOnLabels, err := gh.ExtractRunsOnLabels([]byte(j.CheckEventJSON))
+		runsOnConcat, err := gh.ConcatLabels(j.CheckEventJSON)
 		if err != nil {
-			return fmt.Errorf("failed to extract runs-on labels: %w", err)
-		}
-
-		runsOnConcat := "none"
-		if len(runsOnLabels) != 0 {
-			runsOnConcat = strings.Join(runsOnLabels, ",") // e.g. "self-hosted,linux"
+			logger.Logf(false, "failed to concat labels: %+v", err)
+			continue
 		}
 		key := fmt.Sprintf("%s-_-%s", j.TargetID.String(), runsOnConcat)
 		v, ok := stored[key]
@@ -131,8 +136,17 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 			value.OldestJob.UUID.String(),
 			split[1],
 		)
-
 	}
+
+	// scrape deleted jobs
+	starter.DeletedJobMap.Range(func(key, value interface{}) bool {
+		runsOn := key.(string)
+		number := value.(int)
+		ch <- prometheus.MustNewConstMetric(
+			datastoreDeletedJobsDesc, prometheus.CounterValue, float64(number), runsOn,
+		)
+		return true
+	})
 
 	return nil
 }

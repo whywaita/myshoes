@@ -201,6 +201,7 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 		logger.Logf(false, "failed to bung (target ID: %s, job ID: %s): %+v\n", job.TargetID, job.UUID, err)
 
 		if stat, _ := status.FromError(err); stat.Code() == codes.InvalidArgument {
+			logger.Logf(false, "invalid argument. so will delete (job ID: %s)", job.UUID)
 			if err := s.ds.DeleteJob(ctx, job.UUID); err != nil {
 				logger.Logf(false, "failed to delete job: %+v\n", err)
 
@@ -209,6 +210,9 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 				}
 
 				return fmt.Errorf("failed to delete job: %w", err)
+			}
+			if err := IncrementDeleteJobMap(job); err != nil {
+				return fmt.Errorf("failed to increment delete metrics: %w", err)
 			}
 		}
 
