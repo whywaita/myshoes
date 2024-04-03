@@ -14,7 +14,7 @@ var (
 	DeletedJobMap = sync.Map{}
 )
 
-func IncrementDeleteJobMap(j datastore.Job) error {
+func incrementDeleteJobMap(j datastore.Job) error {
 	runsOnConcat, err := gh.ConcatLabels(j.CheckEventJSON)
 	if err != nil {
 		return fmt.Errorf("failed to concat labels: %+v", err)

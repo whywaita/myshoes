@@ -211,7 +211,7 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 
 				return fmt.Errorf("failed to delete job: %w", err)
 			}
-			if err := IncrementDeleteJobMap(job); err != nil {
+			if err := incrementDeleteJobMap(job); err != nil {
 				return fmt.Errorf("failed to increment delete metrics: %w", err)
 			}
 		}
