@@ -139,6 +139,7 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 	}
 
 	// scrape deleted jobs
+	fmt.Println("scrape deleted job")
 	starter.DeletedJobMap.Range(func(key, value interface{}) bool {
 		runsOn := key.(string)
 		number := value.(int)
