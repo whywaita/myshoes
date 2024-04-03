@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/whywaita/myshoes/pkg/gh"
-
 	"github.com/whywaita/myshoes/pkg/starter"
+
+	"github.com/whywaita/myshoes/pkg/gh"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -71,6 +71,15 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 	if err != nil {
 		return fmt.Errorf("failed to list jobs: %w", err)
 	}
+
+	starter.DeletedJobMap.Range(func(key, value interface{}) bool {
+		runsOn := key.(string)
+		number := value.(int)
+		ch <- prometheus.MustNewConstMetric(
+			datastoreDeletedJobsDesc, prometheus.CounterValue, float64(number), runsOn,
+		)
+		return true
+	})
 
 	if len(jobs) == 0 {
 		ch <- prometheus.MustNewConstMetric(
@@ -137,18 +146,6 @@ func scrapeJobs(ctx context.Context, ds datastore.Datastore, ch chan<- prometheu
 			split[1],
 		)
 	}
-
-	// scrape deleted jobs
-	fmt.Println("scrape deleted job")
-	starter.DeletedJobMap.Range(func(key, value interface{}) bool {
-		runsOn := key.(string)
-		number := value.(int)
-		fmt.Println("deleted jobs", runsOn, number)
-		ch <- prometheus.MustNewConstMetric(
-			datastoreDeletedJobsDesc, prometheus.CounterValue, float64(number), runsOn,
-		)
-		return true
-	})
 
 	return nil
 }
