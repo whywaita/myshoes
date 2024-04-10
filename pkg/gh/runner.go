@@ -135,3 +135,17 @@ func getRunnerVersion(applications []*github.RunnerApplicationDownload) (string,
 
 	return "", fmt.Errorf("not found runner version")
 }
+
+// ConcatLabels concat labels from check event JSON
+func ConcatLabels(checkEventJSON string) (string, error) {
+	runsOnLabels, err := ExtractRunsOnLabels([]byte(checkEventJSON))
+	if err != nil {
+		return "", fmt.Errorf("failed to extract runs-on labels: %w", err)
+	}
+
+	runsOnConcat := "none"
+	if len(runsOnLabels) != 0 {
+		runsOnConcat = strings.Join(runsOnLabels, ",") // e.g. "self-hosted,linux"
+	}
+	return runsOnConcat, nil
+}
