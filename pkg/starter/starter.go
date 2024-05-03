@@ -288,7 +288,11 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.
 	runnerName := runner.ToName(job.UUID.String())
 
 	targetScope := getTargetScope(target, job)
-	script, err := s.getSetupScript(ctx, targetScope, runnerName)
+	labels, err := gh.ExtractRunsOnLabels([]byte(job.CheckEventJSON))
+	if err != nil {
+		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to extract labels: %w", err)
+	}
+	script, err := s.getSetupScript(ctx, targetScope, runnerName, labels)
 	if err != nil {
 		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to get setup scripts: %w", err)
 	}
@@ -298,11 +302,6 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.
 		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to get plugin client: %w", err)
 	}
 	defer teardown()
-
-	labels, err := gh.ExtractRunsOnLabels([]byte(job.CheckEventJSON))
-	if err != nil {
-		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to extract labels: %w", err)
-	}
 
 	cloudID, ipAddress, shoesType, resourceType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType, labels)
 	if err != nil {

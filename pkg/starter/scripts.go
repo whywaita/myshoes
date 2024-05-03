@@ -22,8 +22,8 @@ func getPatchedFiles() (string, error) {
 	return runnerService, nil
 }
 
-func (s *Starter) getSetupScript(ctx context.Context, targetScope, runnerName string) (string, error) {
-	rawScript, err := s.getSetupRawScript(ctx, targetScope, runnerName)
+func (s *Starter) getSetupScript(ctx context.Context, targetScope, runnerName string, labels []string) (string, error) {
+	rawScript, err := s.getSetupRawScript(ctx, targetScope, runnerName, labels)
 	if err != nil {
 		return "", fmt.Errorf("failed to get raw setup scripts: %w", err)
 	}
@@ -44,7 +44,7 @@ func (s *Starter) getSetupScript(ctx context.Context, targetScope, runnerName st
 	return fmt.Sprintf(templateCompressedScript, encoded), nil
 }
 
-func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName string) (string, error) {
+func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName string, labels []string) (string, error) {
 	runnerUser := config.Config.RunnerUser
 	githubURL := config.Config.GitHubURL
 
@@ -76,9 +76,15 @@ func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName
 		return "", fmt.Errorf("failed to generate runner register token: %w", err)
 	}
 
-	var labels []string
+	var sanitizedLabels []string
+
+	for _, l := range labels {
+		if !strings.EqualFold(l, config.RequiredMyShoesLabel) {
+			sanitizedLabels = append(sanitizedLabels, l)
+		}
+	}
 	if githubURL != "" && githubURL != "https://github.com" {
-		labels = append(labels, "dependabot")
+		sanitizedLabels = append(sanitizedLabels, "dependabot")
 	}
 
 	v := templateCreateLatestRunnerOnceValue{
@@ -90,7 +96,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName
 		RunnerVersion:           runnerVersion,
 		RunnerServiceJS:         runnerServiceJs,
 		RunnerArg:               runnerTemporaryMode.StringFlag(),
-		AdditionalLabels:        labelsToOneLine(labels),
+		AdditionalLabels:        labelsToOneLine(sanitizedLabels),
 	}
 
 	t, err := template.New("templateCreateLatestRunnerOnce").Parse(templateCreateLatestRunnerOnce)
