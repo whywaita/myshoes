@@ -67,6 +67,11 @@ func LoadWithDefault() Conf {
 		if mwt == ModeWebhookTypeUnknown {
 			log.Panicf("%s is invalid webhook type", os.Getenv(EnvModeWebhookType))
 		}
+
+		if mwt == ModeWebhookTypeCheckRun {
+			log.Println("WARNING: check_run is deprecated mode and will delete it. Please use workflow_job")
+		}
+
 		c.ModeWebhookType = mwt
 	}
 

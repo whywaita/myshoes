@@ -111,6 +111,7 @@ func GetRunnerTemporaryMode(runnerVersion string) (string, TemporaryMode, error)
 	}
 
 	if ephemeralSupportVersion.GreaterThan(inputVersion) {
+		logger.Logf(false, "WARNING: runner version is lower than v2.282.0, use --once mode. It's deprecated. will be removed in future.")
 		return runnerVersion, TemporaryOnce, nil
 	}
 	return runnerVersion, TemporaryEphemeral, nil
