@@ -60,7 +60,7 @@ func LoadWithDefault() Conf {
 		c.Strict = false
 	}
 
-	c.ModeWebhookType = ModeWebhookTypeCheckRun
+	c.ModeWebhookType = ModeWebhookTypeWorkflowJob
 	if os.Getenv(EnvModeWebhookType) != "" {
 		mwt := marshalModeWebhookType(os.Getenv(EnvModeWebhookType))
 
