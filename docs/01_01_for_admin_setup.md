@@ -116,9 +116,9 @@ For tuning values
   - default: true
   - set strict mode
 - `MODE_WEBHOOK_TYPE`
-  - default: `workflow_job` (use receive `workflow_job` event)
+  - default: `check_run` (use receive `workflow_job` event)
   - Set type of webhook from GitHub
-  - option: `check_run`
+  - option: `workflow_job`
 - `MAX_CONNECTIONS_TO_BACKEND`
   - default: 50
   - The number of max connections to shoes-provider
