@@ -38,6 +38,11 @@ var (
 		"Number of deleted jobs",
 		[]string{"runs_on"}, nil,
 	)
+	datastoreRunnersRunningDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, datastoreName, "runners_running"),
+		"Number of runners running",
+		[]string{"target_id"}, nil,
+	)
 )
 
 // ScraperDatastore is scraper implement for datastore.Datastore
@@ -60,6 +65,9 @@ func (ScraperDatastore) Scrape(ctx context.Context, ds datastore.Datastore, ch c
 	}
 	if err := scrapeTargets(ctx, ds, ch); err != nil {
 		return fmt.Errorf("failed to scrape targets: %w", err)
+	}
+	if err := scrapeRunners(ctx, ds, ch); err != nil {
+		return fmt.Errorf("failed to scrape runners: %w", err)
 	}
 
 	return nil
@@ -169,6 +177,25 @@ func scrapeTargets(ctx context.Context, ds datastore.Datastore, ch chan<- promet
 	for rt, number := range result {
 		ch <- prometheus.MustNewConstMetric(
 			datastoreTargetsDesc, prometheus.GaugeValue, number, rt,
+		)
+	}
+
+	return nil
+}
+
+func scrapeRunners(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
+	runners, err := ds.ListRunners(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list runners: %w", err)
+	}
+
+	result := map[string]float64{} // key: target_id, value: number
+	for _, r := range runners {
+		result[r.TargetID.String()]++
+	}
+	for targetID, number := range result {
+		ch <- prometheus.MustNewConstMetric(
+			datastoreRunnersRunningDesc, prometheus.GaugeValue, number, targetID,
 		)
 	}
 
