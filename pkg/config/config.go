@@ -103,3 +103,5 @@ func marshalModeWebhookType(in string) ModeWebhookType {
 func (c Conf) IsGHES() bool {
 	return !strings.EqualFold(c.GitHubURL, "https://github.com")
 }
+
+const RequiredMyShoesLabel = "myshoes"
