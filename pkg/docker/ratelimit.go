@@ -12,6 +12,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+// RateLimit is Docker Hub API rate limit
 type RateLimit struct {
 	Limit     int
 	Remaining int
@@ -61,6 +62,7 @@ func getToken() (string, error) {
 	return tokenString, nil
 }
 
+// GetRateLimit get Docker Hub API rate limit
 func GetRateLimit() (RateLimit, error) {
 	token, err := getToken()
 	if err != nil {
