@@ -75,6 +75,11 @@ func LoadWithDefault() Conf {
 		c.ModeWebhookType = mwt
 	}
 
+	c.DockerHubToken = ""
+	if os.Getenv(EnvDockerHubToken) != "" {
+		c.DockerHubToken = os.Getenv(EnvDockerHubToken)
+	}
+
 	c.MaxConnectionsToBackend = 50
 	if os.Getenv(EnvMaxConnectionsToBackend) != "" {
 		numberPB, err := strconv.ParseInt(os.Getenv(EnvMaxConnectionsToBackend), 10, 64)

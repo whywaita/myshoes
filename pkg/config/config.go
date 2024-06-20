@@ -27,6 +27,8 @@ type Conf struct {
 
 	GitHubURL     string
 	RunnerVersion string
+
+	DockerHubToken string
 }
 
 // GitHubApp is type of config value
@@ -54,6 +56,7 @@ const (
 	EnvMaxConcurrencyDeleting    = "MAX_CONCURRENCY_DELETING"
 	EnvGitHubURL                 = "GITHUB_URL"
 	EnvRunnerVersion             = "RUNNER_VERSION"
+	EnvDockerHubToken            = "DOCKER_HUB_TOKEN"
 )
 
 // ModeWebhookType is type value for GitHub webhook

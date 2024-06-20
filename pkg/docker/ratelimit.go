@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/whywaita/myshoes/pkg/config"
 )
 
 // RateLimit is Docker Hub API rate limit
@@ -26,6 +27,9 @@ type tokenCache struct {
 var cacheMap = make(map[int]tokenCache, 1)
 
 func getToken() (string, error) {
+	if config.Config.DockerHubToken != "" {
+		return config.Config.DockerHubToken, nil
+	}
 	if cache, ok := cacheMap[0]; ok && cache.expire.After(time.Now()) {
 		return cache.token, nil
 	}
