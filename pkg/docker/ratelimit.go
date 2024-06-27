@@ -27,16 +27,17 @@ type tokenCache struct {
 var cacheMap = make(map[int]tokenCache, 1)
 
 func getToken() (string, error) {
-	if config.Config.DockerHubToken != "" {
-		return config.Config.DockerHubToken, nil
+	url := "https://auth.docker.io/token?service=registry.docker.io&scope=repository:ratelimitpreview/test:pull"
+	req, err := http.NewRequest("GET", url, nil)
+	if config.Config.DockerHubCredential.Password != "" && config.Config.DockerHubCredential.Username != "" {
+		req.SetBasicAuth(config.Config.DockerHubCredential.Username, config.Config.DockerHubCredential.Password)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request token: %w", err)
 	}
 	if cache, ok := cacheMap[0]; ok && cache.expire.After(time.Now()) {
 		return cache.token, nil
-	}
-	url := "https://auth.docker.io/token?service=registry.docker.io&scope=repository:ratelimitpreview/test:pull"
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", fmt.Errorf("request token: %w", err)
 	}
 	defer resp.Body.Close()
 	byteArray, err := io.ReadAll(resp.Body)

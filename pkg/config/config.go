@@ -28,7 +28,13 @@ type Conf struct {
 	GitHubURL     string
 	RunnerVersion string
 
-	DockerHubToken string
+	DockerHubCredential DockerHubCredential
+}
+
+// DockerHubCredential is type of config value
+type DockerHubCredential struct {
+	Username string
+	Password string
 }
 
 // GitHubApp is type of config value
@@ -56,7 +62,8 @@ const (
 	EnvMaxConcurrencyDeleting    = "MAX_CONCURRENCY_DELETING"
 	EnvGitHubURL                 = "GITHUB_URL"
 	EnvRunnerVersion             = "RUNNER_VERSION"
-	EnvDockerHubToken            = "DOCKER_HUB_TOKEN"
+	EnvDockerHubUsername         = "DOCKER_HUB_USERNAME"
+	EnvDockerHubPassword         = "DOCKER_HUB_PASSWORD"
 )
 
 // ModeWebhookType is type value for GitHub webhook
