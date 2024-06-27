@@ -81,11 +81,20 @@ func GetRateLimit() (RateLimit, error) {
 		return RateLimit{}, fmt.Errorf("get rate limit: %w", err)
 	}
 	defer resp.Body.Close()
-	limit, err := strconv.Atoi(strings.Split(resp.Header.Get("ratelimit-limit"), ";")[0])
+	limitHeader := resp.Header.Get("ratelimit-limit")
+	if limitHeader == "" {
+		return RateLimit{}, fmt.Errorf("not found ratelimit-limit header")
+	}
+	limit, err := strconv.Atoi(strings.Split(limitHeader, ";")[0])
 	if err != nil {
 		return RateLimit{}, fmt.Errorf("parse limit: %w", err)
 	}
-	remaining, err := strconv.Atoi(strings.Split(resp.Header.Get("ratelimit-remaining"), ";")[0])
+	remainingHeader := resp.Header.Get("ratelimit-remaining")
+	if remainingHeader == "" {
+		return RateLimit{}, fmt.Errorf("not found ratelimit-remaining header")
+
+	}
+	remaining, err := strconv.Atoi(strings.Split(remainingHeader, ";")[0])
 	if err != nil {
 		return RateLimit{}, fmt.Errorf("parse remaining: %w", err)
 	}
