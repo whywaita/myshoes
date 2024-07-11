@@ -30,6 +30,8 @@ type Runner struct {
 var (
 	// ConcurrencyDeleting is value of concurrency
 	ConcurrencyDeleting atomic.Int64
+	// DeletingTimeout is timeout of deleting runner
+	DeletingTimeout = 3 * time.Minute
 )
 
 func (m *Manager) do(ctx context.Context) error {
@@ -104,12 +106,15 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 		ConcurrencyDeleting.Add(1)
 
 		eg.Go(func() error {
+			cctx, cancel := context.WithTimeout(ctx, DeletingTimeout)
+			defer cancel()
+
 			defer func() {
 				sem.Release(1)
 				ConcurrencyDeleting.Add(-1)
 			}()
 
-			if err := m.removeRunner(ctx, t, runner, ghRunners); err != nil {
+			if err := m.removeRunner(cctx, t, runner, ghRunners); err != nil {
 				logger.Logf(false, "failed to delete runner: %+v", err)
 			}
 			return nil
