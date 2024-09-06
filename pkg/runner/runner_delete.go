@@ -14,6 +14,7 @@ import (
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
 	"github.com/whywaita/myshoes/pkg/shoes"
+	"golang.org/x/exp/rand"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -92,6 +93,12 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 
 	for _, runner := range runners {
 		runner := runner
+		c, _ := m.deleteRetryCount.LoadOrStore(runner.CloudID, 0)
+		count, _ := c.(int)
+		if count > MaxDeleteRetry {
+			logger.Logf(false, "runner %s is retry count over %d, so will ignore", runner.UUID, MaxDeleteRetry)
+			continue
+		}
 
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("failed to Acquire: %w", err)
@@ -106,10 +113,14 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 				sem.Release(1)
 				ConcurrencyDeleting.Add(-1)
 			}()
+			time.Sleep(calcRetryTime(count))
 
 			if err := m.removeRunner(cctx, t, runner, ghRunners); err != nil {
+				m.deleteRetryCount.Store(runner.CloudID, count+1)
 				logger.Logf(false, "failed to delete runner: %+v", err)
+				return nil
 			}
+			m.deleteRetryCount.Delete(runner.CloudID)
 			return nil
 		})
 	}
@@ -281,4 +292,16 @@ func (m *Manager) deleteRunner(ctx context.Context, runner datastore.Runner, run
 	}
 
 	return nil
+}
+
+// calcRetryTime is caliculate retry time by exponential backoff and jitter
+func calcRetryTime(count int) time.Duration {
+	if count == 0 {
+		return 0
+	}
+
+	backoff := 1 << count
+	jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
+
+	return time.Duration(backoff)*time.Second + jitter
 }
