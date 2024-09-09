@@ -218,8 +218,15 @@ func LoadPluginPath() string {
 }
 
 func checkBinary(p string) (string, error) {
-	if _, err := os.Stat(p); err != nil {
-		return "", fmt.Errorf("failed to stat file: %w", err)
+	f, err := os.ReadFile(p)
+	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
+	}
+
+	// check binary type
+	mineType := http.DetectContentType(f)
+	if !strings.EqualFold(mineType, "application/octet-stream") {
+		return "", fmt.Errorf("invalid file type (correct: application/octet-stream got: %s)", mineType)
 	}
 
 	// need permission of execute
@@ -289,11 +296,12 @@ func fetchHTTP(u *url.URL) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		_, err := io.Copy(f, resp.Body)
-		if err != nil {
-			return "", fmt.Errorf("failed to write file (path: %s): %w", fp, err)
-		}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get config via HTTP(S): status code is not 200 (status code: %d)", resp.StatusCode)
+	}
+
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		return "", fmt.Errorf("failed to write file (path: %s): %w", fp, err)
 	}
 
 	return fp, nil
