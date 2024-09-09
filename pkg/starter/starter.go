@@ -152,19 +152,20 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 			if err := sem.Acquire(ctx, 1); err != nil {
 				return fmt.Errorf("failed to Acquire: %w", err)
 			}
-			time.Sleep(util.CalcRetryTime(count))
 			CountWaiting.Add(-1)
 			CountRunning.Add(1)
 
 			inProgress.Store(job.UUID, struct{}{})
 
-			go func(job datastore.Job) {
+			sleep := util.CalcRetryTime(count)
+			go func(job datastore.Job, sleep time.Duration) {
 				defer func() {
 					sem.Release(1)
 					inProgress.Delete(job.UUID)
 					CountRunning.Add(-1)
 				}()
 
+				time.Sleep(sleep)
 				if err := s.ProcessJob(ctx, job); err != nil {
 					addInstanceRetryCount.Store(job.UUID, count+1)
 					logger.Logf(false, "failed to process job: %+v\n", err)
@@ -172,7 +173,7 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 					addInstanceRetryCount.Delete(job.UUID)
 					runner.CreatedRunners.Add(1)
 				}
-			}(job)
+			}(job, sleep)
 
 		case <-ctx.Done():
 			return nil
