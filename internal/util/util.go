@@ -6,7 +6,7 @@ import (
 	"golang.org/x/exp/rand"
 )
 
-// calcRetryTime is caliculate retry time by exponential backoff and jitter
+// CalcRetryTime is caliculate retry time by exponential backoff and jitter
 func CalcRetryTime(count int) time.Duration {
 	if count == 0 {
 		return 0

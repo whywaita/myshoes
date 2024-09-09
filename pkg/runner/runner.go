@@ -23,7 +23,7 @@ var (
 	TargetTokenInterval = 5 * time.Minute
 	//NeedRefreshToken is time of token expired
 	NeedRefreshToken = 10 * time.Minute
-	// CountCreatedRunners is count of created runners
+	// CreatedRunners is count of created runners
 	CreatedRunners atomic.Int64
 )
 
