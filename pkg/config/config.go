@@ -29,6 +29,7 @@ type Conf struct {
 	RunnerVersion string
 
 	DockerHubCredential DockerHubCredential
+	ProvideDockerHubMetrics bool
 }
 
 // DockerHubCredential is type of config value
@@ -64,6 +65,7 @@ const (
 	EnvRunnerVersion             = "RUNNER_VERSION"
 	EnvDockerHubUsername         = "DOCKER_HUB_USERNAME"
 	EnvDockerHubPassword         = "DOCKER_HUB_PASSWORD"
+	EnvProvideDockerHubMetrics   = "PROVIDE_DOCKER_HUB_METRICS"
 )
 
 // ModeWebhookType is type value for GitHub webhook

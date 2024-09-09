@@ -75,6 +75,11 @@ func LoadWithDefault() Conf {
 		c.ModeWebhookType = mwt
 	}
 
+	c.ProvideDockerHubMetrics = false
+	if os.Getenv(EnvProvideDockerHubMetrics) == "true" {
+		c.ProvideDockerHubMetrics = true
+	}
+
 	c.DockerHubCredential = DockerHubCredential{}
 	if os.Getenv(EnvDockerHubUsername) != "" && os.Getenv(EnvDockerHubPassword) != "" {
 		c.DockerHubCredential.Username = os.Getenv(EnvDockerHubUsername)

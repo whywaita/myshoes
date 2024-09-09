@@ -92,10 +92,11 @@ func (ScraperMemory) Scrape(ctx context.Context, ds datastore.Datastore, ch chan
 	if err := scrapeRecoveredRuns(ch); err != nil {
 		return fmt.Errorf("failed to scrape recovered runs: %w", err)
 	}
-	if err := scrapeDockerValues(ch); err != nil {
-		return fmt.Errorf("failed to scrape Docker values: %w", err)
+	if config.Config.ProvideDockerHubMetrics {
+		if err := scrapeDockerValues(ch); err != nil {
+			return fmt.Errorf("failed to scrape Docker values: %w", err)
+		}
 	}
-
 	return nil
 }
 
