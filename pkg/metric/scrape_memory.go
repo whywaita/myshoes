@@ -66,6 +66,11 @@ var (
 		"deleting concurrency in runner",
 		[]string{"runner"}, nil,
 	)
+	memoryRunnerDeleteRetriedRatio = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "runner_delete_retried_ratio"),
+		"retried ratio in deleting created runner",
+		[]string{"runner"}, nil,
+	)
 )
 
 // ScraperMemory is scraper implement for memory
@@ -124,6 +129,16 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 		memoryRunnerMaxConcurrencyDeleting, prometheus.GaugeValue, float64(configRunnerDeletingMax), labelRunner)
 	ch <- prometheus.MustNewConstMetric(
 		memoryRunnerQueueConcurrencyDeleting, prometheus.GaugeValue, float64(countRunnerDeletingNow), labelRunner)
+
+	deleteRetried := 0
+	runner.DeleteRetryCount.Range(func(key, value any) bool {
+		deleteRetried += value.(int)
+		return true
+	})
+
+	createdRunners := runner.CreatedRunners.Load()
+	ch <- prometheus.MustNewConstMetric(
+		memoryRunnerDeleteRetriedRatio, prometheus.GaugeValue, float64(createdRunners)/float64(deleteRetried), labelRunner)
 
 	return nil
 }

@@ -123,9 +123,10 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 			if err := m.removeRunner(cctx, t, runner, ghRunners); err != nil {
 				DeleteRetryCount.Store(runner.UUID, count+1)
 				logger.Logf(false, "failed to delete runner: %+v", err)
-				return nil
+			} else {
+				DeleteRetryCount.Delete(runner.UUID)
+				CreatedRunners.Add(-1)
 			}
-			DeleteRetryCount.Delete(runner.UUID)
 			return nil
 		})
 	}

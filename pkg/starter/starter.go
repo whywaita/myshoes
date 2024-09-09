@@ -170,6 +170,7 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 					logger.Logf(false, "failed to process job: %+v\n", err)
 				} else {
 					addInstanceRetryCount.Delete(job.UUID)
+					runner.CreatedRunners.Add(1)
 				}
 			}(job)
 
