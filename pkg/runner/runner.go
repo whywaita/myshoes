@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/go-version"
@@ -23,15 +22,12 @@ var (
 	TargetTokenInterval = 5 * time.Minute
 	//NeedRefreshToken is time of token expired
 	NeedRefreshToken = 10 * time.Minute
-	// MaxDeleteRetry is max retry count of delete runner
-	MaxDeleteRetry = 10
 )
 
 // Manager is runner management
 type Manager struct {
-	ds               datastore.Datastore
-	runnerVersion    string
-	deleteRetryCount sync.Map //  key: runnerID
+	ds            datastore.Datastore
+	runnerVersion string
 }
 
 // New create a Manager
@@ -39,7 +35,6 @@ func New(ds datastore.Datastore, runnerVersion string) *Manager {
 	return &Manager{
 		ds:            ds,
 		runnerVersion: runnerVersion,
-		deleteRetryCount: sync.Map{},
 	}
 }
 

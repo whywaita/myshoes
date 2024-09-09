@@ -5,16 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/google/go-github/v47/github"
+	"github.com/whywaita/myshoes/internal/util"
 	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
 	"github.com/whywaita/myshoes/pkg/shoes"
-	"golang.org/x/exp/rand"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -26,6 +27,10 @@ var (
 	ConcurrencyDeleting atomic.Int64
 	// DeletingTimeout is timeout of deleting runner
 	DeletingTimeout = 3 * time.Minute
+	// DeleteRetryCount is retry count of deleting runner
+	DeleteRetryCount = sync.Map{} //  key: runner.UUID
+	// MaxDeleteRetry is max retry count of delete runner
+	MaxDeleteRetry = 10
 )
 
 func (m *Manager) do(ctx context.Context) error {
@@ -93,7 +98,7 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 
 	for _, runner := range runners {
 		runner := runner
-		c, _ := m.deleteRetryCount.LoadOrStore(runner.CloudID, 0)
+		c, _ := DeleteRetryCount.LoadOrStore(runner.UUID, 0)
 		count, _ := c.(int)
 		if count > MaxDeleteRetry {
 			logger.Logf(false, "runner %s is retry count over %d, so will ignore", runner.UUID, MaxDeleteRetry)
@@ -113,14 +118,14 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 				sem.Release(1)
 				ConcurrencyDeleting.Add(-1)
 			}()
-			time.Sleep(calcRetryTime(count))
+			time.Sleep(util.CalcRetryTime(count))
 
 			if err := m.removeRunner(cctx, t, runner, ghRunners); err != nil {
-				m.deleteRetryCount.Store(runner.CloudID, count+1)
+				DeleteRetryCount.Store(runner.UUID, count+1)
 				logger.Logf(false, "failed to delete runner: %+v", err)
 				return nil
 			}
-			m.deleteRetryCount.Delete(runner.CloudID)
+			DeleteRetryCount.Delete(runner.UUID)
 			return nil
 		})
 	}
@@ -292,16 +297,4 @@ func (m *Manager) deleteRunner(ctx context.Context, runner datastore.Runner, run
 	}
 
 	return nil
-}
-
-// calcRetryTime is caliculate retry time by exponential backoff and jitter
-func calcRetryTime(count int) time.Duration {
-	if count == 0 {
-		return 0
-	}
-
-	backoff := 1 << count
-	jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
-
-	return time.Duration(backoff)*time.Second + jitter
 }
