@@ -75,6 +75,23 @@ func LoadWithDefault() Conf {
 		c.ModeWebhookType = mwt
 	}
 
+	c.ProvideDockerHubMetrics = false
+	if os.Getenv(EnvProvideDockerHubMetrics) == "true" {
+		c.ProvideDockerHubMetrics = true
+	}
+
+	c.DockerHubCredential = DockerHubCredential{}
+	if c.ProvideDockerHubMetrics {
+		if os.Getenv(EnvDockerHubUsername) != "" && os.Getenv(EnvDockerHubPassword) != "" {
+			c.DockerHubCredential.Username = os.Getenv(EnvDockerHubUsername)
+			c.DockerHubCredential.Password = os.Getenv(EnvDockerHubPassword)
+		} else {
+			log.Println("WARNING: Providing Docker Hub metrics is enabled, but DOCKER_HUB_USERNAME and DOCKER_HUB_PASSWORD are not set. Providing Docker Hub metrics with anonymous user mode")
+		}
+	} else {
+		log.Println("Docker Hub metrics is disabled")
+	}
+
 	c.MaxConnectionsToBackend = 50
 	if os.Getenv(EnvMaxConnectionsToBackend) != "" {
 		numberPB, err := strconv.ParseInt(os.Getenv(EnvMaxConnectionsToBackend), 10, 64)

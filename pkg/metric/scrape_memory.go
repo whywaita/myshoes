@@ -7,6 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/docker"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/runner"
 	"github.com/whywaita/myshoes/pkg/starter"
@@ -37,13 +38,23 @@ var (
 	)
 	memoryGitHubRateLimitRemaining = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, memoryName, "github_rate_limit_remaining"),
-		"The number of rate limit remaining",
+		"The number of rate limit remaining in GitHub",
 		[]string{"scope"}, nil,
 	)
 	memoryGitHubRateLimitLimiting = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, memoryName, "github_rate_limit_limiting"),
-		"The number of rate limit max",
+		"The number of rate limit max in GitHub",
 		[]string{"scope"}, nil,
+	)
+	memoryDockerHubRateLimitRemaining = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "dockerhub_rate_limit_remaining"),
+		"The number of rate limit remaining in DockerHub",
+		[]string{}, nil,
+	)
+	memoryDockerHubRateLimitLimiting = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "dockerhub_rate_limit_limiting"),
+		"The number of rate limit max in DockerHub",
+		[]string{}, nil,
 	)
 	memoryRunnerMaxConcurrencyDeleting = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, memoryName, "runner_max_concurrency_deleting"),
@@ -81,7 +92,11 @@ func (ScraperMemory) Scrape(ctx context.Context, ds datastore.Datastore, ch chan
 	if err := scrapeRecoveredRuns(ch); err != nil {
 		return fmt.Errorf("failed to scrape recovered runs: %w", err)
 	}
-
+	if config.Config.ProvideDockerHubMetrics {
+		if err := scrapeDockerValues(ch); err != nil {
+			return fmt.Errorf("failed to scrape Docker values: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -142,3 +157,17 @@ func scrapeGitHubValues(ch chan<- prometheus.Metric) error {
 }
 
 var _ Scraper = ScraperMemory{}
+
+func scrapeDockerValues(ch chan<- prometheus.Metric) error {
+	rateLimit, err := docker.GetRateLimit()
+	if err != nil {
+		return fmt.Errorf("failed to get rate limit: %w", err)
+	}
+	ch <- prometheus.MustNewConstMetric(
+		memoryDockerHubRateLimitRemaining, prometheus.GaugeValue, float64(rateLimit.Remaining),
+	)
+	ch <- prometheus.MustNewConstMetric(
+		memoryDockerHubRateLimitLimiting, prometheus.GaugeValue, float64(rateLimit.Limit),
+	)
+	return nil
+}

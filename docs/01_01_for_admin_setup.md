@@ -106,6 +106,17 @@ A config variables can set from environment values.
   - set linux username that executes runner. you need to set exist user.
     - DO NOT set root. It can't run GitHub Actions runner in root permission.
     - Example: `ubuntu`
+- `PROVIDE_DOCKER_HUB_METRICS`
+  - default: `false`
+  - set `true` if you want to provide rate-limit metrics for Docker Hub.
+  - If you're not anonymous user, you need to set `DOCKER_HUB_USERNAME` and `DOCKER_HUB_PASSWORD`.
+- `DOCKER_HUB_USERNAME`
+  - default: `` (empty)
+  - set Docker Hub username for pulling Docker image. (Use for provide rate-limit metrics)
+- `DOCKER_HUB_PASSWORD`
+  - default: `` (empty)
+  - set Docker Hub password for pulling Docker image. (Use for provide rate-limit metrics)
+
 
 For tuning values
 
