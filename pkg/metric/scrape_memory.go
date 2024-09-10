@@ -66,9 +66,14 @@ var (
 		"deleting concurrency in runner",
 		[]string{"runner"}, nil,
 	)
-	memoryRunnerDeleteRetriedRatio = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, memoryName, "runner_delete_retried_ratio"),
-		"retried ratio in deleting created runner",
+	memoryRunnerDeleteRetryCount = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "runner_delete_retry_count"),
+		"retry count of deleting in runner",
+		[]string{"runner"}, nil,
+	)
+	memoryRunnerCreateRetryCount = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "runner_create_retry_count"),
+		"retry count of creating in runner",
 		[]string{"runner"}, nil,
 	)
 )
@@ -94,9 +99,6 @@ func (ScraperMemory) Scrape(ctx context.Context, ds datastore.Datastore, ch chan
 	if err := scrapeGitHubValues(ch); err != nil {
 		return fmt.Errorf("failed to scrape GitHub values: %w", err)
 	}
-	if err := scrapeRecoveredRuns(ch); err != nil {
-		return fmt.Errorf("failed to scrape recovered runs: %w", err)
-	}
 	if config.Config.ProvideDockerHubMetrics {
 		if err := scrapeDockerValues(ch); err != nil {
 			return fmt.Errorf("failed to scrape Docker values: %w", err)
@@ -121,7 +123,15 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 	ch <- prometheus.MustNewConstMetric(
 		memoryStarterQueueWaiting, prometheus.GaugeValue, float64(countWaiting), labelStarter)
 
+	starter.CountRecovered.Range(func(key, value interface{}) bool {
+		ch <- prometheus.MustNewConstMetric(
+			memoryStarterRecoveredRuns, prometheus.GaugeValue, float64(value.(int)), labelStarter, key.(string),
+		)
+		return true
+	})
+
 	const labelRunner = "runner"
+
 	configRunnerDeletingMax := config.Config.MaxConcurrencyDeleting
 	countRunnerDeletingNow := runner.ConcurrencyDeleting.Load()
 
@@ -130,26 +140,18 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 	ch <- prometheus.MustNewConstMetric(
 		memoryRunnerQueueConcurrencyDeleting, prometheus.GaugeValue, float64(countRunnerDeletingNow), labelRunner)
 
-	deleteRetried := 0
 	runner.DeleteRetryCount.Range(func(key, value any) bool {
-		deleteRetried += value.(int)
-		return true
-	})
-
-	createdRunners := runner.CreatedRunners.Load()
-	ch <- prometheus.MustNewConstMetric(
-		memoryRunnerDeleteRetriedRatio, prometheus.GaugeValue, float64(createdRunners)/float64(deleteRetried), labelRunner)
-
-	return nil
-}
-
-func scrapeRecoveredRuns(ch chan<- prometheus.Metric) error {
-	starter.CountRecovered.Range(func(key, value interface{}) bool {
 		ch <- prometheus.MustNewConstMetric(
-			memoryStarterRecoveredRuns, prometheus.GaugeValue, float64(value.(int)), key.(string),
-		)
+			memoryRunnerDeleteRetryCount, prometheus.GaugeValue, float64(value.(int)), key.(string))
 		return true
 	})
+
+	starter.AddInstanceRetryCount.Range(func(key, value any) bool {
+		ch <- prometheus.MustNewConstMetric(
+			memoryRunnerCreateRetryCount, prometheus.GaugeValue, float64(value.(int)), key.(string))
+		return true
+	})
+
 	return nil
 }
 

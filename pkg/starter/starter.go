@@ -40,8 +40,10 @@ var (
 
 	inProgress = sync.Map{}
 
-	reQueuedJobs          = sync.Map{}
-	addInstanceRetryCount = sync.Map{}
+	reQueuedJobs = sync.Map{}
+
+	// AddInstanceRetryCount is count of retry to add instance
+	AddInstanceRetryCount = sync.Map{}
 )
 
 // Starter is dispatcher for running job
@@ -144,7 +146,7 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 				// this job is in progress, skip
 				continue
 			}
-			c, _ := addInstanceRetryCount.LoadOrStore(job.UUID, 0)
+			c, _ := AddInstanceRetryCount.LoadOrStore(job.UUID, 0)
 			count, _ := c.(int)
 
 			logger.Logf(true, "found new job: %s", job.UUID)
@@ -167,11 +169,10 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 
 				time.Sleep(sleep)
 				if err := s.ProcessJob(ctx, job); err != nil {
-					addInstanceRetryCount.Store(job.UUID, count+1)
+					AddInstanceRetryCount.Store(job.UUID, count+1)
 					logger.Logf(false, "failed to process job: %+v\n", err)
 				} else {
-					addInstanceRetryCount.Delete(job.UUID)
-					runner.CreatedRunners.Add(1)
+					AddInstanceRetryCount.Delete(job.UUID)
 				}
 			}(job, sleep)
 
