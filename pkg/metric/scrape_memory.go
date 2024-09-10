@@ -36,7 +36,7 @@ var (
 	memoryStarterRecoveredRuns = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, memoryName, "starter_recovered_runs"),
 		"recovered runs in starter",
-		[]string{"starter"}, nil,
+		[]string{"starter", "target"}, nil,
 	)
 	memoryGitHubRateLimitRemaining = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, memoryName, "github_rate_limit_remaining"),
