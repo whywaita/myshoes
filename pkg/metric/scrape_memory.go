@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -142,13 +144,13 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 
 	runner.DeleteRetryCount.Range(func(key, value any) bool {
 		ch <- prometheus.MustNewConstMetric(
-			memoryRunnerDeleteRetryCount, prometheus.GaugeValue, float64(value.(int)), key.(string))
+			memoryRunnerDeleteRetryCount, prometheus.GaugeValue, float64(value.(int)), key.(uuid.UUID).String())
 		return true
 	})
 
 	starter.AddInstanceRetryCount.Range(func(key, value any) bool {
 		ch <- prometheus.MustNewConstMetric(
-			memoryRunnerCreateRetryCount, prometheus.GaugeValue, float64(value.(int)), key.(string))
+			memoryRunnerCreateRetryCount, prometheus.GaugeValue, float64(value.(int)), key.(uuid.UUID).String())
 		return true
 	})
 
