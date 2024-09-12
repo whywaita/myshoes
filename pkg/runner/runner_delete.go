@@ -20,13 +20,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Runner is a runner implement
-type Runner struct {
-	status string
-	github *github.Runner
-	ds     *datastore.Runner
-}
-
 var (
 	// ConcurrencyDeleting is value of concurrency
 	ConcurrencyDeleting atomic.Int64

@@ -156,7 +156,7 @@ type TargetStatus string
 
 // TargetStatus variables
 const (
-	TargetStatusActive  TargetStatus = "active"
+	TargetStatusActive  TargetStatus = "active" //lint:ignore SA9004 this is status
 	TargetStatusRunning              = "running"
 	TargetStatusSuspend              = "suspend"
 	TargetStatusDeleted              = "deleted"
@@ -215,7 +215,7 @@ type RunnerStatus string
 
 // RunnerStatus variables
 const (
-	RunnerStatusCreated        RunnerStatus = "created"
+	RunnerStatusCreated        RunnerStatus = "created" //lint:ignore SA9004 this is status
 	RunnerStatusCompleted                   = "completed"
 	RunnerStatusReachHardLimit              = "reach_hard_limit"
 )

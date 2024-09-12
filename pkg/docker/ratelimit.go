@@ -29,6 +29,9 @@ var cacheMap = make(map[int]tokenCache, 1)
 func getToken() (string, error) {
 	url := "https://auth.docker.io/token?service=registry.docker.io&scope=repository:ratelimitpreview/test:pull"
 	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("create request: %w", err)
+	}
 	if config.Config.DockerHubCredential.Password != "" && config.Config.DockerHubCredential.Username != "" {
 		req.SetBasicAuth(config.Config.DockerHubCredential.Username, config.Config.DockerHubCredential.Password)
 	}
@@ -75,6 +78,9 @@ func GetRateLimit() (RateLimit, error) {
 	}
 	url := "https://registry-1.docker.io/v2/ratelimitpreview/test/manifests/latest"
 	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return RateLimit{}, fmt.Errorf("create request: %w", err)
+	}
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
