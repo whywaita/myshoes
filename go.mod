@@ -1,12 +1,11 @@
 module github.com/whywaita/myshoes
 
-go 1.21
-
-toolchain go1.21.1
+go 1.23
 
 require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
 	github.com/go-sql-driver/mysql v1.6.0
+	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-github/v47 v47.1.0
 	github.com/hashicorp/go-plugin v1.4.3
@@ -39,7 +38,6 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-github/v41 v41.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect

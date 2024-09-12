@@ -25,8 +25,8 @@ jobs:
           go-version-file: 'go.mod'
       - name: lint
         run: |
-          GO111MODULE=off GOBIN=$(pwd)/bin go get golang.org/x/lint/golint
-          bin/golint -set_exit_status ./...
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
       - name: vet
         run: |
           go vet ./...

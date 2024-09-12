@@ -542,6 +542,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 			t.Fatalf("failed to create target: %+v", err)
 		}
 
+		//lint:ignore SA1019 only execute in test
 		err := testDatastore.UpdateTargetStatus(context.Background(), tID, test.input.status, test.input.description)
 		if !test.err && err != nil {
 			t.Fatalf("failed to update status: %+v", err)

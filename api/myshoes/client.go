@@ -37,15 +37,20 @@ func NewClient(endpoint string, client *http.Client, logger *log.Logger) (*Clien
 	}
 	l := logger
 	if l == nil {
-		// Default is discard logger
-		l = log.New(io.Discard, "", log.LstdFlags)
+		return &Client{
+			HTTPClient: *httpClient,
+			URL:        u,
+
+			// Default is discard logger
+			Logger: log.New(io.Discard, "", log.LstdFlags),
+		}, nil
 	}
 
 	return &Client{
 		HTTPClient: *httpClient,
 		URL:        u,
 
-		Logger: logger,
+		Logger: l,
 	}, nil
 }
 
