@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/google/go-github/v47/github"
+	"github.com/whywaita/myshoes/internal/util"
 	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -25,6 +27,10 @@ var (
 	ConcurrencyDeleting atomic.Int64
 	// DeletingTimeout is timeout of deleting runner
 	DeletingTimeout = 3 * time.Minute
+	// DeleteRetryCount is retry count of deleting runner
+	DeleteRetryCount = sync.Map{} //  key: runner.UUID
+	// MaxDeleteRetry is max retry count of delete runner
+	MaxDeleteRetry = 10
 )
 
 func (m *Manager) do(ctx context.Context) error {
@@ -92,6 +98,12 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 
 	for _, runner := range runners {
 		runner := runner
+		c, _ := DeleteRetryCount.LoadOrStore(runner.UUID, 0)
+		count, _ := c.(int)
+		if count > MaxDeleteRetry {
+			logger.Logf(false, "runner %s is retry count over %d, so will ignore", runner.UUID, MaxDeleteRetry)
+			continue
+		}
 
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("failed to Acquire: %w", err)
@@ -106,9 +118,13 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 				sem.Release(1)
 				ConcurrencyDeleting.Add(-1)
 			}()
+			time.Sleep(util.CalcRetryTime(count))
 
 			if err := m.removeRunner(cctx, t, runner, ghRunners); err != nil {
+				DeleteRetryCount.Store(runner.UUID, count+1)
 				logger.Logf(false, "failed to delete runner: %+v", err)
+			} else {
+				DeleteRetryCount.Delete(runner.UUID)
 			}
 			return nil
 		})

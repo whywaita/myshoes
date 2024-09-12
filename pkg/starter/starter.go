@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/go-github/v47/github"
 	uuid "github.com/satori/go.uuid"
+	"github.com/whywaita/myshoes/internal/util"
 	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -40,6 +41,9 @@ var (
 	inProgress = sync.Map{}
 
 	reQueuedJobs = sync.Map{}
+
+	// AddInstanceRetryCount is count of retry to add instance
+	AddInstanceRetryCount = sync.Map{}
 )
 
 // Starter is dispatcher for running job
@@ -142,6 +146,8 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 				// this job is in progress, skip
 				continue
 			}
+			c, _ := AddInstanceRetryCount.LoadOrStore(job.UUID, 0)
+			count, _ := c.(int)
 
 			logger.Logf(true, "found new job: %s", job.UUID)
 			CountWaiting.Add(1)
@@ -153,17 +159,22 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 
 			inProgress.Store(job.UUID, struct{}{})
 
-			go func(job datastore.Job) {
+			sleep := util.CalcRetryTime(count)
+			go func(job datastore.Job, sleep time.Duration) {
 				defer func() {
 					sem.Release(1)
 					inProgress.Delete(job.UUID)
 					CountRunning.Add(-1)
 				}()
 
+				time.Sleep(sleep)
 				if err := s.ProcessJob(ctx, job); err != nil {
+					AddInstanceRetryCount.Store(job.UUID, count+1)
 					logger.Logf(false, "failed to process job: %+v\n", err)
+				} else {
+					AddInstanceRetryCount.Delete(job.UUID)
 				}
-			}(job)
+			}(job, sleep)
 
 		case <-ctx.Done():
 			return nil
