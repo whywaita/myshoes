@@ -28,7 +28,7 @@ type Conf struct {
 	GitHubURL     string
 	RunnerVersion string
 
-	DockerHubCredential DockerHubCredential
+	DockerHubCredential     DockerHubCredential
 	ProvideDockerHubMetrics bool
 }
 
@@ -51,6 +51,11 @@ const (
 	EnvGitHubAppID               = "GITHUB_APP_ID"
 	EnvGitHubAppSecret           = "GITHUB_APP_SECRET"
 	EnvGitHubAppPrivateKeyBase64 = "GITHUB_PRIVATE_KEY_BASE64"
+	EnvMySQLHost                 = "MYSQL_HOST"
+	EnvMySQLPort                 = "MYSQL_PORT"
+	EnvMySQLUser                 = "MYSQL_USER"
+	EnvMySQLPassword             = "MYSQL_PASSWORD"
+	EnvMySQLDatabase             = "MYSQL_DATABASE"
 	EnvMySQLURL                  = "MYSQL_URL"
 	EnvPort                      = "PORT"
 	EnvShoesPluginPath           = "PLUGIN"

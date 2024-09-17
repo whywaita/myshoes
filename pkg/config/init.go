@@ -192,6 +192,15 @@ func LoadGitHubApps() *GitHubApp {
 
 // LoadMySQLURL load MySQL URL from environment
 func LoadMySQLURL() string {
+	mysqlHost, ok_Host := os.LookupEnv(EnvMySQLHost)
+	mysqlPort, ok_Port := os.LookupEnv(EnvMySQLPort)
+	mysqlUser, ok_User := os.LookupEnv(EnvMySQLUser)
+	mysqlPassword, ok_Password := os.LookupEnv(EnvMySQLPassword)
+	mysqlDatabase, ok_Database := os.LookupEnv(EnvMySQLDatabase)
+	if ok_Host && ok_Port && ok_User && ok_Password && ok_Database {
+		mysqlURL := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlPort, mysqlDatabase)
+		return mysqlURL
+	}
 	mysqlURL := os.Getenv(EnvMySQLURL)
 	if mysqlURL == "" {
 		log.Panicf("%s must be set", EnvMySQLURL)
