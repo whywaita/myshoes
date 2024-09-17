@@ -85,6 +85,11 @@ A config variables can set from environment values.
 - `MYSQL_URL`
   - required
   - DataSource Name, ex) `username:password@tcp(localhost:3306)/myshoes`
+  - if `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE` all are set, this env value are ignored.
+- `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`
+  - optional
+  - If all environment variables are set, mysql_url is constructed and loaded in the following way, then `MYSQL_URL` env will be ignored.
+  - example) `${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/${MYSQL_DATABASE}`
 - `PLUGIN`
   - required
   - set path of myshoes-provider binary.
