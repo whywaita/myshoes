@@ -199,6 +199,7 @@ func LoadMySQLURL() string {
 	mysqlDatabase, ok_Database := os.LookupEnv(EnvMySQLDatabase)
 	if ok_Host && ok_Port && ok_User && ok_Password && ok_Database {
 		mysqlURL := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", mysqlUser, mysqlPassword, mysqlHost, mysqlPort, mysqlDatabase)
+		log.Println("load MySQL URL from environment variables MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, not MYSQL_URL")
 		return mysqlURL
 	}
 	mysqlURL := os.Getenv(EnvMySQLURL)
