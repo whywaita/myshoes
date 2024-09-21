@@ -318,7 +318,7 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.
 	cloudID, ipAddress, shoesType, resourceType, err := client.AddInstance(ctx, runnerName, script, target.ResourceType, labels)
 	if err != nil {
 		if stat, _ := status.FromError(err); stat.Code() == codes.InvalidArgument {
-			return "", "", "", datastore.ResourceTypeUnknown, ErrInvalidLabel
+			return "", "", "", datastore.ResourceTypeUnknown, NewInvalidLabel(err)
 		}
 		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to add instance: %w", err)
 	}

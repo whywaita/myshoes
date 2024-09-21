@@ -34,6 +34,12 @@ var (
 	ErrInvalidLabel = Error{kind: errorInvalidLabel, err: nil}
 )
 
+func NewInvalidLabel(err error) error {
+	e := ErrInvalidLabel
+	e.err = err
+	return e
+}
+
 func (e Error) Is(target error) bool {
 	var t Error
 	ok := errors.As(target, &t)
