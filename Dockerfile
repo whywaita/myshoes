@@ -2,8 +2,8 @@ FROM golang:1.23 AS builder
 
 WORKDIR /go/src/github.com/whywaita/myshoes
 
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.1
-RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.2
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 RUN apt-get update -y \
     && apt-get install -y protobuf-compiler
 
