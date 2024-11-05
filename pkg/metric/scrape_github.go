@@ -45,11 +45,11 @@ func (s ScraperGitHub) Scrape(ctx context.Context, ds datastore.Datastore, ch ch
 func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
 	gh.ActiveTargets.Range(func(key, value any) bool {
 		var pendings float64
-		scope := key.(string)
+		repoName := key.(string)
 		installationID := value.(int64)
-		target, err := ds.GetTargetByScope(ctx, scope)
+		target, err := datastore.SearchRepo(ctx, ds, repoName)
 		if err != nil {
-			logger.Logf(false, "failed to get target by scope (%s): %+v", scope, err)
+			logger.Logf(false, "failed to get target by scope (%s): %+v", repoName, err)
 			return true
 		}
 		owner, repo := target.OwnerRepo()
