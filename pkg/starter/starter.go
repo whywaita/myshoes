@@ -443,7 +443,7 @@ func (s *Starter) reRunWorkflow(ctx context.Context) {
 					domain = "https://github.com"
 				}
 
-				logger.Logf(false, "receive webhook repository: %s/%s", domain, repoName)
+				logger.Logf(false, "rescue pending job: (repo: %s/%s, runID: %d)", domain, repoName, run.GetID())
 				target, err := datastore.SearchRepo(ctx, s.ds, repoName)
 				if err != nil {
 					logger.Logf(false, "failed to search registered target: %+v", err)
