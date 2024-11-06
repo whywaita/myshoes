@@ -101,7 +101,7 @@ func receiveCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 	repoURL := repo.GetHTMLURL()
 
 	if action != "created" {
-		logger.Logf(true, "check_action is not created, ignore")
+		logger.Logf(true, "check_action is not created, ignore (%s)", action)
 		return nil
 	}
 
@@ -203,6 +203,11 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 }
 
 func isRequestedMyshoesLabel(labels []string) bool {
+	// Accept dependabot runner in GHES
+	if len(labels) == 1 && strings.EqualFold(labels[0], "dependabot") {
+		return true
+	}
+
 	for _, label := range labels {
 		if strings.EqualFold(label, "myshoes") || strings.EqualFold(label, "self-hosted") {
 			return true
