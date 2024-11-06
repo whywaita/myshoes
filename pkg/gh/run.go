@@ -25,14 +25,14 @@ func listRuns(ctx context.Context, client *github.Client, owner, repo string, op
 }
 
 // ListRuns get workflow runs that registered repository
-func ListRuns(ctx context.Context, owner, repo string) ([]*github.WorkflowRun, error) {
+func ListRuns(owner, repo string) ([]*github.WorkflowRun, error) {
 	if cachedRs, expiration, found := responseCache.GetWithExpiration(getRunsCacheKey(owner, repo)); found {
 		if time.Until(expiration).Minutes() <= 1 {
-			go updateCache(ctx, owner, repo)
+			go updateCache(owner, repo)
 		}
 		return cachedRs.([]*github.WorkflowRun), nil
 	}
-	go updateCache(ctx, owner, repo)
+	go updateCache(owner, repo)
 	return []*github.WorkflowRun{}, nil // retry next time
 }
 
@@ -45,7 +45,8 @@ func ClearRunsCache(owner, repo string) {
 	responseCache.Delete(getRunsCacheKey(owner, repo))
 }
 
-func updateCache(ctx context.Context, owner, repo string) {
+func updateCache(owner, repo string) {
+	ctx := context.Background()
 	var opts = &github.ListWorkflowRunsOptions{
 		ListOptions: github.ListOptions{
 			Page:    0,

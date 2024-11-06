@@ -56,7 +56,7 @@ func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- pr
 		if repo == "" {
 			return true
 		}
-		runs, err := gh.ListRuns(ctx, owner, repo)
+		runs, err := gh.ListRuns(owner, repo)
 		if err != nil {
 			logger.Logf(false, "failed to list pending runs: %+v", err)
 			return true
