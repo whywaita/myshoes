@@ -71,6 +71,6 @@ func updateCache(owner, repo string) {
 		return
 	}
 	storeRateLimit(getRateLimitKey(owner, repo), resp.Rate)
-	responseCache.Set(getRunsCacheKey(owner, repo), runs.WorkflowRuns, 1*time.Minute)
+	responseCache.Set(getRunsCacheKey(owner, repo), runs.WorkflowRuns, 3*time.Minute)
 	logger.Logf(true, "found %d workflow runs in %s/%s", len(runs.WorkflowRuns), owner, repo)
 }
