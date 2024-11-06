@@ -28,13 +28,12 @@ func listRuns(ctx context.Context, client *github.Client, owner, repo string, op
 func ListRuns(owner, repo string) ([]*github.WorkflowRun, error) {
 	if cachedRs, expiration, found := responseCache.GetWithExpiration(getRunsCacheKey(owner, repo)); found {
 		if time.Until(expiration).Minutes() <= 1 {
-			go updateCache(context.Background(), owner, repo)
+			go updateCache(owner, repo)
 		}
-		logger.Logf(true, "found workflow runs (cache hit: expiration: %s) in %s/%s", expiration.Format("2006/01/02 15:04:05.000 -0700"), owner, repo)
 		return cachedRs.([]*github.WorkflowRun), nil
 	}
-	go updateCache(context.Background(), owner, repo)
-	return []*github.WorkflowRun{}, nil
+	go updateCache(owner, repo)
+	return []*github.WorkflowRun{}, nil // retry next time
 }
 
 func getRunsCacheKey(owner, repo string) string {
@@ -46,7 +45,8 @@ func ClearRunsCache(owner, repo string) {
 	responseCache.Delete(getRunsCacheKey(owner, repo))
 }
 
-func updateCache(ctx context.Context, owner, repo string) {
+func updateCache(owner, repo string) {
+	ctx := context.Background()
 	var opts = &github.ListWorkflowRunsOptions{
 		ListOptions: github.ListOptions{
 			Page:    0,
@@ -71,6 +71,6 @@ func updateCache(ctx context.Context, owner, repo string) {
 		return
 	}
 	storeRateLimit(getRateLimitKey(owner, repo), resp.Rate)
-	responseCache.Set(getRunsCacheKey(owner, repo), runs.WorkflowRuns, 15*time.Minute)
+	responseCache.Set(getRunsCacheKey(owner, repo), runs.WorkflowRuns, 3*time.Minute)
 	logger.Logf(true, "found %d workflow runs in %s/%s", len(runs.WorkflowRuns), owner, repo)
 }
