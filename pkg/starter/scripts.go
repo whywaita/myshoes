@@ -335,9 +335,9 @@ fi
 # insert anything to setup env when running as a service
 
 # run the host process which keep the listener alive
-NODE_PATH="./externals/node16/bin/node"
+NODE_PATH="./externals/node20/bin/node"
 if [ ! -e "\${NODE_PATH}" ]; then
-  NODE_PATH="./externals/node12/bin/node"
+  NODE_PATH="./externals/node16/bin/node"
 fi
 \${NODE_PATH} ./bin/RunnerService.js \$* &
 PID=\$!
