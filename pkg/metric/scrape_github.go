@@ -67,11 +67,12 @@ func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- pr
 				oldMinutes := 30
 				sinceMinutes := time.Since(r.CreatedAt.Time).Minutes()
 				if sinceMinutes >= float64(oldMinutes) {
-					logger.Logf(false, "run %d is pending over %d minutes", r.GetID(), oldMinutes)
+					logger.Logf(false, "run %d is pending over %d minutes, So will enqueue", r.GetID(), oldMinutes)
 					pendings++
 					gh.PendingRuns.Store(installationID, r)
+				} else {
+					logger.Logf(true, "run %d is pending, but not over %d minutes. So ignore (since: %f minutes)", r.GetID(), oldMinutes, sinceMinutes)
 				}
-				logger.Logf(true, "run %d is pending, but not over %d minutes. So ignore (since: %f minutes)", r.GetID(), oldMinutes, sinceMinutes)
 			}
 		}
 		ch <- prometheus.MustNewConstMetric(githubPendingRunsDesc, prometheus.GaugeValue, pendings, target.UUID.String(), target.Scope)
