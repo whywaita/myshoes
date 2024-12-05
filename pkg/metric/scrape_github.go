@@ -19,6 +19,19 @@ var (
 		"Number of pending runs",
 		[]string{"target_id", "scope"}, nil,
 	)
+	githubInstallationDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, githubName, "installation"),
+		"installations",
+		[]string{
+			"installation_id",
+			"account_login",
+			"account_type",
+			"target_type",
+			"repository_selection",
+			"html_url",
+		},
+		nil,
+	)
 )
 
 // ScraperGitHub is scraper implement for GitHub
@@ -38,6 +51,9 @@ func (ScraperGitHub) Help() string {
 func (s ScraperGitHub) Scrape(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
 	if err := scrapePendingRuns(ctx, ds, ch); err != nil {
 		return fmt.Errorf("failed to scrape pending runs: %w", err)
+	}
+	if err := scrapeInstallation(ctx, ch); err != nil {
+		return fmt.Errorf("failed to scrape installations: %w", err)
 	}
 	return nil
 }
@@ -78,5 +94,27 @@ func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- pr
 		ch <- prometheus.MustNewConstMetric(githubPendingRunsDesc, prometheus.GaugeValue, pendings, target.UUID.String(), target.Scope)
 		return true
 	})
+	return nil
+}
+
+func scrapeInstallation(ctx context.Context, ch chan<- prometheus.Metric) error {
+	installations, err := gh.GHlistInstallations(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list installations: %w", err)
+	}
+
+	for _, installation := range installations {
+		ch <- prometheus.MustNewConstMetric(
+			githubInstallationDesc,
+			prometheus.GaugeValue,
+			1,
+			fmt.Sprint(installation.GetID()),
+			installation.GetAccount().GetLogin(),
+			installation.GetAccount().GetType(),
+			installation.GetTargetType(),
+			installation.GetRepositorySelection(),
+			installation.GetHTMLURL(),
+		)
+	}
 	return nil
 }
