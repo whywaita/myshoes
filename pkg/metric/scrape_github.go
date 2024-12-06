@@ -113,7 +113,7 @@ func scrapeInstallation(ctx context.Context, ch chan<- prometheus.Metric) error 
 			installation.GetAccount().GetType(),
 			installation.GetTargetType(),
 			installation.GetRepositorySelection(),
-			installation.GetHTMLURL(),
+			installation.GetAccount().GetHTMLURL(),
 		)
 	}
 	return nil
