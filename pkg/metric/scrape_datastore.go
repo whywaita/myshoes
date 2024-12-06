@@ -28,6 +28,15 @@ var (
 		"Number of targets",
 		[]string{"resource_type"}, nil,
 	)
+	datastoreTargetDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, datastoreName, "target_describe"),
+		"Target",
+		[]string{
+			"target_id",
+			"scope",
+			"resource_type",
+		}, nil,
+	)
 	datastoreJobDurationOldest = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, datastoreName, "job_duration_oldest_seconds"),
 		"Duration time of oldest job",
@@ -172,6 +181,11 @@ func scrapeTargets(ctx context.Context, ds datastore.Datastore, ch chan<- promet
 
 	result := map[string]float64{} // key: resource_type, value: number
 	for _, t := range targets {
+		ch <- prometheus.MustNewConstMetric(
+			datastoreTargetDesc, prometheus.GaugeValue, 1,
+			t.UUID.String(), t.Scope, t.ResourceType.String(),
+		)
+
 		result[t.ResourceType.String()]++
 	}
 	for rt, number := range result {
