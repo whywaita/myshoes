@@ -37,6 +37,11 @@ var (
 			"resource_type",
 		}, nil,
 	)
+	datastoreTargetTokenExpiresDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, datastoreName, "target_token_expires_seconds"),
+		"Token expires time",
+		[]string{"target_id"}, nil,
+	)
 	datastoreJobDurationOldest = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, datastoreName, "job_duration_oldest_seconds"),
 		"Duration time of oldest job",
@@ -179,6 +184,7 @@ func scrapeTargets(ctx context.Context, ds datastore.Datastore, ch chan<- promet
 		return fmt.Errorf("failed to list targets: %w", err)
 	}
 
+	now := time.Now()
 	result := map[string]float64{} // key: resource_type, value: number
 	for _, t := range targets {
 		ch <- prometheus.MustNewConstMetric(
@@ -187,6 +193,12 @@ func scrapeTargets(ctx context.Context, ds datastore.Datastore, ch chan<- promet
 		)
 
 		result[t.ResourceType.String()]++
+
+		ch <- prometheus.MustNewConstMetric(
+			datastoreTargetTokenExpiresDesc, prometheus.GaugeValue,
+			t.TokenExpiredAt.Sub(now).Seconds(),
+			t.UUID.String(),
+		)
 	}
 	for rt, number := range result {
 		ch <- prometheus.MustNewConstMetric(
