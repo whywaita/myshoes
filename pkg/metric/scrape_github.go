@@ -65,7 +65,7 @@ func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- pr
 		installationID := value.(int64)
 		target, err := datastore.SearchRepo(ctx, ds, repoName)
 		if err != nil {
-			logger.Logf(false, "failed to get target by scope (%s): %+v", repoName, err)
+			logger.Logf(false, "failed to scrape pending run: failed to get target by scope (%s): %+v", repoName, err)
 			return true
 		}
 		owner, repo := target.OwnerRepo()
@@ -74,7 +74,7 @@ func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- pr
 		}
 		runs, err := gh.ListRuns(owner, repo)
 		if err != nil {
-			logger.Logf(false, "failed to list pending runs: %+v", err)
+			logger.Logf(false, "failed to scrape pending run: failed to list pending runs: %+v", err)
 			return true
 		}
 
