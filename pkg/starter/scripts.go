@@ -365,10 +365,14 @@ fi
 #---------------------------------------
 # run!
 #---------------------------------------
+
+# GitHub-hosted runner load /etc/environment in /opt/runner/provisioner/provisioner.
+# So, we need to load /etc/environment for job on self-hosted runner.
+
 {{ if eq .RunnerArg "--once" -}}
 echo "./bin/runsvc.sh {{.RunnerArg}}"
-${sudo_prefix}./bin/runsvc.sh {{.RunnerArg}}
+${sudo_prefix}bash -c "source /etc/environment; ./bin/runsvc.sh  {{.RunnerArg}}"
 {{ else -}}
 echo "./bin/runsvc.sh"
-${sudo_prefix}./bin/runsvc.sh
+${sudo_prefix}bash -c "source /etc/environment; ./bin/runsvc.sh"
 {{ end }}`
