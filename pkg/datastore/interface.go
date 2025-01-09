@@ -47,6 +47,7 @@ type Datastore interface {
 	CreateRunner(ctx context.Context, runner Runner) error
 	ListRunners(ctx context.Context) ([]Runner, error)
 	ListRunnersByTargetID(ctx context.Context, targetID uuid.UUID) ([]Runner, error)
+	ListRunnersLogByUntil(ctx context.Context, until time.Time) ([]Runner, error)
 	GetRunner(ctx context.Context, id uuid.UUID) (*Runner, error)
 	DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time, reason RunnerStatus) error
 
@@ -130,7 +131,7 @@ func UpdateTargetStatus(ctx context.Context, ds Datastore, targetID uuid.UUID, n
 func SearchRepo(ctx context.Context, ds Datastore, repo string) (*Target, error) {
 	sep := strings.Split(repo, "/")
 	if len(sep) != 2 {
-		return nil, fmt.Errorf("incorrect repo format ex: orgs/repo")
+		return nil, fmt.Errorf("incorrect repo format ex: orgs/repo (input: %s)", repo)
 	}
 
 	// use repo scope if set repo

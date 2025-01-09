@@ -74,6 +74,23 @@ func (m *MySQL) ListRunnersByTargetID(ctx context.Context, targetID uuid.UUID) (
 	return runners, nil
 }
 
+// ListRunnersLogByUntil ListRunnerLog get a runners until time
+func (m *MySQL) ListRunnersLogByUntil(ctx context.Context, until time.Time) ([]datastore.Runner, error) {
+	var runners []datastore.Runner
+
+	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook, runner_user, provider_url FROM runner_detail WHERE created_at < ?`
+	err := m.Conn.SelectContext(ctx, &runners, query, until)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, datastore.ErrNotFound
+		}
+
+		return nil, fmt.Errorf("failed to execute SELECT query: %w", err)
+	}
+
+	return runners, nil
+}
+
 // GetRunner get a runner
 func (m *MySQL) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
