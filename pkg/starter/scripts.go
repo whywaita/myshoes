@@ -308,10 +308,10 @@ echo
 echo "Configuring ${runner_name} @ $runner_url"
 {{ if eq .RunnerArg "--once" -}}
 echo "./config.sh --unattended --url $runner_url --token *** --name $runner_name --labels myshoes"
-${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes{{.AdditionalLabels}}
+${sudo_prefix}bash -c "source /etc/environment; ./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes{{.AdditionalLabels}}"
 {{ else -}}
 echo "./config.sh --unattended --url $runner_url --token *** --name $runner_name --labels myshoes {{.RunnerArg}}"
-${sudo_prefix}./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes{{.AdditionalLabels}} {{.RunnerArg}}
+${sudo_prefix}bash -c "source /etc/environment; ./config.sh --unattended --url $runner_url --token $RUNNER_TOKEN --name $runner_name --labels myshoes{{.AdditionalLabels}} {{.RunnerArg}}"
 {{ end }}
 
 
@@ -370,9 +370,9 @@ fi
 # So, we need to load /etc/environment for job on self-hosted runner.
 
 {{ if eq .RunnerArg "--once" -}}
-echo "./bin/runsvc.sh {{.RunnerArg}}"
+echo 'bash -c "source /etc/environment; ./bin/runsvc.sh  {{.RunnerArg}}"'
 ${sudo_prefix}bash -c "source /etc/environment; ./bin/runsvc.sh  {{.RunnerArg}}"
 {{ else -}}
-echo "./bin/runsvc.sh"
+echo 'bash -c "source /etc/environment; ./bin/runsvc.sh"'
 ${sudo_prefix}bash -c "source /etc/environment; ./bin/runsvc.sh"
 {{ end }}`
