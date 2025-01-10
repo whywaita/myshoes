@@ -3,9 +3,11 @@ package metric
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -18,6 +20,11 @@ var (
 		prometheus.BuildFQName(namespace, githubName, "pending_runs"),
 		"Number of pending runs",
 		[]string{"target_id", "scope"}, nil,
+	)
+	githubPendingWorkflowRunSecondsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, githubName, "pending_workflow_run_seconds"),
+		"Second of Pending time in workflow run",
+		[]string{"target_id", "workflow_id", "workflow_run_id", "html_url"}, nil,
 	)
 	githubInstallationDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, githubName, "installation"),
@@ -59,41 +66,41 @@ func (s ScraperGitHub) Scrape(ctx context.Context, ds datastore.Datastore, ch ch
 }
 
 func scrapePendingRuns(ctx context.Context, ds datastore.Datastore, ch chan<- prometheus.Metric) error {
-	gh.ActiveTargets.Range(func(key, value any) bool {
-		var pendings float64
-		repoName := key.(string)
-		installationID := value.(int64)
-		target, err := datastore.SearchRepo(ctx, ds, repoName)
-		if err != nil {
-			logger.Logf(false, "failed to scrape pending run: failed to get target by scope (%s): %+v", repoName, err)
-			return true
-		}
-		owner, repo := target.OwnerRepo()
-		if repo == "" {
-			return true
-		}
-		runs, err := gh.ListRuns(owner, repo)
-		if err != nil {
-			logger.Logf(false, "failed to scrape pending run: failed to list pending runs: %+v", err)
-			return true
-		}
+	pendingRuns, err := datastore.GetPendingWorkflowRunByRecentRepositories(ctx, ds)
+	if err != nil {
+		return fmt.Errorf("failed to get pending workflow runs: %w", err)
+	}
 
-		for _, r := range runs {
-			if r.GetStatus() == "queued" || r.GetStatus() == "pending" {
-				oldMinutes := 30
-				sinceMinutes := time.Since(r.CreatedAt.Time).Minutes()
-				if sinceMinutes >= float64(oldMinutes) {
-					logger.Logf(false, "run %d is pending over %d minutes, So will enqueue", r.GetID(), oldMinutes)
-					pendings++
-					gh.PendingRuns.Store(installationID, r)
-				} else {
-					logger.Logf(true, "run %d is pending, but not over %d minutes. So ignore (since: %f minutes)", r.GetID(), oldMinutes, sinceMinutes)
-				}
-			}
+	for _, pendingRun := range pendingRuns {
+		sinceSeconds := time.Since(pendingRun.WorkflowRun.CreatedAt.Time).Seconds()
+
+		ch <- prometheus.MustNewConstMetric(
+			githubPendingWorkflowRunSecondsDesc,
+			prometheus.GaugeValue,
+			sinceSeconds,
+			pendingRun.Target.UUID.String(),
+			strconv.FormatInt(pendingRun.WorkflowRun.GetWorkflowID(), 10),
+			strconv.FormatInt(pendingRun.WorkflowRun.GetID(), 10),
+			pendingRun.WorkflowRun.GetHTMLURL(),
+		)
+	}
+
+	// count pending runs by target
+	countPendingMap := make(map[string]int)
+	targetCache := make(map[string]*datastore.Target)
+	for _, pendingRun := range pendingRuns {
+		countPendingMap[pendingRun.Target.UUID.String()]++
+		targetCache[pendingRun.Target.UUID.String()] = pendingRun.Target
+	}
+
+	for targetID, countPending := range countPendingMap {
+		target, ok := targetCache[targetID]
+		if !ok {
+			logger.Logf(false, "failed to get target by targetID from targetCache: %s", targetID)
+			continue
 		}
-		ch <- prometheus.MustNewConstMetric(githubPendingRunsDesc, prometheus.GaugeValue, pendings, target.UUID.String(), target.Scope)
-		return true
-	})
+		ch <- prometheus.MustNewConstMetric(githubPendingRunsDesc, prometheus.GaugeValue, float64(countPending), target.UUID.String(), target.Scope)
+	}
 	return nil
 }
 

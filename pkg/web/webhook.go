@@ -80,15 +80,8 @@ func HandleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 	}
 }
 
-func storeActiveTarget(repoName string, installationID int64) {
-	gh.ActiveTargets.Store(repoName, installationID)
-}
-
 func receivePingWebhook(_ context.Context, event *github.PingEvent) error {
-	repoName := event.GetRepo().GetFullName()
-	installationID := event.GetInstallation().GetID()
-
-	storeActiveTarget(repoName, installationID)
+	// do nothing
 	return nil
 }
 
@@ -109,7 +102,6 @@ func receiveCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 	if err != nil {
 		return fmt.Errorf("failed to json.Marshal: %w", err)
 	}
-	storeActiveTarget(repoName, installationID)
 	return processCheckRun(ctx, ds, repoName, repoURL, installationID, jb)
 }
 
@@ -125,16 +117,13 @@ func processCheckRun(ctx context.Context, ds datastore.Datastore, repoName, repo
 	if err != nil {
 		return fmt.Errorf("failed to parse repository url from event: %w", err)
 	}
-	var domain string
+	//var domain string
 	gheDomain := ""
 	if u.Host != "github.com" {
 		gheDomain = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
-		domain = gheDomain
-	} else {
-		domain = "https://github.com"
 	}
 
-	logger.Logf(false, "receive webhook repository: %s/%s", domain, repoName)
+	logger.Logf(false, "receive webhook repository: %s/%s", gheDomain, repoName)
 	target, err := datastore.SearchRepo(ctx, ds, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to search registered target: %w", err)
@@ -142,26 +131,17 @@ func processCheckRun(ctx context.Context, ds datastore.Datastore, repoName, repo
 
 	if !target.CanReceiveJob() {
 		// do nothing if status is cannot receive
-		logger.Logf(false, "%s/%s is %s now, do nothing", domain, repoName, target.Status)
+		logger.Logf(false, "%s/%s is %s now, do nothing", gheDomain, repoName, target.Status)
 		return nil
 	}
 
 	jobID := uuid.NewV4()
-	var jobDomain sql.NullString
-	if gheDomain == "" {
-		jobDomain = sql.NullString{
-			Valid: false,
-		}
-	} else {
-		jobDomain = sql.NullString{
-			String: gheDomain,
-			Valid:  true,
-		}
-	}
-
 	j := datastore.Job{
-		UUID:           jobID,
-		GHEDomain:      jobDomain,
+		UUID: jobID,
+		GHEDomain: sql.NullString{
+			String: gheDomain,
+			Valid:  gheDomain != "",
+		},
 		Repository:     repoName,
 		CheckEventJSON: string(requestJSON),
 		TargetID:       target.UUID,
@@ -198,7 +178,6 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 		return fmt.Errorf("failed to json.Marshal: %w", err)
 	}
 
-	storeActiveTarget(repoName, installationID)
 	return processCheckRun(ctx, ds, repoName, repoURL, installationID, jb)
 }
 
