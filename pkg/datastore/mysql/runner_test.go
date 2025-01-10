@@ -259,7 +259,7 @@ func TestMySQL_ListRunnersNotReturnDeleted(t *testing.T) {
 	}
 }
 
-func TestMySQL_ListRunnersLogByUntil(t *testing.T) {
+func TestMySQL_ListRunnersLogBySince(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
 	defer teardown()
 
@@ -293,7 +293,8 @@ func TestMySQL_ListRunnersLogByUntil(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	got, err := testDatastore.ListRunnersLogByUntil(context.Background(), time.Now().UTC())
+	recent := time.Now().Add(-10 * time.Second)
+	got, err := testDatastore.ListRunnersLogBySince(context.Background(), recent)
 	if err != nil {
 		t.Fatalf("failed to get runners: %+v", err)
 	}

@@ -74,12 +74,12 @@ func (m *MySQL) ListRunnersByTargetID(ctx context.Context, targetID uuid.UUID) (
 	return runners, nil
 }
 
-// ListRunnersLogByUntil ListRunnerLog get a runners until time
-func (m *MySQL) ListRunnersLogByUntil(ctx context.Context, until time.Time) ([]datastore.Runner, error) {
+// ListRunnersLogBySince ListRunnerLog get a runners since time
+func (m *MySQL) ListRunnersLogBySince(ctx context.Context, since time.Time) ([]datastore.Runner, error) {
 	var runners []datastore.Runner
 
-	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook, runner_user, provider_url FROM runner_detail WHERE created_at < ?`
-	err := m.Conn.SelectContext(ctx, &runners, query, until)
+	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook, runner_user, provider_url FROM runner_detail WHERE created_at > ?`
+	err := m.Conn.SelectContext(ctx, &runners, query, since)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound

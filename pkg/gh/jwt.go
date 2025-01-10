@@ -63,7 +63,23 @@ func IsInstalledGitHubApp(ctx context.Context, inputScope string) (int64, error)
 		}
 	}
 
-	return -1, fmt.Errorf("%s/%s is not installed configured GitHub Apps", config.Config.GitHubURL, inputScope)
+	return -1, &ErrIsNotInstalledGitHubApps{
+		githubURL:  config.Config.GitHubURL,
+		inputScope: inputScope,
+	}
+}
+
+type ErrIsNotInstalledGitHubApps struct {
+	githubURL  string
+	inputScope string
+}
+
+func (e *ErrIsNotInstalledGitHubApps) Error() string {
+	return fmt.Sprintf("%s/%s is not installed configured GitHub Apps", e.githubURL, e.inputScope)
+}
+
+func (e *ErrIsNotInstalledGitHubApps) Unwrap() error {
+	return fmt.Errorf("%s", e.Error())
 }
 
 func isInstalledGitHubAppSelected(ctx context.Context, inputScope string, installationID int64) error {

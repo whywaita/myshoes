@@ -73,7 +73,6 @@ func GetPendingWorkflowRunByRecentRepositories(ctx context.Context, ds Datastore
 				WorkflowRun: run,
 			})
 		}
-
 	}
 
 	return pendingRuns, nil
@@ -104,7 +103,7 @@ func getPendingRunByRepo(ctx context.Context, client *github.Client, owner, repo
 
 func getRecentRepositories(ctx context.Context, ds Datastore) ([]string, error) {
 	recent := time.Now().Add(-24 * time.Hour)
-	recentRunners, err := ds.ListRunnersLogByUntil(ctx, recent)
+	recentRunners, err := ds.ListRunnersLogBySince(ctx, recent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get targets from datastore: %w", err)
 	}

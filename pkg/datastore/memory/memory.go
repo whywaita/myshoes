@@ -222,14 +222,14 @@ func (m *Memory) ListRunnersByTargetID(ctx context.Context, targetID uuid.UUID) 
 	return runners, nil
 }
 
-// ListRunnersLogByUntil ListRunnerLog get a runners until time
-func (m *Memory) ListRunnersLogByUntil(ctx context.Context, until time.Time) ([]datastore.Runner, error) {
+// ListRunnersLogBySince ListRunnerLog get a runners since time
+func (m *Memory) ListRunnersLogBySince(ctx context.Context, since time.Time) ([]datastore.Runner, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	var runners []datastore.Runner
 	for _, r := range m.runners {
-		if r.CreatedAt.Before(until) {
+		if r.CreatedAt.After(since) {
 			runners = append(runners, r)
 		}
 	}
