@@ -101,3 +101,18 @@ func _listAppsInstalledRepo(ctx context.Context, installationID int64) ([]*githu
 
 	return repositories, nil
 }
+
+// PurgeInstallationCache purges the cache of installations
+func PurgeInstallationCache(ctx context.Context) error {
+	installations, err := listInstallations(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get installations: %w", err)
+	}
+
+	for _, installation := range installations {
+		responseCache.Delete(getCacheInstalledRepoKey(installation.GetID()))
+	}
+
+	responseCache.Delete(getCacheInstallationsKey())
+	return nil
+}

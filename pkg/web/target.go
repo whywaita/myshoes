@@ -64,6 +64,7 @@ var (
 	GHIsInstalledGitHubApp      = gh.IsInstalledGitHubApp
 	GHGenerateGitHubAppsToken   = gh.GenerateGitHubAppsToken
 	GHNewClientApps             = gh.NewClientGitHubApps
+	GHPurgeInstallationCache    = gh.PurgeInstallationCache
 )
 
 func handleTargetList(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
