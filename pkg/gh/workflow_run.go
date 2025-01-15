@@ -17,8 +17,8 @@ func listWorkflowRuns(ctx context.Context, client *github.Client, owner, repo st
 	return runs, resp, nil
 }
 
-// ListWorkflowRunsNewestOneHundred get workflow runs that registered in the last 100 runs
-func ListWorkflowRunsNewestOneHundred(ctx context.Context, client *github.Client, owner, repo string) ([]*github.WorkflowRun, error) {
+// ListWorkflowRunsNewest get workflow runs that registered in the last (%d: limit) runs
+func ListWorkflowRunsNewest(ctx context.Context, client *github.Client, owner, repo string, limit int) ([]*github.WorkflowRun, error) {
 	if cachedWorkflowRuns, found := responseCache.Get(getRunsCacheKey(owner, repo)); found {
 		return cachedWorkflowRuns.([]*github.WorkflowRun), nil
 	}
@@ -43,7 +43,7 @@ func ListWorkflowRunsNewestOneHundred(ctx context.Context, client *github.Client
 		if resp.NextPage == 0 {
 			break
 		}
-		if len(workflowRuns) >= 100 {
+		if len(workflowRuns) >= limit {
 			break
 		}
 

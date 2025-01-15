@@ -90,7 +90,7 @@ func GetPendingWorkflowRunByRecentRepositories(ctx context.Context, ds Datastore
 }
 
 func getPendingRunByRepo(ctx context.Context, client *github.Client, owner, repo string) ([]*github.WorkflowRun, error) {
-	runs, err := gh.ListWorkflowRunsNewestOneHundred(ctx, client, owner, repo)
+	runs, err := gh.ListWorkflowRunsNewest(ctx, client, owner, repo, 50)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list runs: %w", err)
 	}
