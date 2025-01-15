@@ -32,7 +32,7 @@ func ListWorkflowRunsNewest(ctx context.Context, client *github.Client, owner, r
 
 	var workflowRuns []*github.WorkflowRun
 	for {
-		logger.Logf(true, "get workflow runs from GitHub, page: %d, now all runners: %d", opts.Page, len(workflowRuns))
+		logger.Logf(true, "get workflow runs from GitHub, page: %d, now all runners: %d (repo: %s/%s)", opts.Page, len(workflowRuns), owner, repo)
 		runs, resp, err := listWorkflowRuns(ctx, client, owner, repo, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list workflow runs: %w", err)
