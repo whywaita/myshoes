@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/whywaita/myshoes/pkg/config"
-	"github.com/whywaita/myshoes/pkg/logger"
 
 	"github.com/google/go-github/v47/github"
 )
@@ -63,7 +62,23 @@ func IsInstalledGitHubApp(ctx context.Context, inputScope string) (int64, error)
 		}
 	}
 
-	return -1, fmt.Errorf("%s/%s is not installed configured GitHub Apps", config.Config.GitHubURL, inputScope)
+	return -1, &ErrIsNotInstalledGitHubApps{
+		githubURL:  config.Config.GitHubURL,
+		inputScope: inputScope,
+	}
+}
+
+type ErrIsNotInstalledGitHubApps struct {
+	githubURL  string
+	inputScope string
+}
+
+func (e *ErrIsNotInstalledGitHubApps) Error() string {
+	return fmt.Sprintf("%s/%s is not installed configured GitHub Apps", e.githubURL, e.inputScope)
+}
+
+func (e *ErrIsNotInstalledGitHubApps) Unwrap() error {
+	return fmt.Errorf("%s", e.Error())
 }
 
 func isInstalledGitHubAppSelected(ctx context.Context, inputScope string, installationID int64) error {
@@ -92,32 +107,4 @@ func isInstalledGitHubAppSelected(ctx context.Context, inputScope string, instal
 	default:
 		return fmt.Errorf("%s can't detect scope", inputScope)
 	}
-}
-
-func listAppsInstalledRepo(ctx context.Context, installationID int64) ([]*github.Repository, error) {
-	clientInstallation, err := NewClientInstallation(installationID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create a client installation: %w", err)
-	}
-
-	var opts = &github.ListOptions{
-		Page:    0,
-		PerPage: 100,
-	}
-
-	var repositories []*github.Repository
-	for {
-		logger.Logf(true, "get list of repository from installation, page: %d, now all repositories: %d", opts.Page, len(repositories))
-		lr, resp, err := clientInstallation.Apps.ListRepos(ctx, opts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get installed repositories: %w", err)
-		}
-		repositories = append(repositories, lr.Repositories...)
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
-	}
-
-	return repositories, nil
 }

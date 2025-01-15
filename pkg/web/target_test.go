@@ -58,6 +58,10 @@ func setStubFunctions() {
 	web.GHNewClientApps = func() (*github.Client, error) {
 		return &github.Client{}, nil
 	}
+
+	web.GHPurgeInstallationCache = func(ctx context.Context) error {
+		return nil
+	}
 }
 
 func Test_handleTargetCreate(t *testing.T) {

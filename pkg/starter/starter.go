@@ -7,17 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/google/go-github/v47/github"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/google/go-github/v47/github"
 	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/internal/util"
 	"github.com/whywaita/myshoes/pkg/config"
@@ -39,8 +39,6 @@ var (
 	CountRecovered = sync.Map{}
 
 	inProgress = sync.Map{}
-
-	reQueuedJobs = sync.Map{}
 
 	// AddInstanceRetryCount is count of retry to add instance
 	AddInstanceRetryCount = sync.Map{}
@@ -392,82 +390,136 @@ func (s *Starter) checkRegisteredRunner(ctx context.Context, runnerName string, 
 }
 
 func (s *Starter) reRunWorkflow(ctx context.Context) {
-	gh.PendingRuns.Range(func(key, value any) bool {
-		installationID := key.(int64)
-		run := value.(*github.WorkflowRun)
-		client, err := gh.NewClientInstallation(installationID)
+	pendingRuns, err := datastore.GetPendingWorkflowRunByRecentRepositories(ctx, s.ds)
+	if err != nil {
+		logger.Logf(false, "failed to get pending workflow runs: %+v", err)
+		return
+	}
+
+	for _, pendingRun := range pendingRuns {
+		if err := reRunWorkflowByPendingRun(ctx, s.ds, pendingRun); err != nil {
+			logger.Logf(false, "failed to re-run workflow: %+v", err)
+			continue
+		}
+	}
+}
+
+func reRunWorkflowByPendingRun(ctx context.Context, ds datastore.Datastore, pendingRun datastore.PendingWorkflowRunWithTarget) error {
+	queuedJob, err := ds.ListJobs(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get list of jobs: %w", err)
+	}
+
+	for _, job := range queuedJob {
+		webhookEvent, err := github.ParseWebHook("workflow_job", []byte(job.CheckEventJSON))
 		if err != nil {
-			logger.Logf(false, "failed to create GitHub client: %+v", err)
-			return true
+			logger.Logf(false, "failed to parse webhook payload (job id: %s): %+v", job.UUID, err)
+			continue
 		}
 
-		owner := run.GetRepository().GetOwner().GetLogin()
-		repo := run.GetRepository().GetName()
-		repoName := run.GetRepository().GetFullName()
-
-		jobs, _, err := client.Actions.ListWorkflowJobs(ctx, owner, repo, run.GetID(), &github.ListWorkflowJobsOptions{
-			Filter: "latest",
-		})
-		if err != nil {
-			logger.Logf(false, "failed to get workflow jobs: %+v", err)
-			return true
+		workflowJob, ok := webhookEvent.(*github.WorkflowJobEvent)
+		if !ok {
+			logger.Logf(false, "failed to cast to WorkflowJobEvent (job id: %s)", job.UUID)
+			continue
 		}
 
-	JL: // job loop
-		for _, j := range jobs.Jobs {
-			if value, ok := reQueuedJobs.Load(j.GetID()); ok {
-				expired := value.(time.Time)
-				if time.Until(expired) <= 0 {
-					reQueuedJobs.Delete(j.GetID())
-				}
-				continue
-			}
-			for _, label := range j.Labels {
-				if !(strings.EqualFold(label, "self-hosted")) {
-					continue JL
-				}
-			}
-			if j.GetStatus() == "queued" {
-				repoURL := run.GetRepository().GetHTMLURL()
-				u, err := url.Parse(repoURL)
-				if err != nil {
-					logger.Logf(false, "failed to parse repository url from event: %+v", err)
-					continue
-				}
-				var domain string
-				gheDomain := ""
-				if u.Host != "github.com" {
-					gheDomain = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
-					domain = gheDomain
-				} else {
-					domain = "https://github.com"
-				}
-
-				logger.Logf(false, "rescue pending job: (repo: %s/%s, runID: %d)", domain, repoName, run.GetID())
-				target, err := datastore.SearchRepo(ctx, s.ds, repoName)
-				if err != nil {
-					logger.Logf(false, "failed to search registered target: %+v", err)
-					continue
-				}
-				jobID := uuid.NewV4()
-				jobJSON, _ := json.Marshal(j)
-				job := datastore.Job{
-					UUID:           jobID,
-					TargetID:       target.UUID,
-					Repository:     repoName,
-					CheckEventJSON: string(jobJSON),
-				}
-				if err := s.ds.EnqueueJob(ctx, job); err != nil {
-					logger.Logf(false, "failed to enqueue job: %+v", err)
-					continue
-				}
-				reQueuedJobs.Store(j.GetID(), time.Now().Add(12*time.Hour))
-				countRecovered, _ := CountRecovered.LoadOrStore(target.Scope, 0)
-				CountRecovered.Store(target.Scope, countRecovered.(int)+1)
-			}
+		if pendingRun.WorkflowRun.GetID() == workflowJob.GetWorkflowJob().GetRunID() {
+			logger.Logf(true, "found job in datastore, So will ignore: (repo: %s, runID: %d)", pendingRun.WorkflowRun.GetRepository().GetFullName(), pendingRun.WorkflowRun.GetID())
+			return nil
 		}
-		gh.PendingRuns.Delete(installationID)
-		gh.ClearRunsCache(owner, repo)
-		return true
-	})
+	}
+
+	if err := enqueueRescueRun(ctx, pendingRun, ds); err != nil {
+		return fmt.Errorf("failed to enqueue rescue job: %w", err)
+	}
+	return nil
+}
+
+func enqueueRescueRun(ctx context.Context, pendingRun datastore.PendingWorkflowRunWithTarget, ds datastore.Datastore) error {
+	fullName := pendingRun.WorkflowRun.GetRepository().GetFullName()
+
+	client, target, err := datastore.NewClientInstallationByRepo(ctx, ds, fullName)
+	if err != nil {
+		return fmt.Errorf("failed to create a client of GitHub by repo (full_name: %s): %w", fullName, err)
+	}
+
+	jobs, err := gh.ListWorkflowJobByRunID(
+		ctx,
+		client,
+		pendingRun.WorkflowRun.GetRepository().GetOwner().GetLogin(),
+		pendingRun.WorkflowRun.GetRepository().GetName(),
+		pendingRun.WorkflowRun.GetID(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to list workflow jobs: %w", err)
+	}
+
+	for _, job := range jobs {
+		if job.GetStatus() != "queued" && job.GetStatus() != "pending" {
+			continue
+		}
+
+		event := &github.WorkflowJobEvent{
+			WorkflowJob:  job,
+			Action:       github.String("queued"),
+			Org:          nil,
+			Repo:         pendingRun.WorkflowRun.GetRepository(),
+			Sender:       nil,
+			Installation: nil,
+		}
+
+		if err := enqueueRescueJob(ctx, event, *target, ds); err != nil {
+			return fmt.Errorf("failed to enqueue rescue job: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func enqueueRescueJob(ctx context.Context, workflowJob *github.WorkflowJobEvent, target datastore.Target, ds datastore.Datastore) error {
+	jobJSON, err := json.Marshal(workflowJob)
+	if err != nil {
+		return fmt.Errorf("failed to marshal job: %w", err)
+	}
+
+	repository := workflowJob.GetRepo()
+	if repository == nil {
+		return fmt.Errorf("repository is nil")
+	}
+	fullName := repository.GetFullName()
+	if fullName == "" {
+		return fmt.Errorf("repository full name is empty")
+	}
+
+	htmlURL := repository.GetHTMLURL()
+	if htmlURL == "" {
+		return fmt.Errorf("repository html url is empty")
+	}
+	u, err := url.Parse(htmlURL)
+	if err != nil {
+		return fmt.Errorf("failed to parse repository url from event: %w", err)
+	}
+
+	gheDomain := ""
+	if u.Host != "github.com" {
+		gheDomain = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+	}
+
+	logger.Logf(false, "rescue pending job: (repo: %s, jobID: %d)", *repository.HTMLURL, workflowJob.WorkflowJob.GetID())
+	jobID := uuid.NewV4()
+	job := datastore.Job{
+		UUID: jobID,
+		GHEDomain: sql.NullString{
+			String: gheDomain,
+			Valid:  gheDomain != "",
+		},
+		Repository:     fullName,
+		CheckEventJSON: string(jobJSON),
+		TargetID:       target.UUID,
+	}
+	if err := ds.EnqueueJob(ctx, job); err != nil {
+		return fmt.Errorf("failed to enqueue job: %w", err)
+	}
+
+	return nil
 }

@@ -257,7 +257,70 @@ func TestMySQL_ListRunnersNotReturnDeleted(t *testing.T) {
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("mismatch (-want +got):\n%s", diff)
 	}
+}
 
+func TestMySQL_ListRunnersLogBySince(t *testing.T) {
+	testDatastore, teardown := testutils.GetTestDatastore()
+	defer teardown()
+
+	if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
+		UUID:           testTargetID,
+		Scope:          testScopeRepo,
+		GitHubToken:    testGitHubToken,
+		TokenExpiredAt: testTime,
+		ResourceType:   datastore.ResourceTypeNano,
+	}); err != nil {
+		t.Fatalf("failed to create target: %+v", err)
+	}
+
+	u := "00000000-0000-0000-0000-00000000000%d"
+
+	for i := 1; i < 3; i++ {
+		input := datastore.Runner{
+			UUID:           testRunnerID,
+			ShoesType:      "shoes-test",
+			TargetID:       testTargetID,
+			CloudID:        "mycloud-uuid",
+			ResourceType:   datastore.ResourceTypeNano,
+			RepositoryURL:  "https://github.com/octocat/Hello-World",
+			RequestWebhook: "{}",
+		}
+		input.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		err := testDatastore.CreateRunner(context.Background(), input)
+		if err != nil {
+			t.Fatalf("failed to create runner: %+v", err)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	recent := time.Now().Add(-10 * time.Second)
+	got, err := testDatastore.ListRunnersLogBySince(context.Background(), recent)
+	if err != nil {
+		t.Fatalf("failed to get runners: %+v", err)
+	}
+	for i := range got {
+		got[i].CreatedAt = time.Time{}
+		got[i].UpdatedAt = time.Time{}
+	}
+
+	var want []datastore.Runner
+	for i := 1; i < 3; i++ {
+		r := datastore.Runner{
+			UUID:           testRunnerID,
+			ShoesType:      "shoes-test",
+			TargetID:       testTargetID,
+			CloudID:        "mycloud-uuid",
+			ResourceType:   datastore.ResourceTypeNano,
+			RepositoryURL:  "https://github.com/octocat/Hello-World",
+			RequestWebhook: "{}",
+		}
+		r.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		want = append(want, r)
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("mismatch (-want +got):\n%s", diff)
+	}
 }
 
 func TestMySQL_GetRunner(t *testing.T) {

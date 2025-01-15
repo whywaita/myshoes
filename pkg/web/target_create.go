@@ -32,6 +32,12 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 		outputErrorMsg(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if err := GHPurgeInstallationCache(ctx); err != nil {
+		logger.Logf(false, "failed to purge installation cache: %+v", err)
+		outputErrorMsg(w, http.StatusInternalServerError, "failed to purge installation cache")
+		return
+	}
+
 	installationID, err := GHIsInstalledGitHubApp(ctx, inputTarget.Scope)
 	if err != nil {
 		logger.Logf(false, "failed to check installed GitHub App: %+v", err)
