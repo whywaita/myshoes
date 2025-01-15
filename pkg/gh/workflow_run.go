@@ -26,7 +26,7 @@ func ListWorkflowRunsNewest(ctx context.Context, client *github.Client, owner, r
 	var opts = &github.ListWorkflowRunsOptions{
 		ListOptions: github.ListOptions{
 			Page:    0,
-			PerPage: 10,
+			PerPage: 100,
 		},
 	}
 
