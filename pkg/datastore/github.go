@@ -98,7 +98,7 @@ func getPendingRunByRepo(ctx context.Context, client *github.Client, owner, repo
 	var pendingRuns []*github.WorkflowRun
 	for _, r := range runs {
 		if r.GetStatus() == "queued" || r.GetStatus() == "pending" {
-			oldMinutes := 30
+			oldMinutes := 10
 			sinceMinutes := time.Since(r.CreatedAt.Time).Minutes()
 			if sinceMinutes >= float64(oldMinutes) {
 				logger.Logf(false, "run %d is pending over %d minutes, So will enqueue (repo: %s/%s)", r.GetID(), oldMinutes, owner, repo)
