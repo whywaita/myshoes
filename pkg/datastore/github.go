@@ -101,10 +101,10 @@ func getPendingRunByRepo(ctx context.Context, client *github.Client, owner, repo
 			oldMinutes := 30
 			sinceMinutes := time.Since(r.CreatedAt.Time).Minutes()
 			if sinceMinutes >= float64(oldMinutes) {
-				logger.Logf(false, "run %d is pending over %d minutes, So will enqueue", r.GetID(), oldMinutes)
+				logger.Logf(false, "run %d is pending over %d minutes, So will enqueue (repo: %s/%s)", r.GetID(), oldMinutes, owner, repo)
 				pendingRuns = append(pendingRuns, r)
 			} else {
-				logger.Logf(true, "run %d is pending, but not over %d minutes. So ignore (since: %f minutes)", r.GetID(), oldMinutes, sinceMinutes)
+				logger.Logf(true, "run %d is pending, but not over %d minutes. So ignore (since: %f minutes, repo: %s/%s)", r.GetID(), oldMinutes, sinceMinutes, owner, repo)
 			}
 		}
 	}
