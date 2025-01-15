@@ -51,7 +51,6 @@ func GetPendingWorkflowRunByRecentRepositories(ctx context.Context, ds Datastore
 	var pendingRuns []PendingWorkflowRunWithTarget
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	logger.Logf(true, "get pending run by recent repositories: start to get pending runs by %d repositories", len(recentActiveRepositories))
 	for _, repoRawURL := range recentActiveRepositories {
 		wg.Add(1)
 		go func(repoRawURL string) {
