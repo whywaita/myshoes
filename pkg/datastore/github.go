@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/whywaita/myshoes/pkg/logger"
@@ -48,32 +49,42 @@ func GetPendingWorkflowRunByRecentRepositories(ctx context.Context, ds Datastore
 	}
 
 	var pendingRuns []PendingWorkflowRunWithTarget
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 	for _, repoRawURL := range recentActiveRepositories {
-		u, err := url.Parse(repoRawURL)
-		if err != nil {
-			logger.Logf(false, "failed to get pending run by recent repositories: failed to parse repository url: %+v", err)
-			continue
-		}
-		fullName := strings.TrimPrefix(u.Path, "/")
-		client, target, err := NewClientInstallationByRepo(ctx, ds, fullName)
-		if err != nil {
-			logger.Logf(false, "failed to get pending run by recent repositories: failed to create a client of GitHub by repo (full_name: %s) %+v", fullName, err)
-			continue
-		}
+		wg.Add(1)
+		go func(repoRawURL string) {
+			defer wg.Done()
+			u, err := url.Parse(repoRawURL)
+			if err != nil {
+				logger.Logf(false, "failed to get pending run by recent repositories: failed to parse repository url: %+v", err)
+				return
+			}
+			fullName := strings.TrimPrefix(u.Path, "/")
+			client, target, err := NewClientInstallationByRepo(ctx, ds, fullName)
+			if err != nil {
+				logger.Logf(false, "failed to get pending run by recent repositories: failed to create a client of GitHub by repo (full_name: %s) %+v", fullName, err)
+				return
+			}
 
-		owner, repo := gh.DivideScope(fullName)
-		pendingRunsByRepo, err := getPendingRunByRepo(ctx, client, owner, repo)
-		if err != nil {
-			logger.Logf(false, "failed to get pending run by recent repositories: failed to get pending run by repo (full_name: %s) %+v", fullName, err)
-			continue
-		}
-		for _, run := range pendingRunsByRepo {
-			pendingRuns = append(pendingRuns, PendingWorkflowRunWithTarget{
-				Target:      target,
-				WorkflowRun: run,
-			})
-		}
+			owner, repo := gh.DivideScope(fullName)
+			pendingRunsByRepo, err := getPendingRunByRepo(ctx, client, owner, repo)
+			if err != nil {
+				logger.Logf(false, "failed to get pending run by recent repositories: failed to get pending run by repo (full_name: %s) %+v", fullName, err)
+				return
+			}
+			mu.Lock()
+			for _, run := range pendingRunsByRepo {
+				pendingRuns = append(pendingRuns, PendingWorkflowRunWithTarget{
+					Target:      target,
+					WorkflowRun: run,
+				})
+			}
+			mu.Unlock()
+		}(repoRawURL)
 	}
+
+	wg.Wait()
 
 	return pendingRuns, nil
 }
