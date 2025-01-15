@@ -114,7 +114,7 @@ func getPendingRunByRepo(ctx context.Context, client *github.Client, owner, repo
 }
 
 func getRecentRepositories(ctx context.Context, ds Datastore) ([]string, error) {
-	recent := time.Now().Add(-24 * time.Hour)
+	recent := time.Now().Add(-1 * time.Hour)
 	recentRunners, err := ds.ListRunnersLogBySince(ctx, recent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get targets from datastore: %w", err)
