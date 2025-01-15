@@ -54,3 +54,50 @@ func _listInstallations(ctx context.Context) ([]*github.Installation, error) {
 	}
 	return installations, nil
 }
+
+func listAppsInstalledRepo(ctx context.Context, installationID int64) ([]*github.Repository, error) {
+	if cachedRs, found := responseCache.Get(getCacheInstalledRepoKey(installationID)); found {
+		return cachedRs.([]*github.Repository), nil
+	}
+
+	inst, err := _listAppsInstalledRepo(ctx, installationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list installations: %w", err)
+	}
+
+	responseCache.Set(getCacheInstalledRepoKey(installationID), inst, 1*time.Hour)
+
+	return _listAppsInstalledRepo(ctx, installationID)
+}
+
+func getCacheInstalledRepoKey(installationID int64) string {
+	return fmt.Sprintf("installed-repo-%d", installationID)
+}
+
+func _listAppsInstalledRepo(ctx context.Context, installationID int64) ([]*github.Repository, error) {
+	clientInstallation, err := NewClientInstallation(installationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a client installation: %w", err)
+	}
+
+	var opts = &github.ListOptions{
+		Page:    0,
+		PerPage: 100,
+	}
+
+	var repositories []*github.Repository
+	for {
+		logger.Logf(true, "get list of repository from installation, page: %d, now all repositories: %d", opts.Page, len(repositories))
+		lr, resp, err := clientInstallation.Apps.ListRepos(ctx, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get installed repositories: %w", err)
+		}
+		repositories = append(repositories, lr.Repositories...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return repositories, nil
+}
