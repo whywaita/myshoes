@@ -51,20 +51,20 @@ func GetPendingWorkflowRunByRecentRepositories(ctx context.Context, ds Datastore
 	for _, repoRawURL := range recentActiveRepositories {
 		u, err := url.Parse(repoRawURL)
 		if err != nil {
-			logger.Logf(false, "failed to scrape pending run: failed to parse repository url: %+v", err)
+			logger.Logf(false, "failed to get pending run by recent repositories: failed to parse repository url: %+v", err)
 			continue
 		}
 		fullName := strings.TrimPrefix(u.Path, "/")
 		client, target, err := NewClientInstallationByRepo(ctx, ds, fullName)
 		if err != nil {
-			logger.Logf(false, "failed to scrape pending run: failed to create a client of GitHub by repo (full_name: %s) %+v", fullName, err)
+			logger.Logf(false, "failed to get pending run by recent repositories: failed to create a client of GitHub by repo (full_name: %s) %+v", fullName, err)
 			continue
 		}
 
 		owner, repo := gh.DivideScope(fullName)
 		pendingRunsByRepo, err := getPendingRunByRepo(ctx, client, owner, repo)
 		if err != nil {
-			logger.Logf(false, "failed to scrape pending run: failed to get pending run by repo (full_name: %s) %+v", fullName, err)
+			logger.Logf(false, "failed to get pending run by recent repositories: failed to get pending run by repo (full_name: %s) %+v", fullName, err)
 			continue
 		}
 		for _, run := range pendingRunsByRepo {
