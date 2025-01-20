@@ -405,30 +405,6 @@ func (s *Starter) reRunWorkflow(ctx context.Context) {
 }
 
 func reRunWorkflowByPendingRun(ctx context.Context, ds datastore.Datastore, pendingRun datastore.PendingWorkflowRunWithTarget) error {
-	queuedJob, err := ds.ListJobs(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get list of jobs: %w", err)
-	}
-
-	for _, job := range queuedJob {
-		webhookEvent, err := github.ParseWebHook("workflow_job", []byte(job.CheckEventJSON))
-		if err != nil {
-			logger.Logf(false, "failed to parse webhook payload (job id: %s): %+v", job.UUID, err)
-			continue
-		}
-
-		workflowJob, ok := webhookEvent.(*github.WorkflowJobEvent)
-		if !ok {
-			logger.Logf(false, "failed to cast to WorkflowJobEvent (job id: %s)", job.UUID)
-			continue
-		}
-
-		if pendingRun.WorkflowRun.GetID() == workflowJob.GetWorkflowJob().GetRunID() {
-			logger.Logf(true, "found job in datastore, So will ignore: (repo: %s, runID: %d)", pendingRun.WorkflowRun.GetRepository().GetFullName(), pendingRun.WorkflowRun.GetID())
-			return nil
-		}
-	}
-
 	if err := enqueueRescueRun(ctx, pendingRun, ds); err != nil {
 		return fmt.Errorf("failed to enqueue rescue job: %w", err)
 	}
