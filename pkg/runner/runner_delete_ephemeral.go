@@ -21,6 +21,7 @@ func (m *Manager) removeRunnerModeEphemeral(ctx context.Context, t datastore.Tar
 	}
 
 	ghRunner, err := gh.ExistGitHubRunnerWithRunner(ghRunners, ToName(runner.UUID.String()))
+	logger.Logf(false, "check the runner for deletion: %v", ghRunner)
 	switch {
 	case errors.Is(err, gh.ErrNotFound):
 		// deleted in GitHub, It's completed
