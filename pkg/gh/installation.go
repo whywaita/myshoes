@@ -102,6 +102,22 @@ func _listAppsInstalledRepo(ctx context.Context, installationID int64) ([]*githu
 	return repositories, nil
 }
 
+// GetInstallationByID returns installation from cache by ID
+func GetInstallationByID(ctx context.Context, installationID int64) (*github.Installation, error) {
+	installations, err := listInstallations(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get installations: %w", err)
+	}
+
+	for _, installation := range installations {
+		if installation.GetID() == installationID {
+			return installation, nil
+		}
+	}
+
+	return nil, fmt.Errorf("installation not found: %d", installationID)
+}
+
 // PurgeInstallationCache purges the cache of installations
 func PurgeInstallationCache(ctx context.Context) error {
 	installations, err := listInstallations(ctx)

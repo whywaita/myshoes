@@ -459,13 +459,39 @@ func enqueueRescueRun(ctx context.Context, pendingRun datastore.PendingWorkflowR
 			continue
 		}
 
+		// Get installation ID from target scope
+		installationID, err := gh.IsInstalledGitHubApp(ctx, target.Scope)
+		if err != nil {
+			return fmt.Errorf("failed to get installation ID: %w", err)
+		}
+
+		// Get full installation data from cache
+		installation, err := gh.GetInstallationByID(ctx, installationID)
+		if err != nil {
+			logger.Logf(false, "failed to get installation from cache, using minimal data: %+v", err)
+			// Fallback to minimal installation data
+			installation = &github.Installation{
+				ID: &installationID,
+			}
+		}
+
+		owner := pendingRun.WorkflowRun.GetRepository().GetOwner()
+		var org *github.Organization
+		if owner != nil {
+			org = &github.Organization{
+				ID:    owner.ID,
+				Login: owner.Login,
+				Name:  owner.Name,
+			}
+		}
+		
 		event := &github.WorkflowJobEvent{
 			WorkflowJob:  job,
 			Action:       github.String("queued"),
-			Org:          nil,
+			Org:          org,
 			Repo:         pendingRun.WorkflowRun.GetRepository(),
-			Sender:       nil,
-			Installation: nil,
+			Sender:       pendingRun.WorkflowRun.GetActor(),
+			Installation: installation,
 		}
 
 		if err := enqueueRescueJob(ctx, event, *target, ds); err != nil {
