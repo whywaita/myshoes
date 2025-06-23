@@ -468,7 +468,7 @@ func enqueueRescueRun(ctx context.Context, pendingRun datastore.PendingWorkflowR
 		// Get full installation data from cache
 		installation, err := gh.GetInstallationByID(ctx, installationID)
 		if err != nil {
-			logger.Logf(false, "failed to get installation from cache, using minimal data: %+v", err)
+      logger.Logf(false, "failed to get installation from cache (installationID: %d), using minimal data: %+v", installationID, err)
 			// Fallback to minimal installation data
 			installation = &github.Installation{
 				ID: &installationID,
