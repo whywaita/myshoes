@@ -223,6 +223,7 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 			if err := incrementDeleteJobMap(job); err != nil {
 				return fmt.Errorf("failed to increment delete metrics: %w", err)
 			}
+			return nil
 		}
 
 		if err := datastore.UpdateTargetStatus(ctx, s.ds, job.TargetID, datastore.TargetStatusErr, fmt.Sprintf("failed to create an instance (job ID: %s)", job.UUID)); err != nil {
