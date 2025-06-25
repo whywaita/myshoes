@@ -43,6 +43,45 @@ type PendingWorkflowRunWithTarget struct {
 
 // GetPendingWorkflowRunByRecentRepositories get pending workflow runs by recent active repositories
 func GetPendingWorkflowRunByRecentRepositories(ctx context.Context, ds Datastore) ([]PendingWorkflowRunWithTarget, error) {
+	pendingRuns, err := getPendingWorkflowRunByRecentRepositories(ctx, ds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending workflow runs: %w", err)
+	}
+
+	queuedJob, err := ds.ListJobs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get list of jobs: %w", err)
+	}
+
+	var result []PendingWorkflowRunWithTarget
+	// We ignore the pending run if the job is already queued.
+	for _, pendingRun := range pendingRuns {
+		for _, job := range queuedJob {
+			webhookEvent, err := github.ParseWebHook("workflow_job", []byte(job.CheckEventJSON))
+			if err != nil {
+				logger.Logf(false, "failed to parse webhook payload (job id: %s): %+v", job.UUID, err)
+				continue
+			}
+
+			workflowJob, ok := webhookEvent.(*github.WorkflowJobEvent)
+			if !ok {
+				logger.Logf(false, "failed to cast to WorkflowJobEvent (job id: %s)", job.UUID)
+				continue
+			}
+
+			if pendingRun.WorkflowRun.GetID() == workflowJob.GetWorkflowJob().GetRunID() {
+				logger.Logf(true, "found job in datastore, So will ignore: (repo: %s, runID: %d)", pendingRun.WorkflowRun.GetRepository().GetFullName(), pendingRun.WorkflowRun.GetID())
+				continue
+			}
+		}
+
+		result = append(result, pendingRun)
+	}
+
+	return result, nil
+}
+
+func getPendingWorkflowRunByRecentRepositories(ctx context.Context, ds Datastore) ([]PendingWorkflowRunWithTarget, error) {
 	recentActiveRepositories, err := getRecentRepositories(ctx, ds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recent repositories: %w", err)
