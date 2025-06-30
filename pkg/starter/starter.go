@@ -147,7 +147,12 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 			c, _ := AddInstanceRetryCount.LoadOrStore(job.UUID, 0)
 			count, _ := c.(int)
 
-			logger.Logf(true, "found new job: %s", job.UUID)
+			runID, jobID, err := extractWorkflowIDs(job)
+			if err != nil {
+				logger.Logf(true, "found new job: %s (repo: %s)", job.UUID, job.Repository)
+			} else {
+				logger.Logf(true, "found new job: %s (gh_run_id: %d, gh_job_id: %d, repo: %s)", job.UUID, runID, jobID, job.Repository)
+			}
 			CountWaiting.Add(1)
 			if err := sem.Acquire(ctx, 1); err != nil {
 				return fmt.Errorf("failed to Acquire: %w", err)
@@ -180,9 +185,33 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 	}
 }
 
+// extractWorkflowIDs extracts GitHub workflow run ID and job ID from a datastore.Job
+func extractWorkflowIDs(job datastore.Job) (runID int64, jobID int64, err error) {
+	webhookEvent, err := github.ParseWebHook("workflow_job", []byte(job.CheckEventJSON))
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse webhook: %w", err)
+	}
+
+	workflowJob, ok := webhookEvent.(*github.WorkflowJobEvent)
+	if !ok {
+		return 0, 0, fmt.Errorf("failed to cast to WorkflowJobEvent")
+	}
+
+	if workflowJob.GetWorkflowJob() == nil {
+		return 0, 0, fmt.Errorf("workflow job is nil")
+	}
+
+	return workflowJob.GetWorkflowJob().GetRunID(), workflowJob.GetWorkflowJob().GetID(), nil
+}
+
 // ProcessJob is process job
 func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
-	logger.Logf(false, "start job (job id: %s)\n", job.UUID.String())
+	runID, jobID, err := extractWorkflowIDs(job)
+	if err != nil {
+		logger.Logf(false, "start job (job id: %s, repo: %s)\n", job.UUID.String(), job.Repository)
+	} else {
+		logger.Logf(false, "start job (job id: %s, gh_run_id: %d, gh_job_id: %d, repo: %s)\n", job.UUID.String(), runID, jobID, job.Repository)
+	}
 
 	isOK, err := s.safety.Check(&job)
 	if err != nil {
@@ -207,10 +236,19 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 	defer cancel()
 	cloudID, ipAddress, shoesType, resourceType, err := s.bung(cctx, job, *target)
 	if err != nil {
-		logger.Logf(false, "failed to bung (target ID: %s, job ID: %s): %+v", job.TargetID, job.UUID, err)
+		runID2, jobID2, extractErr := extractWorkflowIDs(job)
+		if extractErr != nil {
+			logger.Logf(false, "failed to bung (target ID: %s, job ID: %s): %+v", job.TargetID, job.UUID, err)
+		} else {
+			logger.Logf(false, "failed to bung (target ID: %s, job ID: %s, gh_run_id: %d, gh_job_id: %d): %+v", job.TargetID, job.UUID, runID2, jobID2, err)
+		}
 
 		if errors.Is(err, ErrInvalidLabel) {
-			logger.Logf(false, "invalid argument. so will delete (job ID: %s)", job.UUID)
+			if extractErr != nil {
+				logger.Logf(false, "invalid argument. so will delete (job ID: %s)", job.UUID)
+			} else {
+				logger.Logf(false, "invalid argument. so will delete (job ID: %s, gh_run_id: %d, gh_job_id: %d)", job.UUID, runID2, jobID2)
+			}
 			if err := s.ds.DeleteJob(ctx, job.UUID); err != nil {
 				logger.Logf(false, "failed to delete job: %+v\n", err)
 
@@ -294,7 +332,12 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 
 // bung is start runner, like a pistol! :)
 func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.Target) (string, string, string, datastore.ResourceType, error) {
-	logger.Logf(false, "start create instance (job: %s)", job.UUID)
+	runID, jobID, extractErr := extractWorkflowIDs(job)
+	if extractErr != nil {
+		logger.Logf(false, "start create instance (job: %s)", job.UUID)
+	} else {
+		logger.Logf(false, "start create instance (job: %s, gh_run_id: %d, gh_job_id: %d)", job.UUID, runID, jobID)
+	}
 	runnerName := runner.ToName(job.UUID.String())
 
 	targetScope := getTargetScope(target, job)
@@ -322,7 +365,11 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.
 		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to add instance: %w", err)
 	}
 
-	logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
+	if extractErr != nil {
+		logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s)", job.UUID, cloudID)
+	} else {
+		logger.Logf(false, "instance create successfully! (job: %s, cloud ID: %s, gh_run_id: %d, gh_job_id: %d)", job.UUID, cloudID, runID, jobID)
+	}
 
 	return cloudID, ipAddress, shoesType, resourceType, nil
 }
@@ -445,7 +492,7 @@ func enqueueRescueRun(ctx context.Context, pendingRun datastore.PendingWorkflowR
 		// Get full installation data from cache
 		installation, err := gh.GetInstallationByID(ctx, installationID)
 		if err != nil {
-      logger.Logf(false, "failed to get installation from cache (installationID: %d), using minimal data: %+v", installationID, err)
+			logger.Logf(false, "failed to get installation from cache (installationID: %d), using minimal data: %+v", installationID, err)
 			// Fallback to minimal installation data
 			installation = &github.Installation{
 				ID: &installationID,
@@ -461,7 +508,7 @@ func enqueueRescueRun(ctx context.Context, pendingRun datastore.PendingWorkflowR
 				Name:  owner.Name,
 			}
 		}
-		
+
 		event := &github.WorkflowJobEvent{
 			WorkflowJob:  job,
 			Action:       github.String("queued"),
@@ -508,7 +555,7 @@ func enqueueRescueJob(ctx context.Context, workflowJob *github.WorkflowJobEvent,
 		gheDomain = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 	}
 
-	logger.Logf(false, "rescue pending job: (repo: %s, jobID: %d)", *repository.HTMLURL, workflowJob.WorkflowJob.GetID())
+	logger.Logf(false, "rescue pending job: (repo: %s, gh_run_id: %d, gh_job_id: %d)", *repository.HTMLURL, workflowJob.WorkflowJob.GetRunID(), workflowJob.WorkflowJob.GetID())
 	jobID := uuid.NewV4()
 	job := datastore.Job{
 		UUID: jobID,

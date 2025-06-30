@@ -71,7 +71,7 @@ func GetPendingWorkflowRunByRecentRepositories(ctx context.Context, ds Datastore
 			}
 
 			if pendingRun.WorkflowRun.GetID() == workflowJob.GetWorkflowJob().GetRunID() {
-				logger.Logf(true, "found job in datastore, So will ignore: (repo: %s, runID: %d)", pendingRun.WorkflowRun.GetRepository().GetFullName(), pendingRun.WorkflowRun.GetID())
+				logger.Logf(true, "found job in datastore, So will ignore: (repo: %s, gh_run_id: %d, gh_job_id: %d)", pendingRun.WorkflowRun.GetRepository().GetFullName(), pendingRun.WorkflowRun.GetID(), workflowJob.GetWorkflowJob().GetID())
 				found = true
 				break
 			}
@@ -144,10 +144,10 @@ func getPendingRunByRepo(ctx context.Context, client *github.Client, owner, repo
 			oldMinutes := 10
 			sinceMinutes := time.Since(r.CreatedAt.Time).Minutes()
 			if sinceMinutes >= float64(oldMinutes) {
-				logger.Logf(false, "run %d is pending over %d minutes, So will enqueue (repo: %s/%s)", r.GetID(), oldMinutes, owner, repo)
+				logger.Logf(false, "workflow run %d is pending over %d minutes, So will enqueue (repo: %s/%s)", r.GetID(), oldMinutes, owner, repo)
 				pendingRuns = append(pendingRuns, r)
 			} else {
-				logger.Logf(true, "run %d is pending, but not over %d minutes. So ignore (since: %f minutes, repo: %s/%s)", r.GetID(), oldMinutes, sinceMinutes, owner, repo)
+				logger.Logf(true, "workflow run %d is pending, but not over %d minutes. So ignore (since: %f minutes, repo: %s/%s)", r.GetID(), oldMinutes, sinceMinutes, owner, repo)
 			}
 		}
 	}
