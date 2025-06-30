@@ -56,6 +56,7 @@ func GetPendingWorkflowRunByRecentRepositories(ctx context.Context, ds Datastore
 	var result []PendingWorkflowRunWithTarget
 	// We ignore the pending run if the job is already queued.
 	for _, pendingRun := range pendingRuns {
+		found := false
 		for _, job := range queuedJob {
 			webhookEvent, err := github.ParseWebHook("workflow_job", []byte(job.CheckEventJSON))
 			if err != nil {
@@ -71,11 +72,14 @@ func GetPendingWorkflowRunByRecentRepositories(ctx context.Context, ds Datastore
 
 			if pendingRun.WorkflowRun.GetID() == workflowJob.GetWorkflowJob().GetRunID() {
 				logger.Logf(true, "found job in datastore, So will ignore: (repo: %s, runID: %d)", pendingRun.WorkflowRun.GetRepository().GetFullName(), pendingRun.WorkflowRun.GetID())
-				continue
+				found = true
+				break
 			}
 		}
 
-		result = append(result, pendingRun)
+		if !found {
+			result = append(result, pendingRun)
+		}
 	}
 
 	return result, nil
