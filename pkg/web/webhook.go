@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/v47/github"
 	uuid "github.com/satori/go.uuid"
@@ -16,23 +17,37 @@ import (
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
+	"github.com/whywaita/myshoes/pkg/metric"
 )
 
 // HandleGitHubEvent handle GitHub webhook event
 func HandleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Datastore) {
 	ctx := r.Context()
+	startTime := time.Now()
+	eventType := github.WebHookType(r)
 
 	payload, err := github.ValidatePayload(r, config.Config.GitHub.AppSecret)
 	if err != nil {
 		logger.Logf(false, "failed to validate webhook payload: %+v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
+		metric.WebhookReceivedTotal.WithLabelValues(eventType, "invalid", "unknown").Inc()
 		return
 	}
-	webhookEvent, err := github.ParseWebHook(github.WebHookType(r), payload)
+	webhookEvent, err := github.ParseWebHook(eventType, payload)
 	if err != nil {
 		logger.Logf(false, "failed to parse webhook payload: %+v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
+		metric.WebhookReceivedTotal.WithLabelValues(eventType, "parse_error", "unknown").Inc()
 		return
+	}
+
+	// Extract runs-on labels
+	runsOn := "unknown"
+	if eventType == "workflow_job" {
+		labels, err := gh.ExtractRunsOnLabels(payload)
+		if err == nil && len(labels) > 0 {
+			runsOn = strings.Join(labels, ",")
+		}
 	}
 
 	switch event := webhookEvent.(type) {
@@ -40,10 +55,13 @@ func HandleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 		if err := receivePingWebhook(ctx, event); err != nil {
 			logger.Logf(false, "failed to process ping event: %+v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
+			metric.WebhookReceivedTotal.WithLabelValues("ping", "error", "n/a").Inc()
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
+		metric.WebhookReceivedTotal.WithLabelValues("ping", "success", "n/a").Inc()
+		metric.WebhookProcessingDuration.WithLabelValues("ping", "n/a").Observe(time.Since(startTime).Seconds())
 		return
 	case *github.CheckRunEvent:
 		if !config.Config.ModeWebhookType.Equal("check_run") {
@@ -54,10 +72,13 @@ func HandleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 		if err := receiveCheckRunWebhook(ctx, event, ds); err != nil {
 			logger.Logf(false, "failed to process check_run event: %+v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
+			metric.WebhookReceivedTotal.WithLabelValues("check_run", "error", "n/a").Inc()
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
+		metric.WebhookReceivedTotal.WithLabelValues("check_run", "success", "n/a").Inc()
+		metric.WebhookProcessingDuration.WithLabelValues("check_run", "n/a").Observe(time.Since(startTime).Seconds())
 		return
 	case *github.WorkflowJobEvent:
 		if !config.Config.ModeWebhookType.Equal("workflow_job") {
@@ -68,14 +89,18 @@ func HandleGitHubEvent(w http.ResponseWriter, r *http.Request, ds datastore.Data
 		if err := receiveWorkflowJobWebhook(ctx, event, ds); err != nil {
 			logger.Logf(false, "failed to process workflow_job event: %+v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
+			metric.WebhookReceivedTotal.WithLabelValues("workflow_job", "error", runsOn).Inc()
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
+		metric.WebhookReceivedTotal.WithLabelValues("workflow_job", "success", runsOn).Inc()
+		metric.WebhookProcessingDuration.WithLabelValues("workflow_job", runsOn).Observe(time.Since(startTime).Seconds())
 		return
 	default:
 		logger.Logf(false, "receive not register event(%+v), return NotFound", event)
 		w.WriteHeader(http.StatusNotFound)
+		metric.WebhookReceivedTotal.WithLabelValues(eventType, "not_found", "unknown").Inc()
 		return
 	}
 }
@@ -102,7 +127,14 @@ func receiveCheckRunWebhook(ctx context.Context, event *github.CheckRunEvent, ds
 	if err != nil {
 		return fmt.Errorf("failed to json.Marshal: %w", err)
 	}
-	return processCheckRun(ctx, ds, repoName, repoURL, installationID, jb)
+	if err := processCheckRun(ctx, ds, repoName, repoURL, installationID, jb); err != nil {
+		return err
+	}
+
+	// Record job enqueued metric
+	metric.WebhookJobsEnqueued.WithLabelValues("check_run", repoName, "n/a").Inc()
+
+	return nil
 }
 
 // processCheckRun process webhook event
@@ -178,7 +210,15 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 		return fmt.Errorf("failed to json.Marshal: %w", err)
 	}
 
-	return processCheckRun(ctx, ds, repoName, repoURL, installationID, jb)
+	if err := processCheckRun(ctx, ds, repoName, repoURL, installationID, jb); err != nil {
+		return err
+	}
+
+	// Record job enqueued metric for workflow_job
+	runsOn := strings.Join(labels, ",")
+	metric.WebhookJobsEnqueued.WithLabelValues("workflow_job", repoName, runsOn).Inc()
+
+	return nil
 }
 
 func isRequestedMyshoesLabel(labels []string) bool {
