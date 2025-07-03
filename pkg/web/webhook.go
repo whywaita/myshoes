@@ -188,7 +188,7 @@ func isRequestedMyshoesLabel(labels []string) bool {
 	}
 
 	for _, label := range labels {
-		if strings.EqualFold(label, "myshoes") || strings.EqualFold(label, "self-hosted") {
+		if strings.EqualFold(label, config.RequiredMyShoesLabel) || strings.EqualFold(label, "self-hosted") {
 			return true
 		}
 	}
