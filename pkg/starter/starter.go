@@ -35,8 +35,8 @@ var (
 	// CountWaiting is count of waiting job
 	CountWaiting atomic.Int64
 
-	// CountRecovered is count of recovered job per target
-	CountRecovered = sync.Map{}
+	// CountRescued is count of rescued job per target
+	CountRescued = sync.Map{}
 
 	inProgress = sync.Map{}
 
@@ -201,7 +201,7 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to retrieve relational target: (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
 
-	CountRecovered.LoadOrStore(target.Scope, 0)
+	CountRescued.LoadOrStore(target.Scope, 0)
 
 	cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
 	defer cancel()
@@ -445,7 +445,7 @@ func enqueueRescueRun(ctx context.Context, pendingRun datastore.PendingWorkflowR
 		// Get full installation data from cache
 		installation, err := gh.GetInstallationByID(ctx, installationID)
 		if err != nil {
-      logger.Logf(false, "failed to get installation from cache (installationID: %d), using minimal data: %+v", installationID, err)
+			logger.Logf(false, "failed to get installation from cache (installationID: %d), using minimal data: %+v", installationID, err)
 			// Fallback to minimal installation data
 			installation = &github.Installation{
 				ID: &installationID,
@@ -461,7 +461,7 @@ func enqueueRescueRun(ctx context.Context, pendingRun datastore.PendingWorkflowR
 				Name:  owner.Name,
 			}
 		}
-		
+
 		event := &github.WorkflowJobEvent{
 			WorkflowJob:  job,
 			Action:       github.String("queued"),
@@ -522,6 +522,13 @@ func enqueueRescueJob(ctx context.Context, workflowJob *github.WorkflowJobEvent,
 	}
 	if err := ds.EnqueueJob(ctx, job); err != nil {
 		return fmt.Errorf("failed to enqueue job: %w", err)
+	}
+
+	// Increment rescued runs counter
+	if count, ok := CountRescued.Load(target.Scope); ok {
+		CountRescued.Store(target.Scope, count.(int)+1)
+	} else {
+		CountRescued.Store(target.Scope, 1)
 	}
 
 	return nil

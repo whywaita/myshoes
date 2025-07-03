@@ -33,9 +33,9 @@ var (
 		"waiting queue in starter",
 		[]string{"starter"}, nil,
 	)
-	memoryStarterRecoveredRuns = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, memoryName, "starter_recovered_runs"),
-		"recovered runs in starter",
+	memoryStarterRescuedRuns = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, memoryName, "starter_rescued_runs"),
+		"rescued runs in starter",
 		[]string{"starter", "target"}, nil,
 	)
 	memoryGitHubRateLimitRemaining = prometheus.NewDesc(
@@ -125,9 +125,9 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 	ch <- prometheus.MustNewConstMetric(
 		memoryStarterQueueWaiting, prometheus.GaugeValue, float64(countWaiting), labelStarter)
 
-	starter.CountRecovered.Range(func(key, value interface{}) bool {
+	starter.CountRescued.Range(func(key, value interface{}) bool {
 		ch <- prometheus.MustNewConstMetric(
-			memoryStarterRecoveredRuns, prometheus.GaugeValue, float64(value.(int)), labelStarter, key.(string),
+			memoryStarterRescuedRuns, prometheus.GaugeValue, float64(value.(int)), labelStarter, key.(string),
 		)
 		return true
 	})
