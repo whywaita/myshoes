@@ -230,7 +230,6 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to retrieve relational target: (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
 
-	CountRescued.LoadOrStore(target.Scope, 0)
 
 	cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
 	defer cancel()
