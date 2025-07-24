@@ -46,7 +46,6 @@ func (s *Starter) getSetupScript(ctx context.Context, targetScope, runnerName st
 
 func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName string) (string, error) {
 	runnerUser := config.Config.RunnerUser
-	githubURL := config.Config.GitHubURL
 
 	targetRunnerVersion := s.runnerVersion
 	if strings.EqualFold(s.runnerVersion, "latest") {
@@ -77,9 +76,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName
 	}
 
 	var labels []string
-	if githubURL != "" && githubURL != "https://github.com" {
-		labels = append(labels, "dependabot")
-	}
+	labels = append(labels, "dependabot")
 
 	v := templateCreateLatestRunnerOnceValue{
 		Scope:                   targetScope,
