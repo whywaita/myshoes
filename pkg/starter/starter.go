@@ -483,6 +483,13 @@ func enqueueRescueRun(ctx context.Context, pendingRun datastore.PendingWorkflowR
 			continue
 		}
 
+		// Check if the job has appropriate labels for myshoes
+		if !gh.IsRequestedMyshoesLabel(job.Labels) {
+			logger.Logf(true, "skip rescue job because it doesn't have myshoes labels: (repo: %s, gh_run_id: %d, gh_job_id: %d, labels: %v)",
+				fullName, pendingRun.WorkflowRun.GetID(), job.GetID(), job.Labels)
+			continue
+		}
+
 		// Get installation ID from target scope
 		installationID, err := gh.IsInstalledGitHubApp(ctx, target.Scope)
 		if err != nil {

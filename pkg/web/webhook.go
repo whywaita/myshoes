@@ -194,7 +194,7 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 	repoURL := repo.GetHTMLURL()
 
 	labels := event.GetWorkflowJob().Labels
-	if !isRequestedMyshoesLabel(labels) {
+	if !gh.IsRequestedMyshoesLabel(labels) {
 		// is not request myshoes, So will be ignored
 		logger.Logf(true, "label \"myshoes\" is not found in labels, so ignore (labels: %s)", labels)
 		return nil
@@ -221,16 +221,3 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 	return nil
 }
 
-func isRequestedMyshoesLabel(labels []string) bool {
-	// Accept dependabot runner in GHES
-	if len(labels) == 1 && strings.EqualFold(labels[0], "dependabot") {
-		return true
-	}
-
-	for _, label := range labels {
-		if strings.EqualFold(label, "myshoes") || strings.EqualFold(label, "self-hosted") {
-			return true
-		}
-	}
-	return false
-}
