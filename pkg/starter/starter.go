@@ -230,7 +230,6 @@ func (s *Starter) ProcessJob(ctx context.Context, job datastore.Job) error {
 		return fmt.Errorf("failed to retrieve relational target: (target ID: %s, job ID: %s): %w", job.TargetID, job.UUID, err)
 	}
 
-
 	cctx, cancel := context.WithTimeout(ctx, runner.MustRunningTime)
 	defer cancel()
 	cloudID, ipAddress, shoesType, resourceType, err := s.bung(cctx, job, *target)
@@ -571,11 +570,9 @@ func enqueueRescueJob(ctx context.Context, workflowJob *github.WorkflowJobEvent,
 	}
 
 	// Increment rescued runs counter
-	if count, ok := CountRescued.Load(target.Scope); ok {
-		CountRescued.Store(target.Scope, count.(int)+1)
-	} else {
-		CountRescued.Store(target.Scope, 1)
-	}
+	v, _ := CountRescued.LoadOrStore(target.Scope, &atomic.Int64{})
+	counter := v.(*atomic.Int64)
+	counter.Add(1)
 
 	return nil
 }

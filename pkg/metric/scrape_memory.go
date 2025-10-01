@@ -3,6 +3,7 @@ package metric
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 
 	uuid "github.com/satori/go.uuid"
 
@@ -126,8 +127,9 @@ func scrapeStarterValues(ch chan<- prometheus.Metric) error {
 		memoryStarterQueueWaiting, prometheus.GaugeValue, float64(countWaiting), labelStarter)
 
 	starter.CountRescued.Range(func(key, value interface{}) bool {
+		counter := value.(*atomic.Int64)
 		ch <- prometheus.MustNewConstMetric(
-			memoryStarterRescuedRuns, prometheus.GaugeValue, float64(value.(int)), labelStarter, key.(string),
+			memoryStarterRescuedRuns, prometheus.GaugeValue, float64(counter.Load()), labelStarter, key.(string),
 		)
 		return true
 	})
