@@ -118,7 +118,12 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 				sem.Release(1)
 				ConcurrencyDeleting.Add(-1)
 			}()
-			time.Sleep(util.CalcRetryTime(count))
+			sleep := util.CalcRetryTime(count)
+			if count > 0 {
+				DeleteRunnerRetryTotal.WithLabelValues(runner.UUID.String()).Inc()
+				DeleteRunnerBackoffDuration.WithLabelValues(runner.UUID.String()).Observe(sleep.Seconds())
+			}
+			time.Sleep(sleep)
 
 			if err := m.removeRunner(cctx, t, runner, ghRunners); err != nil {
 				DeleteRetryCount.Store(runner.UUID, count+1)
