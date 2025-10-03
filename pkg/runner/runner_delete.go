@@ -120,8 +120,8 @@ func (m *Manager) removeRunners(ctx context.Context, t datastore.Target) error {
 			}()
 			sleep := util.CalcRetryTime(count)
 			if count > 0 {
-				DeleteRunnerRetryTotal.Inc()
-				DeleteRunnerBackoffDuration.Observe(sleep.Seconds())
+				DeleteRunnerRetryTotal.WithLabelValues(runner.UUID.String()).Inc()
+				DeleteRunnerBackoffDuration.WithLabelValues(runner.UUID.String()).Observe(sleep.Seconds())
 			}
 			time.Sleep(sleep)
 

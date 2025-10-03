@@ -164,8 +164,8 @@ func (s *Starter) run(ctx context.Context, ch chan datastore.Job) error {
 
 			sleep := util.CalcRetryTime(count)
 			if count > 0 {
-				AddInstanceRetryTotal.Inc()
-				AddInstanceBackoffDuration.Observe(sleep.Seconds())
+				AddInstanceRetryTotal.WithLabelValues(job.UUID.String()).Inc()
+				AddInstanceBackoffDuration.WithLabelValues(job.UUID.String()).Observe(sleep.Seconds())
 			}
 			go func(job datastore.Job, sleep time.Duration) {
 				defer func() {
