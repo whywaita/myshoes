@@ -1,9 +1,8 @@
 package util
 
 import (
+	"math/rand/v2"
 	"time"
-
-	"golang.org/x/exp/rand"
 )
 
 // CalcRetryTime is caliculate retry time by exponential backoff and jitter
@@ -13,7 +12,7 @@ func CalcRetryTime(count int) time.Duration {
 	}
 
 	backoff := 1 << count
-	jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
+	jitter := time.Duration(rand.IntN(1000)) * time.Millisecond
 
 	return time.Duration(backoff)*time.Second + jitter
 }

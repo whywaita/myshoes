@@ -520,7 +520,7 @@ func enqueueRescueRun(ctx context.Context, pendingRun datastore.PendingWorkflowR
 
 		event := &github.WorkflowJobEvent{
 			WorkflowJob:  job,
-			Action:       github.String("queued"),
+			Action:       github.Ptr("queued"),
 			Org:          org,
 			Repo:         pendingRun.WorkflowRun.GetRepository(),
 			Sender:       pendingRun.WorkflowRun.GetActor(),
