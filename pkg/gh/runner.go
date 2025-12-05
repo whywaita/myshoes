@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v80/github"
 	"github.com/whywaita/myshoes/pkg/logger"
 )
 
@@ -37,9 +37,11 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 		return cachedRs.([]*github.Runner), nil
 	}
 
-	var opts = &github.ListOptions{
-		Page:    0,
-		PerPage: 100,
+	var opts = &github.ListRunnersOptions{
+		ListOptions: github.ListOptions{
+			Page:    0,
+			PerPage: 100,
+		},
 	}
 
 	var rs []*github.Runner
@@ -55,7 +57,7 @@ func ListRunners(ctx context.Context, client *github.Client, owner, repo string)
 		if resp.NextPage == 0 {
 			break
 		}
-		opts.Page = resp.NextPage
+		opts.ListOptions.Page = resp.NextPage
 	}
 
 	responseCache.Set(getCacheKey(owner, repo), rs, 1*time.Second)
@@ -68,7 +70,7 @@ func getCacheKey(owner, repo string) string {
 	return fmt.Sprintf("owner-%s-repo-%s", owner, repo)
 }
 
-func listRunners(ctx context.Context, client *github.Client, owner, repo string, opts *github.ListOptions) (*github.Runners, *github.Response, error) {
+func listRunners(ctx context.Context, client *github.Client, owner, repo string, opts *github.ListRunnersOptions) (*github.Runners, *github.Response, error) {
 	if repo == "" {
 		runners, resp, err := client.Actions.ListOrganizationRunners(ctx, owner, opts)
 		if err != nil {

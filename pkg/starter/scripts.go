@@ -76,7 +76,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName
 	}
 
 	var labels []string
-  // The "dependabot" label is always added to ensure compatibility with Dependabot-related workflows.
+	// The "dependabot" label is always added to ensure compatibility with Dependabot-related workflows.
 	labels = append(labels, "dependabot")
 
 	v := templateCreateLatestRunnerOnceValue{

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v80/github"
 	"github.com/m4ns0ur/httpcache"
 	"github.com/patrickmn/go-cache"
 	"github.com/whywaita/myshoes/pkg/config"
