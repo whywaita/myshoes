@@ -8,7 +8,7 @@ import (
 
 	"github.com/whywaita/myshoes/pkg/config"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v80/github"
 )
 
 // function pointers (for testing)
@@ -25,7 +25,8 @@ func GenerateGitHubAppsToken(ctx context.Context, clientApps *github.Client, ins
 		return "", nil, fmt.Errorf("failed to generate token from API: %w", err)
 	}
 	storeRateLimit(scope, resp.Rate)
-	return *token.Token, token.ExpiresAt, nil
+	expiresAt := token.ExpiresAt.GetTime()
+	return *token.Token, expiresAt, nil
 }
 
 // IsInstalledGitHubApp check installed GitHub Apps in gheDomain + inputScope

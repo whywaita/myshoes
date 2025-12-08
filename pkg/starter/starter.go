@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v80/github"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
@@ -520,7 +520,7 @@ func enqueueRescueRun(ctx context.Context, pendingRun datastore.PendingWorkflowR
 
 		event := &github.WorkflowJobEvent{
 			WorkflowJob:  job,
-			Action:       github.String("queued"),
+			Action:       github.Ptr("queued"),
 			Org:          org,
 			Repo:         pendingRun.WorkflowRun.GetRepository(),
 			Sender:       pendingRun.WorkflowRun.GetActor(),

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v80/github"
 	"github.com/m4ns0ur/httpcache"
 	"github.com/patrickmn/go-cache"
 	"github.com/whywaita/myshoes/pkg/config"
@@ -65,7 +65,7 @@ func NewClient(token string) (*github.Client, error) {
 		return github.NewClient(&http.Client{Transport: transport}), nil
 	}
 
-	return github.NewEnterpriseClient(config.Config.GitHubURL, config.Config.GitHubURL, &http.Client{Transport: transport})
+	return github.NewClient(&http.Client{Transport: transport}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
 }
 
 // NewClientGitHubApps create a client of GitHub using Private Key from GitHub Apps
@@ -83,7 +83,7 @@ func NewClientGitHubApps() (*github.Client, error) {
 
 	itr := appTransport
 	itr.BaseURL = apiEndpoint.String()
-	return github.NewEnterpriseClient(config.Config.GitHubURL, config.Config.GitHubURL, &http.Client{Transport: &appTransport})
+	return github.NewClient(&http.Client{Transport: &appTransport}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
 }
 
 // NewClientInstallation create a client of GitHub using installation ID from GitHub Apps
@@ -100,7 +100,7 @@ func NewClientInstallation(installationID int64) (*github.Client, error) {
 		return nil, fmt.Errorf("failed to get GitHub API Endpoint: %w", err)
 	}
 	itr.BaseURL = apiEndpoint.String()
-	return github.NewEnterpriseClient(config.Config.GitHubURL, config.Config.GitHubURL, &http.Client{Transport: itr})
+	return github.NewClient(&http.Client{Transport: itr}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
 }
 
 func setInstallationTransport(installationID int64, itr ghinstallation.Transport) {

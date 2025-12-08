@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v80/github"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/config"
@@ -220,4 +220,3 @@ func receiveWorkflowJobWebhook(ctx context.Context, event *github.WorkflowJobEve
 
 	return nil
 }
-

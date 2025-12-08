@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v80/github"
 	"github.com/whywaita/myshoes/internal/util"
 	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"

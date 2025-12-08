@@ -16,11 +16,11 @@ jobs:
           - ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 1
       - name: setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version-file: 'go.mod'
       - name: lint
@@ -37,11 +37,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
      - name: checkout
-       uses: actions/checkout@v4
+       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
        with:
          fetch-depth: 1
      - name: Build container image
-       uses: docker/build-push-action@v5
+       uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
        with:
          push: false
          tags: ${{ steps.meta.outputs.tags }}

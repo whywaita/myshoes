@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v80/github"
 )
 
 func listWorkflowJob(ctx context.Context, client *github.Client, owner, repo string, runID int64, opts *github.ListWorkflowJobsOptions) ([]*github.WorkflowJob, *github.Response, error) {
