@@ -17,6 +17,7 @@ type Conf struct {
 	ShoesPluginPath       string
 	ShoesPluginOutputPath string
 	RunnerUser            string
+	RunnerBaseDirectory   string
 
 	Debug           bool
 	Strict          bool // check to registered runner before delete job
@@ -61,6 +62,7 @@ const (
 	EnvShoesPluginPath           = "PLUGIN"
 	EnvShoesPluginOutputPath     = "PLUGIN_OUTPUT"
 	EnvRunnerUser                = "RUNNER_USER"
+	EnvRunnerBaseDirectory       = "RUNNER_BASE_DIRECTORY"
 	EnvDebug                     = "DEBUG"
 	EnvStrict                    = "STRICT"
 	EnvModeWebhookType           = "MODE_WEBHOOK_TYPE"
