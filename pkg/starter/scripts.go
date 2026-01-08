@@ -22,6 +22,11 @@ func getPatchedFiles() (string, error) {
 	return runnerService, nil
 }
 
+type templateCompressedScriptValue struct {
+	CompressedScript    string
+	RunnerBaseDirectory string
+}
+
 func (s *Starter) getSetupScript(ctx context.Context, targetScope, runnerName string) (string, error) {
 	rawScript, err := s.getSetupRawScript(ctx, targetScope, runnerName)
 	if err != nil {
@@ -41,7 +46,20 @@ func (s *Starter) getSetupScript(ctx context.Context, targetScope, runnerName st
 	}
 	encoded := base64.StdEncoding.EncodeToString(compressedScript.Bytes())
 
-	return fmt.Sprintf(templateCompressedScript, encoded), nil
+	v := templateCompressedScriptValue{
+		CompressedScript:    encoded,
+		RunnerBaseDirectory: config.Config.RunnerBaseDirectory,
+	}
+
+	t, err := template.New("templateCompressedScript").Parse(templateCompressedScript)
+	if err != nil {
+		return "", fmt.Errorf("failed to create template: %w", err)
+	}
+	var buff bytes.Buffer
+	if err := t.Execute(&buff, v); err != nil {
+		return "", fmt.Errorf("failed to execute compressed script: %w", err)
+	}
+	return buff.String(), nil
 }
 
 func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName string) (string, error) {
@@ -89,6 +107,7 @@ func (s *Starter) getSetupRawScript(ctx context.Context, targetScope, runnerName
 		RunnerServiceJS:         runnerServiceJs,
 		RunnerArg:               runnerTemporaryMode.StringFlag(),
 		AdditionalLabels:        labelsToOneLine(labels),
+		RunnerBaseDirectory:     config.Config.RunnerBaseDirectory,
 	}
 
 	t, err := template.New("templateCreateLatestRunnerOnce").Parse(templateCreateLatestRunnerOnce)
@@ -115,8 +134,8 @@ const templateCompressedScript = `#!/bin/bash
 set -e
 
 # main script compressed base64 and gzip
-export COMPRESSED_SCRIPT=%s
-export MAIN_SCRIPT_PATH=/tmp/main.sh
+export COMPRESSED_SCRIPT={{.CompressedScript}}
+export MAIN_SCRIPT_PATH={{.RunnerBaseDirectory}}/main.sh
 
 echo ${COMPRESSED_SCRIPT} | base64 -d | gzip -d > ${MAIN_SCRIPT_PATH}
 
@@ -133,6 +152,7 @@ type templateCreateLatestRunnerOnceValue struct {
 	RunnerServiceJS         string
 	RunnerArg               string
 	AdditionalLabels        string
+	RunnerBaseDirectory     string
 }
 
 // templateCreateLatestRunnerOnce is script template of setup runner.
@@ -148,7 +168,7 @@ runner_name={{.RunnerName}}
 RUNNER_TOKEN={{.RunnerRegistrationToken}}
 RUNNER_USER={{.RunnerUser}}
 RUNNER_VERSION={{.RunnerVersion}}
-RUNNER_BASE_DIRECTORY=/tmp  # /tmp is path of all user writable.
+RUNNER_BASE_DIRECTORY={{.RunnerBaseDirectory}}
 
 sudo_prefix=""
 if [ $(id -u) -eq 0 ]; then  # if root

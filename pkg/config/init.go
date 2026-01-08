@@ -50,6 +50,12 @@ func LoadWithDefault() Conf {
 	}
 	c.RunnerUser = runnerUser
 
+	c.RunnerBaseDirectory = "/tmp"
+	if os.Getenv(EnvRunnerBaseDirectory) != "" {
+		c.RunnerBaseDirectory = os.Getenv(EnvRunnerBaseDirectory)
+		log.Printf("use runner base directory is %s\n", c.RunnerBaseDirectory)
+	}
+
 	c.Debug = false
 	if os.Getenv(EnvDebug) == "true" {
 		c.Debug = true
