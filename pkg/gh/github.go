@@ -60,12 +60,13 @@ func NewClient(token string) (*github.Client, error) {
 		Cache:               httpCache,
 		MarkCachedResponses: true,
 	}
+	clientTransport := newInstrumentedTransport(transport)
 
 	if !config.Config.IsGHES() {
-		return github.NewClient(&http.Client{Transport: transport}), nil
+		return github.NewClient(&http.Client{Transport: clientTransport}), nil
 	}
 
-	return github.NewClient(&http.Client{Transport: transport}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
+	return github.NewClient(&http.Client{Transport: clientTransport}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
 }
 
 // NewClientGitHubApps create a client of GitHub using Private Key from GitHub Apps
@@ -73,7 +74,7 @@ func NewClient(token string) (*github.Client, error) {
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-a-github-app
 func NewClientGitHubApps() (*github.Client, error) {
 	if !config.Config.IsGHES() {
-		return github.NewClient(&http.Client{Transport: &appTransport}), nil
+		return github.NewClient(&http.Client{Transport: newInstrumentedTransport(&appTransport)}), nil
 	}
 
 	apiEndpoint, err := getAPIEndpoint()
@@ -83,7 +84,7 @@ func NewClientGitHubApps() (*github.Client, error) {
 
 	itr := appTransport
 	itr.BaseURL = apiEndpoint.String()
-	return github.NewClient(&http.Client{Transport: &appTransport}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
+	return github.NewClient(&http.Client{Transport: newInstrumentedTransport(&appTransport)}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
 }
 
 // NewClientInstallation create a client of GitHub using installation ID from GitHub Apps
@@ -93,14 +94,14 @@ func NewClientInstallation(installationID int64) (*github.Client, error) {
 	itr := getInstallationTransport(installationID)
 
 	if !config.Config.IsGHES() {
-		return github.NewClient(&http.Client{Transport: itr}), nil
+		return github.NewClient(&http.Client{Transport: newInstrumentedTransport(itr)}), nil
 	}
 	apiEndpoint, err := getAPIEndpoint()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub API Endpoint: %w", err)
 	}
 	itr.BaseURL = apiEndpoint.String()
-	return github.NewClient(&http.Client{Transport: itr}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
+	return github.NewClient(&http.Client{Transport: newInstrumentedTransport(itr)}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
 }
 
 func setInstallationTransport(installationID int64, itr ghinstallation.Transport) {
@@ -159,7 +160,7 @@ func ExistGitHubRepository(scope string, accessToken string) error {
 		return fmt.Errorf("failed to get repository url: %w", err)
 	}
 
-	client := http.DefaultClient
+	client := &http.Client{Transport: newInstrumentedTransport(http.DefaultTransport)}
 	req, err := http.NewRequest(http.MethodGet, repoURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
