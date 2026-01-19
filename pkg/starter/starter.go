@@ -343,7 +343,7 @@ func (s *Starter) bung(ctx context.Context, job datastore.Job, target datastore.
 	runnerName := runner.ToName(job.UUID.String())
 
 	targetScope := getTargetScope(target, job)
-	script, err := s.getSetupScript(ctx, targetScope, runnerName)
+	script, err := s.GetSetupScript(ctx, targetScope, runnerName)
 	if err != nil {
 		return "", "", "", datastore.ResourceTypeUnknown, fmt.Errorf("failed to get setup scripts: %w", err)
 	}
