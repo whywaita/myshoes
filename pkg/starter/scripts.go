@@ -27,7 +27,7 @@ type templateCompressedScriptValue struct {
 	RunnerBaseDirectory string
 }
 
-func (s *Starter) getSetupScript(ctx context.Context, targetScope, runnerName string) (string, error) {
+func (s *Starter) GetSetupScript(ctx context.Context, targetScope, runnerName string) (string, error) {
 	rawScript, err := s.getSetupRawScript(ctx, targetScope, runnerName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get raw setup scripts: %w", err)
