@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package whywaita.myshoes;
+
 option go_package = "github.com/whywaita/myshoes/api/proto.go";
 
 service Shoes {
