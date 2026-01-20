@@ -17,13 +17,11 @@ build-linux: ## Build for Linux
 	make build-proto
 	GOOS=linux GOARCH=amd64 go build -o myshoes-linux-amd64 -ldflags $(BUILD_LDFLAGS) cmd/server/cmd.go
 
-build-proto: ## Build proto file
-	mkdir -p tmp/proto-go
-	rm -rf api/proto.go
+build-proto: ## Build proto file with buf
+	cd api/proto && buf generate
 
-	protoc -I=api/proto/ --go_out=tmp/proto-go/ --go-grpc_out=tmp/proto-go/ api/proto/**.proto
-	mv tmp/proto-go/github.com/whywaita/myshoes/api/proto.go api/
-	rm -rf tmp
+lint-proto: ## Lint proto files
+	cd api/proto && buf lint
 
 test: ## Exec test
 	go test -v ./...

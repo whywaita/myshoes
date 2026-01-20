@@ -1,0 +1,11 @@
+version: v2
+clean: true
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: ../proto.go
+    opt:
+      - paths=source_relative
+  - remote: buf.build/grpc/go
+    out: ../proto.go
+    opt:
+      - paths=source_relative
