@@ -31,6 +31,11 @@ type Conf struct {
 
 	DockerHubCredential     DockerHubCredential
 	ProvideDockerHubMetrics bool
+
+	ScaleSetEnabled     bool
+	ScaleSetRunnerGroup string
+	ScaleSetMaxRunners  int
+	ScaleSetNamePrefix  string
 }
 
 // DockerHubCredential is type of config value
@@ -73,6 +78,10 @@ const (
 	EnvDockerHubUsername         = "DOCKER_HUB_USERNAME"
 	EnvDockerHubPassword         = "DOCKER_HUB_PASSWORD"
 	EnvProvideDockerHubMetrics   = "PROVIDE_DOCKER_HUB_METRICS"
+	EnvScaleSetEnabled           = "SCALESET_ENABLED"
+	EnvScaleSetRunnerGroup       = "SCALESET_RUNNER_GROUP"
+	EnvScaleSetMaxRunners        = "SCALESET_MAX_RUNNERS"
+	EnvScaleSetNamePrefix        = "SCALESET_NAME_PREFIX"
 )
 
 // ModeWebhookType is type value for GitHub webhook

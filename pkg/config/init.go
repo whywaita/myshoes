@@ -154,6 +154,30 @@ func LoadWithDefault() Conf {
 		c.ShoesPluginOutputPath = os.Getenv(EnvShoesPluginOutputPath)
 	}
 
+	c.ScaleSetEnabled = false
+	if os.Getenv(EnvScaleSetEnabled) == "true" {
+		c.ScaleSetEnabled = true
+	}
+
+	c.ScaleSetRunnerGroup = "default"
+	if os.Getenv(EnvScaleSetRunnerGroup) != "" {
+		c.ScaleSetRunnerGroup = os.Getenv(EnvScaleSetRunnerGroup)
+	}
+
+	c.ScaleSetMaxRunners = 10
+	if os.Getenv(EnvScaleSetMaxRunners) != "" {
+		maxRunners, err := strconv.Atoi(os.Getenv(EnvScaleSetMaxRunners))
+		if err != nil {
+			log.Panicf("failed to parse %s: %+v", EnvScaleSetMaxRunners, err)
+		}
+		c.ScaleSetMaxRunners = maxRunners
+	}
+
+	c.ScaleSetNamePrefix = "myshoes"
+	if os.Getenv(EnvScaleSetNamePrefix) != "" {
+		c.ScaleSetNamePrefix = os.Getenv(EnvScaleSetNamePrefix)
+	}
+
 	Config = c
 	return c
 }

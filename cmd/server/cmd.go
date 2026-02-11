@@ -15,6 +15,7 @@ import (
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
 	"github.com/whywaita/myshoes/pkg/runner"
+	"github.com/whywaita/myshoes/pkg/scaleset"
 	"github.com/whywaita/myshoes/pkg/starter"
 	"github.com/whywaita/myshoes/pkg/starter/safety/unlimited"
 	"github.com/whywaita/myshoes/pkg/web"
@@ -53,6 +54,7 @@ type myShoes struct {
 	ds    datastore.Datastore
 	start *starter.Starter
 	run   *runner.Manager
+	ss    *scaleset.Manager // nil if scale set mode disabled
 }
 
 // newShoes create myshoes.
@@ -69,10 +71,29 @@ func newShoes() (*myShoes, error) {
 
 	manager := runner.New(ds, config.Config.RunnerVersion)
 
+	var scalesetManager *scaleset.Manager
+	if config.Config.ScaleSetEnabled {
+		logger.Logf(false, "Scale set mode enabled")
+		scalesetManager = scaleset.New(ds, scaleset.ManagerConfig{
+			AppID:           config.Config.GitHub.AppID,
+			PrivateKeyPEM:   config.Config.GitHub.PEMByte,
+			GitHubURL:       config.Config.GitHubURL,
+			RunnerGroupName: config.Config.ScaleSetRunnerGroup,
+			MaxRunners:      config.Config.ScaleSetMaxRunners,
+			ScaleSetPrefix:  config.Config.ScaleSetNamePrefix,
+			RunnerVersion:   config.Config.RunnerVersion,
+			RunnerUser:      config.Config.RunnerUser,
+			RunnerBaseDir:   config.Config.RunnerBaseDirectory,
+		})
+	} else {
+		logger.Logf(false, "Scale set mode disabled (webhook mode)")
+	}
+
 	return &myShoes{
 		ds:    ds,
 		start: s,
 		run:   manager,
+		ss:    scalesetManager,
 	}, nil
 }
 
@@ -99,6 +120,7 @@ func (m *myShoes) Run() error {
 		time.Sleep(time.Second)
 	}
 
+	// Web server runs in both modes (provides REST API + metrics)
 	eg.Go(func() error {
 		if err := web.Serve(ctx, m.ds); err != nil {
 			logger.Logf(false, "failed to web.Serve: %+v", err)
@@ -106,20 +128,35 @@ func (m *myShoes) Run() error {
 		}
 		return nil
 	})
-	eg.Go(func() error {
-		if err := m.start.Loop(ctx); err != nil {
-			logger.Logf(false, "failed to starter manager: %+v", err)
-			return fmt.Errorf("failed to starter loop: %w", err)
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		if err := m.run.Loop(ctx); err != nil {
-			logger.Logf(false, "failed to runner manager: %+v", err)
-			return fmt.Errorf("failed to runner loop: %w", err)
-		}
-		return nil
-	})
+
+	if m.ss != nil {
+		// Scale set mode: use long-polling listener instead of webhook + job queue
+		logger.Logf(false, "Starting in scale set mode")
+		eg.Go(func() error {
+			if err := m.ss.Loop(ctx); err != nil {
+				logger.Logf(false, "failed to scaleset manager: %+v", err)
+				return fmt.Errorf("failed to scaleset loop: %w", err)
+			}
+			return nil
+		})
+	} else {
+		// Webhook mode: use traditional starter + runner loops
+		logger.Logf(false, "Starting in webhook mode")
+		eg.Go(func() error {
+			if err := m.start.Loop(ctx); err != nil {
+				logger.Logf(false, "failed to starter manager: %+v", err)
+				return fmt.Errorf("failed to starter loop: %w", err)
+			}
+			return nil
+		})
+		eg.Go(func() error {
+			if err := m.run.Loop(ctx); err != nil {
+				logger.Logf(false, "failed to runner manager: %+v", err)
+				return fmt.Errorf("failed to runner loop: %w", err)
+			}
+			return nil
+		})
+	}
 
 	if err := eg.Wait(); err != nil {
 		return fmt.Errorf("failed to wait errgroup: %w", err)
