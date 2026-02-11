@@ -92,12 +92,16 @@ func (ts *targetScaler) HandleJobCompleted(ctx context.Context, event *scaleset.
 	defer cleanup()
 
 	if err := shoesClient.DeleteInstance(ctx, info.cloudID, info.labels); err != nil {
-		logger.Logf(false, "[scaleset] failed to delete instance: %+v", err)
+		// Preserve runner state on deletion failure to allow retry
+		// Without this, transient cloud/plugin errors leave orphaned instances
+		logger.Logf(false, "[scaleset] failed to delete instance (preserving state for retry): %+v", err)
+		return fmt.Errorf("failed to delete instance %s: %w", info.cloudID, err)
 	}
 
-	// Update datastore
+	// Only update datastore and remove from tracking after successful deletion
 	if err := ts.ds.DeleteRunner(ctx, info.runnerID, time.Now(), datastore.RunnerStatusCompleted); err != nil {
 		logger.Logf(false, "[scaleset] failed to delete runner from datastore: %+v", err)
+		// Continue even if datastore update fails - instance is already deleted
 	}
 
 	// Remove from active runners

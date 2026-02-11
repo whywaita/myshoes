@@ -92,9 +92,20 @@ func (m *Manager) syncTargets(ctx context.Context) error {
 	for _, target := range targets {
 		activeTargets[target.UUID] = true
 
-		// Skip if listener already running
-		if _, exists := m.scalers[target.UUID]; exists {
-			continue
+		// Check if listener exists and if target config has changed
+		if wrapper, exists := m.scalers[target.UUID]; exists {
+			// Check if critical target config has changed
+			existingTarget := wrapper.scaler.target
+			if targetConfigChanged(existingTarget, target) {
+				// Config changed - restart listener with new config
+				logger.Logf(false, "[scaleset] target config changed for %s, restarting listener", target.Scope)
+				wrapper.cancelFunc()
+				delete(m.scalers, target.UUID)
+				// Will be restarted below
+			} else {
+				// Config unchanged - skip restart
+				continue
+			}
 		}
 
 		// Start new listener
@@ -171,8 +182,20 @@ func (m *Manager) startListener(ctx context.Context, target datastore.Target) er
 	m.scalers[target.UUID] = wrapper
 
 	go func() {
-		logger.Logf(false, "[scaleset] listener started for target: %s", target.Scope)
-		metricScaleSetListenerRunning.WithLabelValues(target.Scope).Set(1)
+		targetID := target.UUID
+		targetScope := target.Scope
+
+		// Clean up scaler from map when listener stops (for any reason)
+		defer func() {
+			m.mu.Lock()
+			delete(m.scalers, targetID)
+			m.mu.Unlock()
+			logger.Logf(false, "[scaleset] removed stopped listener for target: %s", targetScope)
+		}()
+
+		logger.Logf(false, "[scaleset] listener started for target: %s", targetScope)
+		metricScaleSetListenerRunning.WithLabelValues(targetScope).Set(1)
+		defer metricScaleSetListenerRunning.WithLabelValues(targetScope).Set(0)
 
 		listenerConfig := listener.Config{
 			ScaleSetID: scaleSetID,
@@ -180,16 +203,16 @@ func (m *Manager) startListener(ctx context.Context, target datastore.Target) er
 		}
 		l, err := listener.New(session, listenerConfig)
 		if err != nil {
-			logger.Logf(false, "[scaleset] failed to create listener for target %s: %+v", target.Scope, err)
+			logger.Logf(false, "[scaleset] failed to create listener for target %s: %+v", targetScope, err)
 			return
 		}
 
 		if err := l.Run(listenerCtx, scaler); err != nil && listenerCtx.Err() == nil {
-			logger.Logf(false, "[scaleset] listener error for target %s: %+v", target.Scope, err)
+			// Non-cancellation error - log and exit, defer will clean up
+			logger.Logf(false, "[scaleset] listener error for target %s: %+v", targetScope, err)
 		}
 
-		logger.Logf(false, "[scaleset] listener stopped for target: %s", target.Scope)
-		metricScaleSetListenerRunning.WithLabelValues(target.Scope).Set(0)
+		logger.Logf(false, "[scaleset] listener stopped for target: %s", targetScope)
 	}()
 
 	return nil
@@ -229,6 +252,22 @@ func (m *Manager) ensureScaleSet(ctx context.Context, client *scaleset.Client, n
 
 	logger.Logf(false, "[scaleset] created scale set: %s (id=%d)", name, scaleSet.ID)
 	return scaleSet.ID, nil
+}
+
+// targetConfigChanged checks if critical target configuration has changed
+func targetConfigChanged(existing, new datastore.Target) bool {
+	// Compare fields that affect runner provisioning
+	if existing.ResourceType != new.ResourceType {
+		return true
+	}
+	if existing.ProviderURL != new.ProviderURL {
+		return true
+	}
+	// Status changes are also important (e.g., suspend/resume)
+	if existing.Status != new.Status {
+		return true
+	}
+	return false
 }
 
 func (m *Manager) stopAllListeners() {

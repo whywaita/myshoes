@@ -16,7 +16,7 @@ import (
 )
 
 // NewMux create routed mux
-func NewMux(ds datastore.Datastore) *goji.Mux {
+func NewMux(ds datastore.Datastore, scaleSetEnabled bool) *goji.Mux {
 	mux := goji.NewMux()
 
 	mux.HandleFunc(pat.Get("/healthz"), func(w http.ResponseWriter, r *http.Request) {
@@ -32,10 +32,14 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 		json.NewEncoder(w).Encode(h)
 	})
 
-	mux.HandleFunc(pat.Post("/github/events"), func(w http.ResponseWriter, r *http.Request) {
-		apacheLogging(r)
-		HandleGitHubEvent(w, r, ds)
-	})
+	// Only enable webhook endpoint in webhook mode
+	// In scale set mode, jobs are received via long-polling, not webhooks
+	if !scaleSetEnabled {
+		mux.HandleFunc(pat.Post("/github/events"), func(w http.ResponseWriter, r *http.Request) {
+			apacheLogging(r)
+			HandleGitHubEvent(w, r, ds)
+		})
+	}
 
 	// REST API for targets
 	mux.HandleFunc(pat.Post("/target"), func(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +84,7 @@ func NewMux(ds datastore.Datastore) *goji.Mux {
 
 // Serve start webhook receiver
 func Serve(ctx context.Context, ds datastore.Datastore) error {
-	mux := NewMux(ds)
+	mux := NewMux(ds, config.Config.ScaleSetEnabled)
 	listenAddress := fmt.Sprintf(":%d", config.Config.Port)
 	s := &http.Server{
 		Addr:    listenAddress,

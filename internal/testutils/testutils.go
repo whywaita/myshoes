@@ -60,7 +60,8 @@ func IntegrationTestRunner(m *testing.M) int {
 	createTablesIfNotExist()
 	//SetupDefaultFixtures()
 
-	mux := web.NewMux(testDatastore)
+	// Tests use webhook mode (scale set mode disabled)
+	mux := web.NewMux(testDatastore, false)
 	ts := httptest.NewServer(mux)
 	testURL = ts.URL
 
