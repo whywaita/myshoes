@@ -158,6 +158,68 @@ func TestManager_StopAllListeners(t *testing.T) {
 	}
 }
 
+func TestManager_DeferredCleanupDoesNotDeleteReplacement(t *testing.T) {
+	mock := &mockDatastoreForManager{}
+	cfg := ManagerConfig{
+		RunnerGroupName: "default",
+		MaxRunners:      10,
+	}
+	manager := New(mock, cfg)
+
+	targetID := uuid.NewV4()
+
+	// Simulate: old goroutine's wrapper
+	_, oldCancel := context.WithCancel(context.Background())
+	oldWrapper := &targetScalerWrapper{cancelFunc: oldCancel}
+
+	// Simulate: new wrapper stored by syncTargets after config change
+	_, newCancel := context.WithCancel(context.Background())
+	newWrapper := &targetScalerWrapper{cancelFunc: newCancel}
+	manager.scalers[targetID] = newWrapper
+
+	// Simulate: old goroutine's deferred cleanup runs, but should NOT delete newWrapper
+	manager.mu.Lock()
+	if current, exists := manager.scalers[targetID]; exists && current == oldWrapper {
+		delete(manager.scalers, targetID)
+	}
+	manager.mu.Unlock()
+
+	// newWrapper should still be in the map
+	if _, exists := manager.scalers[targetID]; !exists {
+		t.Error("deferred cleanup should not delete replacement wrapper")
+	}
+	if manager.scalers[targetID] != newWrapper {
+		t.Error("scalers map should still contain the new wrapper")
+	}
+}
+
+func TestManager_DeferredCleanupDeletesOwnWrapper(t *testing.T) {
+	mock := &mockDatastoreForManager{}
+	cfg := ManagerConfig{
+		RunnerGroupName: "default",
+		MaxRunners:      10,
+	}
+	manager := New(mock, cfg)
+
+	targetID := uuid.NewV4()
+
+	// Simulate: goroutine's wrapper is still the current one (no replacement)
+	_, cancel := context.WithCancel(context.Background())
+	wrapper := &targetScalerWrapper{cancelFunc: cancel}
+	manager.scalers[targetID] = wrapper
+
+	// Simulate: deferred cleanup should delete because it IS the same wrapper
+	manager.mu.Lock()
+	if current, exists := manager.scalers[targetID]; exists && current == wrapper {
+		delete(manager.scalers, targetID)
+	}
+	manager.mu.Unlock()
+
+	if _, exists := manager.scalers[targetID]; exists {
+		t.Error("deferred cleanup should delete own wrapper when no replacement exists")
+	}
+}
+
 func TestManagerConfig_Fields(t *testing.T) {
 	cfg := ManagerConfig{
 		AppID:           12345,

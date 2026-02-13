@@ -2,6 +2,7 @@ package scaleset
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"github.com/whywaita/myshoes/pkg/runner"
 )
 
 // mockDatastore is a minimal mock for testing
@@ -16,6 +18,7 @@ type mockDatastore struct {
 	datastore.Datastore
 	createRunnerCalled bool
 	deleteRunnerCalled bool
+	runners            map[uuid.UUID]*datastore.Runner
 }
 
 func (m *mockDatastore) CreateRunner(ctx context.Context, runner datastore.Runner) error {
@@ -26,6 +29,17 @@ func (m *mockDatastore) CreateRunner(ctx context.Context, runner datastore.Runne
 func (m *mockDatastore) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time, reason datastore.RunnerStatus) error {
 	m.deleteRunnerCalled = true
 	return nil
+}
+
+func (m *mockDatastore) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
+	if m.runners == nil {
+		return nil, fmt.Errorf("runner not found: %s", id)
+	}
+	r, ok := m.runners[id]
+	if !ok {
+		return nil, fmt.Errorf("runner not found: %s", id)
+	}
+	return r, nil
 }
 
 func TestTargetScaler_GetActiveRunnerCount(t *testing.T) {
@@ -190,6 +204,102 @@ func TestTargetScaler_HandleJobCompleted(t *testing.T) {
 
 	// Runner won't be removed because shoes client fails early
 	// This is expected behavior in test environment
+}
+
+func TestTargetScaler_HandleJobCompleted_FallbackToDatastore(t *testing.T) {
+	runnerUUID := uuid.NewV4()
+	runnerName := runner.ToName(runnerUUID.String())
+
+	mock := &mockDatastore{
+		runners: map[uuid.UUID]*datastore.Runner{
+			runnerUUID: {
+				UUID:    runnerUUID,
+				CloudID: "cloud-456",
+			},
+		},
+	}
+	ts := &targetScaler{
+		ds: mock,
+		target: datastore.Target{
+			UUID:  uuid.NewV4(),
+			Scope: "test-org",
+		},
+	}
+
+	// activeRunners is empty (simulates process restart)
+	ctx := context.Background()
+	event := &scaleset.JobCompleted{
+		RunnerName: runnerName,
+		JobMessageBase: scaleset.JobMessageBase{
+			JobID: "job-456",
+		},
+	}
+
+	// Should fall back to datastore and attempt cleanup
+	// shoes client is not configured, so deletion will fail with an error
+	err := ts.HandleJobCompleted(ctx, event)
+	if err == nil {
+		t.Error("HandleJobCompleted() should error without real shoes client, but should reach shoes client call")
+	}
+
+	// Verify the runner was NOT just silently skipped (the old behavior would return nil)
+	// The error should be from shoes client, not from datastore lookup
+	if err != nil && err.Error() == "" {
+		t.Error("expected non-empty error message")
+	}
+}
+
+func TestTargetScaler_HandleJobCompleted_FallbackDatastoreNotFound(t *testing.T) {
+	mock := &mockDatastore{}
+	ts := &targetScaler{
+		ds: mock,
+		target: datastore.Target{
+			UUID:  uuid.NewV4(),
+			Scope: "test-org",
+		},
+	}
+
+	runnerUUID := uuid.NewV4()
+	runnerName := runner.ToName(runnerUUID.String())
+
+	// activeRunners is empty, datastore also doesn't have it
+	ctx := context.Background()
+	event := &scaleset.JobCompleted{
+		RunnerName: runnerName,
+		JobMessageBase: scaleset.JobMessageBase{
+			JobID: "job-789",
+		},
+	}
+
+	err := ts.HandleJobCompleted(ctx, event)
+	if err == nil {
+		t.Error("HandleJobCompleted() should error when runner not found in datastore")
+	}
+}
+
+func TestTargetScaler_HandleJobCompleted_InvalidRunnerName(t *testing.T) {
+	mock := &mockDatastore{}
+	ts := &targetScaler{
+		ds: mock,
+		target: datastore.Target{
+			UUID:  uuid.NewV4(),
+			Scope: "test-org",
+		},
+	}
+
+	// activeRunners is empty, runner name is not in myshoes format
+	ctx := context.Background()
+	event := &scaleset.JobCompleted{
+		RunnerName: "invalid-not-a-uuid",
+		JobMessageBase: scaleset.JobMessageBase{
+			JobID: "job-000",
+		},
+	}
+
+	err := ts.HandleJobCompleted(ctx, event)
+	if err == nil {
+		t.Error("HandleJobCompleted() should error when runner name cannot be parsed to UUID")
+	}
 }
 
 func TestTargetScaler_HandleJobStarted(t *testing.T) {

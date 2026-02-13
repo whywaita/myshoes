@@ -78,8 +78,10 @@ func (ts *targetScaler) HandleJobCompleted(ctx context.Context, event *scaleset.
 	// Find runner info by name
 	runnerInfoRaw, ok := ts.activeRunners.Load(event.RunnerName)
 	if !ok {
-		logger.Logf(false, "[scaleset] runner not found in active runners: %s", event.RunnerName)
-		return nil
+		// Runner not in memory (e.g., after process restart or listener re-creation).
+		// Fall back to datastore lookup to avoid leaking instances and stale rows.
+		logger.Logf(false, "[scaleset] runner %s not found in active runners, falling back to datastore", event.RunnerName)
+		return ts.handleJobCompletedFromDatastore(ctx, event)
 	}
 
 	info := runnerInfoRaw.(runnerInfo)
@@ -110,6 +112,41 @@ func (ts *targetScaler) HandleJobCompleted(ctx context.Context, event *scaleset.
 	// Update metrics
 	actualCount := ts.getActiveRunnerCount()
 	metricScaleSetActiveRunners.WithLabelValues(ts.target.Scope).Set(float64(actualCount))
+
+	return nil
+}
+
+// handleJobCompletedFromDatastore cleans up a runner whose metadata is not in
+// the in-memory activeRunners map (e.g., after a process restart or listener
+// re-creation). It resolves the runner from the datastore and performs instance
+// deletion and datastore cleanup.
+func (ts *targetScaler) handleJobCompletedFromDatastore(ctx context.Context, event *scaleset.JobCompleted) error {
+	runnerUUID, err := runner.ToUUID(event.RunnerName)
+	if err != nil {
+		return fmt.Errorf("failed to parse runner UUID from name %s: %w", event.RunnerName, err)
+	}
+
+	r, err := ts.ds.GetRunner(ctx, runnerUUID)
+	if err != nil {
+		return fmt.Errorf("failed to get runner %s from datastore: %w", runnerUUID, err)
+	}
+
+	// Delete instance via shoes plugin
+	shoesClient, cleanup, err := shoes.GetClient()
+	if err != nil {
+		return fmt.Errorf("failed to get shoes client: %w", err)
+	}
+	defer cleanup()
+
+	labels := []string{"scaleset", ts.target.Scope}
+	if err := shoesClient.DeleteInstance(ctx, r.CloudID, labels); err != nil {
+		logger.Logf(false, "[scaleset] failed to delete instance (preserving state for retry): %+v", err)
+		return fmt.Errorf("failed to delete instance %s: %w", r.CloudID, err)
+	}
+
+	if err := ts.ds.DeleteRunner(ctx, r.UUID, time.Now(), datastore.RunnerStatusCompleted); err != nil {
+		logger.Logf(false, "[scaleset] failed to delete runner from datastore: %+v", err)
+	}
 
 	return nil
 }

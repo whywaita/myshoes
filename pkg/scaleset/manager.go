@@ -188,7 +188,13 @@ func (m *Manager) startListener(ctx context.Context, target datastore.Target) er
 		// Clean up scaler from map when listener stops (for any reason)
 		defer func() {
 			m.mu.Lock()
-			delete(m.scalers, targetID)
+			// Only delete if this goroutine's wrapper is still the current one.
+			// When syncTargets restarts a listener for a config change, it stores a
+			// new wrapper under the same key before the old goroutine exits. Deleting
+			// unconditionally would remove the replacement and lose tracking.
+			if current, exists := m.scalers[targetID]; exists && current == wrapper {
+				delete(m.scalers, targetID)
+			}
 			m.mu.Unlock()
 			logger.Logf(false, "[scaleset] removed stopped listener for target: %s", targetScope)
 		}()
