@@ -1,82 +1,82 @@
 # Scale Set Mode
 
-## 概要
+## Overview
 
-Scale setモードは、GitHub Actions Runner Scale Set APIを使用したlong-polling駆動の自動スケーリング機能です。従来のWebhookモード（GitHub → myshoes（push））から、myshoes → GitHub（pull）への切り替えが可能になります。
+Scale set mode provides long-polling-driven auto-scaling using the GitHub Actions Runner Scale Set API. It switches communication from the traditional webhook mode (GitHub → myshoes, push) to myshoes → GitHub (pull).
 
-### Webhookモードとの違い
+### Differences from Webhook Mode
 
-| 項目 | Webhookモード（従来） | Scale setモード（新規） |
-|------|----------------------|------------------------|
-| **通信方向** | GitHub → myshoes (push) | myshoes → GitHub (pull) |
-| **トリガー** | GitHub webhook | Long-polling API |
-| **ランナー登録** | Registration token + config.sh | JIT (Just-In-Time) config |
-| **起動速度** | 通常 | 高速（JIT configにより） |
-| **Job queue** | 使用 | 不使用 |
-| **スケーリング** | starter/runner loopで管理 | Scale set managerで管理 |
+| Item | Webhook Mode (existing) | Scale Set Mode (new) |
+|------|------------------------|----------------------|
+| **Communication** | GitHub → myshoes (push) | myshoes → GitHub (pull) |
+| **Trigger** | GitHub webhook | Long-polling API |
+| **Runner registration** | Registration token + config.sh | JIT (Just-In-Time) config |
+| **Startup speed** | Normal | Fast (via JIT config) |
+| **Job queue** | Used | Not used |
+| **Scaling** | Managed by starter/runner loop | Managed by scale set manager |
 
-## GitHub App 権限
+## GitHub App Permissions
 
-Scale setモードで必要なGitHub App権限:
+Required GitHub App permissions for scale set mode:
 
-| 権限 | Repository scope | Organization scope | 理由 |
-|------|-----------------|-------------------|------|
-| `actions` | Read & Write | Read & Write | Runnerの登録・削除（既存と同じ） |
-| `administration` | Read | - | Repository設定の読み取り（既存と同じ） |
-| `organization_self_hosted_runners` | - | Read & Write | **新規追加**: Organization-level scale set管理用 |
+| Permission | Repository scope | Organization scope | Reason |
+|-----------|-----------------|-------------------|--------|
+| `actions` | Read & Write | Read & Write | Runner registration/deletion (same as existing) |
+| `administration` | Read | - | Read repository settings (same as existing) |
+| `organization_self_hosted_runners` | - | Read & Write | **Newly required**: For organization-level scale set management |
 
-**重要な変更点**:
-- Repository-level targetの場合: 既存の権限で動作（変更不要）
-- **Organization-level targetの場合**: `organization_self_hosted_runners` 権限が**新たに必要**になる
+**Important changes**:
+- Repository-level targets: Work with existing permissions (no changes needed)
+- **Organization-level targets**: The `organization_self_hosted_runners` permission is **newly required**
 
-既にWebhookモードでOrganization-level targetを使用している場合、この権限を追加する必要があります。
+If you are already using organization-level targets in webhook mode, you need to add this permission.
 
-参考: [Authenticating ARC to the GitHub API - GitHub Docs](https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/authenticate-to-the-api)
+Reference: [Authenticating ARC to the GitHub API - GitHub Docs](https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/authenticate-to-the-api)
 
-## 設定方法
+## Configuration
 
-### 環境変数
+### Environment Variables
 
 ```bash
-# Scale setモードの有効化
-SCALESET_ENABLED=true              # Scale setモードを有効化（default: false）
-SCALESET_RUNNER_GROUP=default      # Runner group名（default: "default"）
-SCALESET_MAX_RUNNERS=10            # Scale set あたりの最大ランナー数（default: 10）
-SCALESET_NAME_PREFIX=myshoes       # Scale set名のプレフィックス（default: "myshoes"）
+# Enable scale set mode
+SCALESET_ENABLED=true              # Enable scale set mode (default: false)
+SCALESET_RUNNER_GROUP=default      # Runner group name (default: "default")
+SCALESET_MAX_RUNNERS=10            # Max runners per scale set (default: 10)
+SCALESET_NAME_PREFIX=myshoes       # Scale set name prefix (default: "myshoes")
 
-# 既存の環境変数（引き続き必要）
+# Existing environment variables (still required)
 GITHUB_APP_ID=123456
 GITHUB_PRIVATE_KEY_BASE64=...
-GITHUB_URL=https://github.com  # GHESの場合は変更
+GITHUB_URL=https://github.com  # Change for GHES
 RUNNER_VERSION=v2.311.0
 RUNNER_USER=runner
 RUNNER_BASE_DIRECTORY=/tmp
 PLUGIN=./shoes-lxd
-# ... その他の既存設定
+# ... other existing settings
 ```
 
-### Scale setモード有効時の動作
+### Behavior When Scale Set Mode Is Enabled
 
-1. **Web server**: 起動する（REST API + メトリクス提供）
-2. **starter.Loop**: 起動しない（scale set scalerが代替）
-3. **runner.Loop**: 起動しない（HandleJobCompletedが代替）
-4. **scaleset.Manager.Loop**: 起動する（新規）
+1. **Web server**: Starts (serves REST API + metrics)
+2. **starter.Loop**: Does not start (replaced by scale set scaler)
+3. **runner.Loop**: Does not start (replaced by HandleJobCompleted)
+4. **scaleset.Manager.Loop**: Starts (new)
 
-## Webエンドポイントの変更
+## Web Endpoint Changes
 
-| エンドポイント | Webhookモード | Scale setモード | 理由 |
-|---------------|--------------|----------------|------|
-| `/github/events` (POST) | 必須 | **不要** | GitHubからのwebhookを受信しない。GitHub App設定でWebhook URLも不要 |
-| `/target` (CRUD) | 必須 | **必須** | Scale set managerがdatastoreからtargetを読み取る |
-| `/healthz` | 必須 | **必須** | ヘルスチェック |
-| `/metrics` | 必須 | **必須** | Prometheusメトリクス（scale set固有メトリクスも追加） |
-| `/config/*` | 任意 | **任意** | ランタイム設定変更 |
+| Endpoint | Webhook Mode | Scale Set Mode | Reason |
+|----------|-------------|----------------|--------|
+| `/github/events` (POST) | Required | **Not required** | Does not receive webhooks from GitHub. Webhook URL in GitHub App settings is also unnecessary |
+| `/target` (CRUD) | Required | **Required** | Scale set manager reads targets from the datastore |
+| `/healthz` | Required | **Required** | Health check |
+| `/metrics` | Required | **Required** | Prometheus metrics (scale set specific metrics are also added) |
+| `/config/*` | Optional | **Optional** | Runtime configuration changes |
 
-**重要**: Scale setモード有効時、`/github/events` エンドポイントは存在するが使用されません。GitHub App設定でWebhook URLを設定する必要はありません。
+**Important**: When scale set mode is enabled, the `/github/events` endpoint exists but is not used. You do not need to configure a Webhook URL in your GitHub App settings.
 
-## 動作フロー比較
+## Flow Comparison
 
-### Webhookモード（既存）
+### Webhook Mode (existing)
 
 ```
 GitHub Actions → webhook → myshoes → job queue
@@ -85,10 +85,10 @@ GitHub Actions → webhook → myshoes → job queue
                                         ↓
                                   shoes plugin → runner
                                         ↓
-                                  runner manager (定期削除)
+                                  runner manager (periodic cleanup)
 ```
 
-### Scale setモード（新規）
+### Scale Set Mode (new)
 
 ```
 myshoes scale set manager → long-poll GitHub Scale Set API
@@ -97,101 +97,101 @@ myshoes scale set manager → long-poll GitHub Scale Set API
                                 ↓
                           shoes plugin → runner
                                 ↓ (JobCompleted event)
-                          HandleJobCompleted → 即座に削除
+                          HandleJobCompleted → immediate cleanup
 ```
 
-## JIT Runnerの特徴
+## JIT Runner Characteristics
 
-- **Registration token不要**: JIT configに認証情報が含まれる
-- **config.sh不要**: `./run.sh --jitconfig` で直接起動
-- **RunnerService.jsパッチ不要**: JITランナーは本質的にephemeral
-- **高速起動**: トークン生成とconfig.shステップがスキップされる
+- **No registration token needed**: Authentication credentials are included in the JIT config
+- **No config.sh needed**: Starts directly with `./run.sh --jitconfig`
+- **No RunnerService.js patch needed**: JIT runners are inherently ephemeral
+- **Fast startup**: Token generation and config.sh steps are skipped
 
-### 従来のsetup scriptとの比較
+### Comparison with Traditional Setup Script
 
-| 項目 | Webhookモード | Scale setモード |
-|------|--------------|----------------|
-| Registration token取得 | 必要 | 不要（JIT configに含まれる） |
-| `config.sh --unattended` | 実行 | 不要 |
-| `RunnerService.js` パッチ | 適用 | 不要 |
-| `--ephemeral`/`--once` フラグ | 必要 | 不要（JITは本質的にephemeral） |
-| 起動コマンド | `./run.sh --once` | `./run.sh --jitconfig <encoded>` |
+| Item | Webhook Mode | Scale Set Mode |
+|------|-------------|----------------|
+| Registration token retrieval | Required | Not required (included in JIT config) |
+| `config.sh --unattended` | Executed | Not required |
+| `RunnerService.js` patch | Applied | Not required |
+| `--ephemeral`/`--once` flag | Required | Not required (JIT is inherently ephemeral) |
+| Startup command | `./run.sh --once` | `./run.sh --jitconfig <encoded>` |
 
-## 既存Shoes Providerとの互換性
+## Compatibility with Existing Shoes Providers
 
-- **Proto変更なし**: `AddInstance` の `setupScript` 引数にJIT config含むスクリプトを渡します
-- **透過的対応**: Providerは通常のsetup scriptとして扱うだけで動作します
-- **移行不要**: 既存のshoes-lxd, shoes-aws, shoes-openstackがそのまま動作します
+- **No proto changes**: The JIT config script is passed via the `setupScript` argument to `AddInstance`
+- **Transparent support**: Providers handle it as a regular setup script
+- **No migration needed**: Existing shoes-lxd, shoes-aws, and shoes-openstack work as-is
 
-## Scale Setの命名規則
+## Scale Set Naming Convention
 
 - **Format**: `{SCALESET_NAME_PREFIX}-{sanitized-scope}`
-- **例**:
-  - org `myorg` → scale set名 `myshoes-myorg`
-  - repo `myorg/myrepo` → scale set名 `myshoes-myorg-myrepo`
-- **sanitization**: `/` やその他の無効文字は `-` に置換されます
+- **Examples**:
+  - org `myorg` → scale set name `myshoes-myorg`
+  - repo `myorg/myrepo` → scale set name `myshoes-myorg-myrepo`
+- **Sanitization**: `/` and other invalid characters are replaced with `-`
 
-## Prometheusメトリクス
+## Prometheus Metrics
 
-Scale setモード固有のメトリクス:
+Scale set mode specific metrics:
 
-| メトリクス名 | Type | Labels | 説明 |
-|------------|------|--------|------|
-| `myshoes_scaleset_listener_running` | gauge | target_scope | 実行中のscale set listener数 |
-| `myshoes_scaleset_desired_runners` | gauge | target_scope | 要求されたランナー数 |
-| `myshoes_scaleset_active_runners` | gauge | target_scope | アクティブなランナー数 |
-| `myshoes_scaleset_jobs_completed_total` | counter | target_scope | 完了したジョブの総数 |
-| `myshoes_scaleset_provision_errors_total` | counter | target_scope | プロビジョニングエラーの総数 |
+| Metric Name | Type | Labels | Description |
+|------------|------|--------|-------------|
+| `myshoes_scaleset_listener_running` | gauge | target_scope | Number of running scale set listeners |
+| `myshoes_scaleset_desired_runners` | gauge | target_scope | Number of desired runners |
+| `myshoes_scaleset_active_runners` | gauge | target_scope | Number of active runners |
+| `myshoes_scaleset_jobs_completed_total` | counter | target_scope | Total number of completed jobs |
+| `myshoes_scaleset_provision_errors_total` | counter | target_scope | Total number of provisioning errors |
 
-## 制限事項・注意点
+## Limitations and Notes
 
-1. **モード排他性**: Scale setモードとWebhookモードは排他的です（グローバルスイッチ）
-2. **Installation必須**: Scale set作成にはGitHub App installationが必要です
-3. **1 target = 1 scale set**: 各targetに対して1つのscale setが作成されます
-4. **Runner group**: Scale set作成時に指定（デフォルト: "default"）
-5. **GHES対応**: `GITHUB_URL` 環境変数でGHES URLを設定することで対応可能
-6. **Permission**: Organization-level targetでは追加の権限（`organization_self_hosted_runners`）が必要
+1. **Mode exclusivity**: Scale set mode and webhook mode are mutually exclusive (global switch)
+2. **Installation required**: GitHub App installation is required to create scale sets
+3. **1 target = 1 scale set**: One scale set is created per target
+4. **Runner group**: Specified at scale set creation (default: "default")
+5. **GHES support**: Supported by setting the GHES URL via the `GITHUB_URL` environment variable
+6. **Permissions**: Organization-level targets require additional permission (`organization_self_hosted_runners`)
 
-## 移行ガイド
+## Migration Guide
 
-### WebhookモードからScale setモードへの移行
+### Migrating from Webhook Mode to Scale Set Mode
 
-1. **GitHub App権限の追加**（Organization-level targetを使用している場合）
-   - GitHub App設定で `organization_self_hosted_runners: Read & Write` を追加
+1. **Add GitHub App permissions** (if using organization-level targets)
+   - Add `organization_self_hosted_runners: Read & Write` in your GitHub App settings
 
-2. **環境変数の設定**
+2. **Set environment variables**
    ```bash
    SCALESET_ENABLED=true
    ```
 
-3. **Webhook URLの削除**（任意）
-   - GitHub App設定からWebhook URLを削除しても問題ありません（Scale setモードでは使用されません）
+3. **Remove Webhook URL** (optional)
+   - You can safely remove the Webhook URL from your GitHub App settings (it is not used in scale set mode)
 
-4. **myshoes再起動**
-   - 環境変数を反映してmyshoesを再起動
+4. **Restart myshoes**
+   - Restart myshoes to apply the environment variable changes
 
-5. **動作確認**
-   - `/metrics` エンドポイントで `myshoes_scaleset_*` メトリクスが出力されることを確認
-   - ログで `Starting in scale set mode` が出力されることを確認
-   - Workflow jobをトリガーしてランナーがプロビジョニングされることを確認
+5. **Verify operation**
+   - Confirm that `myshoes_scaleset_*` metrics are output at the `/metrics` endpoint
+   - Confirm that `Starting in scale set mode` appears in the logs
+   - Trigger a workflow job and confirm that a runner is provisioned
 
-### トラブルシューティング
+### Troubleshooting
 
-**Scale setが作成されない**
-- Runner group名が正しいか確認（デフォルト: "default"）
-- GitHub App installationが正しく行われているか確認
-- ログで `failed to get runner group` エラーがないか確認
+**Scale set is not created**
+- Verify the runner group name is correct (default: "default")
+- Verify that the GitHub App installation is set up correctly
+- Check the logs for `failed to get runner group` errors
 
-**Runnerがプロビジョニングされない**
-- `myshoes_scaleset_provision_errors_total` メトリクスを確認
-- ログで `failed to provision runner` エラーを確認
-- Shoes pluginが正しく動作しているか確認
+**Runners are not provisioned**
+- Check the `myshoes_scaleset_provision_errors_total` metric
+- Check the logs for `failed to provision runner` errors
+- Verify that the shoes plugin is working correctly
 
-**Organization-level targetでエラーが出る**
-- GitHub App権限に `organization_self_hosted_runners` が追加されているか確認
-- Installation IDが正しく取得できているか確認
+**Errors with organization-level targets**
+- Verify that `organization_self_hosted_runners` has been added to the GitHub App permissions
+- Verify that the installation ID is being retrieved correctly
 
-## 参考リンク
+## References
 
 - [GitHub Actions Runner Scale Set (scaleset) - GitHub](https://github.com/actions/scaleset)
 - [Authenticating ARC to the GitHub API - GitHub Docs](https://docs.github.com/en/actions/tutorials/use-actions-runner-controller/authenticate-to-the-api)
