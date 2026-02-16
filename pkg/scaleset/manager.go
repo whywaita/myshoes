@@ -241,16 +241,15 @@ func (m *Manager) ensureScaleSet(ctx context.Context, client *scaleset.Client, n
 	// Create new scale set
 	logger.Logf(false, "[scaleset] creating new scale set: %s", name)
 
-	// Generate labels based on target scope
-	var labels []scaleset.Label
-	labels = append(labels, scaleset.Label{Type: "scaleset", Name: "scaleset"})
-	labels = append(labels, scaleset.Label{Type: "scope", Name: target.Scope})
+	labels := buildScaleSetLabels(name)
 
 	scaleSet, err = client.CreateRunnerScaleSet(ctx, &scaleset.RunnerScaleSet{
-		Name:            name,
-		RunnerGroupID:   runnerGroup.ID,
-		RunnerGroupName: m.cfg.RunnerGroupName,
-		Labels:          labels,
+		Name:          name,
+		RunnerGroupID: runnerGroup.ID,
+		Labels:        labels,
+		RunnerSetting: scaleset.RunnerSetting{
+			DisableUpdate: true,
+		},
 	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to create scale set: %w", err)
@@ -295,4 +294,13 @@ func sanitizeScaleSetName(prefix, scope string) string {
 	sanitized := regexp.MustCompile(`[^a-zA-Z0-9-]`).ReplaceAllString(scope, "-")
 	sanitized = strings.Trim(sanitized, "-")
 	return fmt.Sprintf("%s-%s", prefix, sanitized)
+}
+
+// buildScaleSetLabels creates labels for a scale set.
+// Type is left empty so that the library's applyDefaultLabelTypes() sets it to "System".
+func buildScaleSetLabels(scaleSetName string) []scaleset.Label {
+	return []scaleset.Label{
+		{Name: "self-hosted"},
+		{Name: scaleSetName},
+	}
 }

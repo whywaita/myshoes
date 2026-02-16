@@ -220,6 +220,30 @@ func TestManager_DeferredCleanupDeletesOwnWrapper(t *testing.T) {
 	}
 }
 
+func TestBuildScaleSetLabels(t *testing.T) {
+	const scaleSetName = "myshoes-myorg-myrepo"
+
+	labels := buildScaleSetLabels(scaleSetName)
+
+	if len(labels) != 2 {
+		t.Fatalf("expected 2 labels, got %d", len(labels))
+	}
+
+	// Type must be empty so that the library sets it to "System"
+	for i, l := range labels {
+		if l.Type != "" {
+			t.Errorf("labels[%d].Type = %q, want empty string", i, l.Type)
+		}
+	}
+
+	if labels[0].Name != "self-hosted" {
+		t.Errorf("labels[0].Name = %q, want %q", labels[0].Name, "self-hosted")
+	}
+	if labels[1].Name != scaleSetName {
+		t.Errorf("labels[1].Name = %q, want %q", labels[1].Name, scaleSetName)
+	}
+}
+
 func TestManagerConfig_Fields(t *testing.T) {
 	cfg := ManagerConfig{
 		AppID:           12345,
