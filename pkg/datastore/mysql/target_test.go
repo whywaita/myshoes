@@ -320,6 +320,25 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 			},
 			err: false,
 		},
+		{
+			// scope contains SQL meta characters, must be treated as a literal value (not injected)
+			input: `owner/repo" OR "1"="1`,
+			want:  nil,
+			prepare: func() error {
+				return testDatastore.CreateTarget(context.Background(), datastore.Target{
+					UUID:           testTargetID,
+					Scope:          testScopeRepo,
+					GitHubToken:    testGitHubToken,
+					TokenExpiredAt: testTime,
+					ResourceType:   datastore.ResourceTypeNano,
+					ProviderURL: sql.NullString{
+						String: testProviderURL,
+						Valid:  true,
+					},
+				})
+			},
+			err: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -328,8 +347,11 @@ func TestMySQL_GetTargetByScope(t *testing.T) {
 		}
 
 		got, err := testDatastore.GetTargetByScope(context.Background(), test.input)
-		if err != nil {
+		if !test.err && err != nil {
 			t.Fatalf("failed to get target: %+v", err)
+		}
+		if test.err && !errors.Is(err, datastore.ErrNotFound) {
+			t.Fatalf("want datastore.ErrNotFound, but got: %+v", err)
 		}
 		if got != nil {
 			got.CreatedAt = time.Time{}

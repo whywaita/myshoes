@@ -51,8 +51,8 @@ func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target,
 // GetTargetByScope get a target from scope
 func (m *MySQL) GetTargetByScope(ctx context.Context, scope string) (*datastore.Target, error) {
 	var t datastore.Target
-	query := fmt.Sprintf(`SELECT uuid, scope, github_token, token_expired_at, resource_type, provider_url, status, status_description, created_at, updated_at FROM targets WHERE scope = "%s"`, scope)
-	if err := m.Conn.GetContext(ctx, &t, query); err != nil {
+	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, provider_url, status, status_description, created_at, updated_at FROM targets WHERE scope = ?`
+	if err := m.Conn.GetContext(ctx, &t, query, scope); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
 		}
