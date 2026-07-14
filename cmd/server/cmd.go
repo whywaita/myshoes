@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	_ "net/http/pprof" // register pprof handlers on the localhost:6060 DefaultServeMux
 	"runtime"
 	"strings"
 	"time"
