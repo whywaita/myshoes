@@ -21,7 +21,7 @@ func listInstallations(ctx context.Context) ([]*github.Installation, error) {
 
 	responseCache.Set(getCacheInstallationsKey(), inst, 1*time.Hour)
 
-	return _listInstallations(ctx)
+	return inst, nil
 }
 
 func getCacheInstallationsKey() string {
@@ -67,7 +67,7 @@ func listAppsInstalledRepo(ctx context.Context, installationID int64) ([]*github
 
 	responseCache.Set(getCacheInstalledRepoKey(installationID), inst, 1*time.Hour)
 
-	return _listAppsInstalledRepo(ctx, installationID)
+	return inst, nil
 }
 
 func getCacheInstalledRepoKey(installationID int64) string {

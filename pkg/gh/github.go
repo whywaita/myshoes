@@ -16,6 +16,21 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// githubHTTPClientTimeout is the maximum duration of a single GitHub API
+// request (including connection, TLS handshake and response). Without it a
+// stalled connection to the GitHub API blocks forever, which can hang callers
+// such as the /metrics collector and the starter loop.
+const githubHTTPClientTimeout = 10 * time.Second
+
+// newGitHubHTTPClient creates an *http.Client for the GitHub API with a bounded
+// timeout so no single request can hang indefinitely.
+func newGitHubHTTPClient(rt http.RoundTripper) *http.Client {
+	return &http.Client{
+		Transport: rt,
+		Timeout:   githubHTTPClientTimeout,
+	}
+}
+
 var (
 	// ErrNotFound is error for not found
 	ErrNotFound = fmt.Errorf("not found")
@@ -63,10 +78,10 @@ func NewClient(token string) (*github.Client, error) {
 	clientTransport := newInstrumentedTransport(transport)
 
 	if !config.Config.IsGHES() {
-		return github.NewClient(&http.Client{Transport: clientTransport}), nil
+		return github.NewClient(newGitHubHTTPClient(clientTransport)), nil
 	}
 
-	return github.NewClient(&http.Client{Transport: clientTransport}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
+	return github.NewClient(newGitHubHTTPClient(clientTransport)).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
 }
 
 // NewClientGitHubApps create a client of GitHub using Private Key from GitHub Apps
@@ -74,7 +89,7 @@ func NewClient(token string) (*github.Client, error) {
 // docs: https://docs.github.com/en/developers/apps/building-github-apps/authenticating-with-github-apps#authenticating-as-a-github-app
 func NewClientGitHubApps() (*github.Client, error) {
 	if !config.Config.IsGHES() {
-		return github.NewClient(&http.Client{Transport: newInstrumentedTransport(&appTransport)}), nil
+		return github.NewClient(newGitHubHTTPClient(newInstrumentedTransport(&appTransport))), nil
 	}
 
 	apiEndpoint, err := getAPIEndpoint()
@@ -84,7 +99,7 @@ func NewClientGitHubApps() (*github.Client, error) {
 
 	itr := appTransport
 	itr.BaseURL = apiEndpoint.String()
-	return github.NewClient(&http.Client{Transport: newInstrumentedTransport(&appTransport)}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
+	return github.NewClient(newGitHubHTTPClient(newInstrumentedTransport(&appTransport))).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
 }
 
 // NewClientInstallation create a client of GitHub using installation ID from GitHub Apps
@@ -94,14 +109,14 @@ func NewClientInstallation(installationID int64) (*github.Client, error) {
 	itr := getInstallationTransport(installationID)
 
 	if !config.Config.IsGHES() {
-		return github.NewClient(&http.Client{Transport: newInstrumentedTransport(itr)}), nil
+		return github.NewClient(newGitHubHTTPClient(newInstrumentedTransport(itr))), nil
 	}
 	apiEndpoint, err := getAPIEndpoint()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub API Endpoint: %w", err)
 	}
 	itr.BaseURL = apiEndpoint.String()
-	return github.NewClient(&http.Client{Transport: newInstrumentedTransport(itr)}).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
+	return github.NewClient(newGitHubHTTPClient(newInstrumentedTransport(itr))).WithEnterpriseURLs(config.Config.GitHubURL, config.Config.GitHubURL)
 }
 
 func setInstallationTransport(installationID int64, itr ghinstallation.Transport) {
@@ -160,7 +175,7 @@ func ExistGitHubRepository(scope string, accessToken string) error {
 		return fmt.Errorf("failed to get repository url: %w", err)
 	}
 
-	client := &http.Client{Transport: newInstrumentedTransport(http.DefaultTransport)}
+	client := newGitHubHTTPClient(newInstrumentedTransport(http.DefaultTransport))
 	req, err := http.NewRequest(http.MethodGet, repoURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
