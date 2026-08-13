@@ -2,7 +2,7 @@ CREATE TABLE `targets` (
     `uuid` VARCHAR(36) NOT NULL PRIMARY KEY,
     `scope` VARCHAR(255) NOT NULL,
     `ghe_domain` VARCHAR(255),
-    `github_token` VARCHAR(255) NOT NULL,
+    `github_token` TEXT NOT NULL,
     `token_expired_at` TIMESTAMP NOT NULL,
     `resource_type` ENUM('nano', 'micro', 'small', 'medium', 'large', 'xlarge', '2xlarge', '3xlarge', '4xlarge') NOT NULL,
     `provider_url` VARCHAR(255),

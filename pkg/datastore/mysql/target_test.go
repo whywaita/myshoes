@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,10 +19,15 @@ import (
 
 var testTargetID = uuid.FromStringOrNil("8a72d42c-372c-4e0d-9c6a-4304d44af137")
 var testTargetID2 = uuid.FromStringOrNil("d14ccfea-b123-4ada-974e-bbff0937e9c7")
+var testTargetID3 = uuid.FromStringOrNil("5c1816ff-4813-46b0-b1ba-30d135a2f3f5")
 var testScopeOrg = "octocat"
 var testScopeRepo = "octocat/hello-world"
 var testScopeRepo2 = "octocat/hello-world2"
 var testGitHubToken = "this-code-is-github-token"
+
+// testGitHubTokenLong exceeds 255 characters. GitHub does not guarantee the length of tokens,
+// so the column must accept tokens longer than VARCHAR(255).
+var testGitHubTokenLong = strings.Repeat("t", 1024)
 var testRunnerUser = "testing-super-user"
 var testProviderURL = "/shoes-mock"
 var testTime = time.Date(2037, 9, 3, 0, 0, 0, 0, time.UTC)
@@ -89,6 +95,32 @@ func TestMySQL_CreateTarget(t *testing.T) {
 				},
 				Status:       datastore.TargetStatusActive,
 				ResourceType: datastore.ResourceTypeNano,
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+			},
+			err: false,
+		},
+		{
+			input: datastore.Target{
+				UUID:           testTargetID3,
+				Scope:          testScopeOrg,
+				GitHubToken:    testGitHubTokenLong,
+				TokenExpiredAt: testTime,
+				ResourceType:   datastore.ResourceTypeNano,
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+			},
+			want: &datastore.Target{
+				UUID:           testTargetID3,
+				Scope:          testScopeOrg,
+				GitHubToken:    testGitHubTokenLong,
+				TokenExpiredAt: testTime,
+				Status:         datastore.TargetStatusActive,
+				ResourceType:   datastore.ResourceTypeNano,
 				ProviderURL: sql.NullString{
 					String: testProviderURL,
 					Valid:  true,
@@ -612,6 +644,28 @@ func TestMySQL_UpdateToken(t *testing.T) {
 			want: &datastore.Target{
 				Scope:          testScopeRepo,
 				GitHubToken:    "new-token",
+				TokenExpiredAt: testTime.Add(1 * time.Hour),
+				ResourceType:   datastore.ResourceTypeNano,
+				ProviderURL: sql.NullString{
+					String: testProviderURL,
+					Valid:  true,
+				},
+				Status: datastore.TargetStatusActive,
+				StatusDescription: sql.NullString{
+					String: "",
+					Valid:  false,
+				},
+			},
+			err: false,
+		},
+		{
+			input: Input{
+				token:   testGitHubTokenLong,
+				expired: testTime.Add(1 * time.Hour),
+			},
+			want: &datastore.Target{
+				Scope:          testScopeRepo,
+				GitHubToken:    testGitHubTokenLong,
 				TokenExpiredAt: testTime.Add(1 * time.Hour),
 				ResourceType:   datastore.ResourceTypeNano,
 				ProviderURL: sql.NullString{
