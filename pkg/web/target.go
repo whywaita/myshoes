@@ -115,7 +115,7 @@ func handleTargetRead(w http.ResponseWriter, r *http.Request, ds datastore.Datas
 
 func sanitizeTarget(t datastore.Target) UserTarget {
 	ut := UserTarget{
-		UUID:              t.UUID,
+		UUID:              t.UUID.UUID,
 		Scope:             t.Scope,
 		TokenExpiredAt:    t.TokenExpiredAt,
 		ResourceType:      t.ResourceType.String(),
@@ -219,14 +219,14 @@ func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func parseReqTargetID(r *http.Request) (uuid.UUID, error) {
+func parseReqTargetID(r *http.Request) (datastore.UUID, error) {
 	targetIDStr := pat.Param(r, "id")
 	targetID, err := uuid.Parse(targetIDStr)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("failed to parse target id: %w", err)
+		return datastore.UUID{}, fmt.Errorf("failed to parse target id: %w", err)
 	}
 
-	return targetID, nil
+	return datastore.UUID{UUID: targetID}, nil
 }
 
 // ErrorResponse is error response
@@ -248,7 +248,7 @@ func validateUpdateTarget(old, new datastore.Target) error {
 	newv := new
 
 	for _, t := range []*datastore.Target{&oldv, &newv} {
-		t.UUID = uuid.UUID{}
+		t.UUID = datastore.UUID{}
 
 		// can update variables
 		t.ResourceType = datastore.ResourceTypeUnknown

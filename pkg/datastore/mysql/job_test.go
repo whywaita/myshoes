@@ -16,7 +16,7 @@ import (
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
-var testJobID = uuid.MustParse("1b4e5b7a-e3c1-4829-9cfd-eac4183f2c95")
+var testJobID = datastore.UUID{UUID: uuid.MustParse("1b4e5b7a-e3c1-4829-9cfd-eac4183f2c95")}
 
 func TestMySQL_EnqueueJob(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
@@ -174,7 +174,7 @@ func TestMySQL_DeleteJob(t *testing.T) {
 	}
 
 	tests := []struct {
-		input uuid.UUID
+		input datastore.UUID
 		want  *datastore.Job
 		err   bool
 	}{
@@ -206,46 +206,16 @@ func TestMySQL_DeleteJob(t *testing.T) {
 	}
 }
 
-type sqlJobRow struct {
-	UUID           string         `db:"uuid"`
-	GHEDomain      sql.NullString `db:"ghe_domain"`
-	Repository     string         `db:"repository"`
-	CheckEventJSON string         `db:"check_event"`
-	TargetID       string         `db:"target_id"`
-	CreatedAt      time.Time      `db:"created_at"`
-	UpdatedAt      time.Time      `db:"updated_at"`
-}
-
-func (r sqlJobRow) job() (*datastore.Job, error) {
-	u, err := uuid.Parse(r.UUID)
-	if err != nil {
-		return nil, err
-	}
-	tid, err := uuid.Parse(r.TargetID)
-	if err != nil {
-		return nil, err
-	}
-	return &datastore.Job{
-		UUID:           u,
-		GHEDomain:      r.GHEDomain,
-		Repository:     r.Repository,
-		CheckEventJSON: r.CheckEventJSON,
-		TargetID:       tid,
-		CreatedAt:      r.CreatedAt,
-		UpdatedAt:      r.UpdatedAt,
-	}, nil
-}
-
-func getJobFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Job, error) {
-	var row sqlJobRow
+func getJobFromSQL(testDB *sqlx.DB, id datastore.UUID) (*datastore.Job, error) {
+	var j datastore.Job
 	query := `SELECT uuid, ghe_domain, repository, check_event, target_id FROM jobs WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&row, id.String())
+	err = stmt.Get(&j, id.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get job: %w", err)
 	}
-	return row.job()
+	return &j, nil
 }

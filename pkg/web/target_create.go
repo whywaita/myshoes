@@ -65,7 +65,7 @@ func handleTargetCreate(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 	}
 
 	target, err := ds.GetTargetByScope(ctx, t.Scope)
-	var targetUUID uuid.UUID
+	var targetUUID datastore.UUID
 
 	switch {
 	case errors.Is(err, datastore.ErrNotFound):
@@ -143,8 +143,8 @@ func isValidScopeAndToken(ctx context.Context, scope, githubPersonalToken string
 	return nil
 }
 
-func createNewTarget(ctx context.Context, input datastore.Target, ds datastore.Datastore) (*uuid.UUID, error) {
-	input.UUID = uuid.NewV4()
+func createNewTarget(ctx context.Context, input datastore.Target, ds datastore.Datastore) (*datastore.UUID, error) {
+	input.UUID = datastore.UUID{UUID: uuid.NewV4()}
 	now := time.Now().UTC()
 	input.CreatedAt = now
 	input.UpdatedAt = now

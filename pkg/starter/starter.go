@@ -565,7 +565,7 @@ func enqueueRescueJob(ctx context.Context, workflowJob *github.WorkflowJobEvent,
 	}
 
 	logger.Logf(false, "rescue pending job: (repo: %s, gh_run_id: %d, gh_job_id: %d)", *repository.HTMLURL, workflowJob.WorkflowJob.GetRunID(), workflowJob.WorkflowJob.GetID())
-	jobID := uuid.NewV4()
+	jobID := datastore.UUID{UUID: uuid.NewV4()}
 	job := datastore.Job{
 		UUID: jobID,
 		GHEDomain: sql.NullString{
