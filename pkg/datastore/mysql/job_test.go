@@ -10,13 +10,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
-	uuid "github.com/satori/go.uuid"
+	"uuid"
 
 	"github.com/whywaita/myshoes/internal/testutils"
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
-var testJobID = uuid.FromStringOrNil("1b4e5b7a-e3c1-4829-9cfd-eac4183f2c95")
+var testJobID = uuid.MustParse("1b4e5b7a-e3c1-4829-9cfd-eac4183f2c95")
 
 func TestMySQL_EnqueueJob(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()

@@ -11,15 +11,15 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
-	uuid "github.com/satori/go.uuid"
+	"uuid"
 
 	"github.com/whywaita/myshoes/internal/testutils"
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
-var testTargetID = uuid.FromStringOrNil("8a72d42c-372c-4e0d-9c6a-4304d44af137")
-var testTargetID2 = uuid.FromStringOrNil("d14ccfea-b123-4ada-974e-bbff0937e9c7")
-var testTargetID3 = uuid.FromStringOrNil("5c1816ff-4813-46b0-b1ba-30d135a2f3f5")
+var testTargetID = uuid.MustParse("8a72d42c-372c-4e0d-9c6a-4304d44af137")
+var testTargetID2 = uuid.MustParse("d14ccfea-b123-4ada-974e-bbff0937e9c7")
+var testTargetID3 = uuid.MustParse("5c1816ff-4813-46b0-b1ba-30d135a2f3f5")
 var testScopeOrg = "octocat"
 var testScopeRepo = "octocat/hello-world"
 var testScopeRepo2 = "octocat/hello-world2"

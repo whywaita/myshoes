@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"uuid"
 )
 
 // CreateTarget create a target

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"uuid"
 )
 
 // EnqueueJob add a job

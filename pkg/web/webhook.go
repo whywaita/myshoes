@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v80/github"
-	uuid "github.com/satori/go.uuid"
+	"uuid"
 
 	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"

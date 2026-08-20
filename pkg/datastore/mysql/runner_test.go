@@ -11,12 +11,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 
-	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/internal/testutils"
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"uuid"
 )
 
-var testRunnerID = uuid.FromStringOrNil("7943e412-c0ae-4068-ab24-3e71a13fbe53")
+var testRunnerID = uuid.MustParse("7943e412-c0ae-4068-ab24-3e71a13fbe53")
 
 func TestMySQL_CreateRunner(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
@@ -218,14 +218,14 @@ func TestMySQL_ListRunnersNotReturnDeleted(t *testing.T) {
 			RepositoryURL:  "https://github.com/octocat/Hello-World",
 			RequestWebhook: "{}",
 		}
-		input.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		input.UUID = uuid.MustParse(fmt.Sprintf(u, i))
 		err := testDatastore.CreateRunner(context.Background(), input)
 		if err != nil {
 			t.Fatalf("failed to create runner: %+v", err)
 		}
 	}
 
-	err := testDatastore.DeleteRunner(context.Background(), uuid.FromStringOrNil(fmt.Sprintf(u, 0)), time.Now(), "deleted")
+	err := testDatastore.DeleteRunner(context.Background(), uuid.MustParse(fmt.Sprintf(u, 0)), time.Now(), "deleted")
 	if err != nil {
 		t.Fatalf("failed to delete runner: %+v", err)
 	}
@@ -250,7 +250,7 @@ func TestMySQL_ListRunnersNotReturnDeleted(t *testing.T) {
 			RepositoryURL:  "https://github.com/octocat/Hello-World",
 			RequestWebhook: "{}",
 		}
-		r.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		r.UUID = uuid.MustParse(fmt.Sprintf(u, i))
 		want = append(want, r)
 	}
 
@@ -285,7 +285,7 @@ func TestMySQL_ListRunnersLogBySince(t *testing.T) {
 			RepositoryURL:  "https://github.com/octocat/Hello-World",
 			RequestWebhook: "{}",
 		}
-		input.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		input.UUID = uuid.MustParse(fmt.Sprintf(u, i))
 		err := testDatastore.CreateRunner(context.Background(), input)
 		if err != nil {
 			t.Fatalf("failed to create runner: %+v", err)
@@ -314,7 +314,7 @@ func TestMySQL_ListRunnersLogBySince(t *testing.T) {
 			RepositoryURL:  "https://github.com/octocat/Hello-World",
 			RequestWebhook: "{}",
 		}
-		r.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		r.UUID = uuid.MustParse(fmt.Sprintf(u, i))
 		want = append(want, r)
 	}
 
