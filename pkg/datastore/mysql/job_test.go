@@ -206,16 +206,46 @@ func TestMySQL_DeleteJob(t *testing.T) {
 	}
 }
 
+type sqlJobRow struct {
+	UUID           string         `db:"uuid"`
+	GHEDomain      sql.NullString `db:"ghe_domain"`
+	Repository     string         `db:"repository"`
+	CheckEventJSON string         `db:"check_event"`
+	TargetID       string         `db:"target_id"`
+	CreatedAt      time.Time      `db:"created_at"`
+	UpdatedAt      time.Time      `db:"updated_at"`
+}
+
+func (r sqlJobRow) job() (*datastore.Job, error) {
+	u, err := uuid.Parse(r.UUID)
+	if err != nil {
+		return nil, err
+	}
+	tid, err := uuid.Parse(r.TargetID)
+	if err != nil {
+		return nil, err
+	}
+	return &datastore.Job{
+		UUID:           u,
+		GHEDomain:      r.GHEDomain,
+		Repository:     r.Repository,
+		CheckEventJSON: r.CheckEventJSON,
+		TargetID:       tid,
+		CreatedAt:      r.CreatedAt,
+		UpdatedAt:      r.UpdatedAt,
+	}, nil
+}
+
 func getJobFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Job, error) {
-	var j datastore.Job
+	var row sqlJobRow
 	query := `SELECT uuid, ghe_domain, repository, check_event, target_id FROM jobs WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&j, id)
+	err = stmt.Get(&row, id.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get job: %w", err)
 	}
-	return &j, nil
+	return row.job()
 }

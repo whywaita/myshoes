@@ -462,46 +462,86 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 	}
 }
 
+type sqlRunnerRow struct {
+	UUID           string                 `db:"runner_id"`
+	ShoesType      string                 `db:"shoes_type"`
+	IPAddress      string                 `db:"ip_address"`
+	TargetID       string                 `db:"target_id"`
+	CloudID        string                 `db:"cloud_id"`
+	ResourceType   datastore.ResourceType `db:"resource_type"`
+	RunnerUser     sql.NullString         `db:"runner_user"`
+	ProviderURL    sql.NullString         `db:"provider_url"`
+	RepositoryURL  string                 `db:"repository_url"`
+	RequestWebhook string                 `db:"request_webhook"`
+	CreatedAt      time.Time              `db:"created_at"`
+	UpdatedAt      time.Time              `db:"updated_at"`
+}
+
+func (r sqlRunnerRow) runner() (*datastore.Runner, error) {
+	u, err := uuid.Parse(r.UUID)
+	if err != nil {
+		return nil, err
+	}
+	tid, err := uuid.Parse(r.TargetID)
+	if err != nil {
+		return nil, err
+	}
+	return &datastore.Runner{
+		UUID:           u,
+		ShoesType:      r.ShoesType,
+		IPAddress:      r.IPAddress,
+		TargetID:       tid,
+		CloudID:        r.CloudID,
+		ResourceType:   r.ResourceType,
+		RunnerUser:     r.RunnerUser,
+		ProviderURL:    r.ProviderURL,
+		RepositoryURL:  r.RepositoryURL,
+		RequestWebhook: r.RequestWebhook,
+		CreatedAt:      r.CreatedAt,
+		UpdatedAt:      r.UpdatedAt,
+	}, nil
+}
+
 func getRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
-	var r datastore.Runner
+	var row sqlRunnerRow
 	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook, runner_user, provider_url FROM runner_detail WHERE runner_id = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&r, id)
+	err = stmt.Get(&row, id.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get runner: %w", err)
 	}
-	return &r, nil
+	return row.runner()
 }
 
 func getRunningRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
-	var r datastore.Runner
+	var row sqlRunnerRow
 	query := `SELECT detail.runner_id, shoes_type, ip_address, target_id, cloud_id, detail.created_at, updated_at, detail.resource_type, detail.repository_url, detail.request_webhook
 FROM runner_detail AS detail JOIN runnesr_running AS running ON detail.runner_id = running.runner_id WHERE detail.runner_id = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&r, id)
+	err = stmt.Get(&row, id.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get runner: %w", err)
 	}
-	return &r, nil
+	return row.runner()
 }
 
 func getDeletedRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
-	var r datastore.Runner
+	var row sqlRunnerRow
 	query := `SELECT detail.runner_id, shoes_type, ip_address, target_id, cloud_id, detail.created_at, updated_at, detail.resource_type, detail.repository_url, detail.request_webhook
 FROM runner_detail AS detail JOIN runners_deleted AS deleted ON detail.runner_id = deleted.runner_id WHERE detail.runner_id = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&r, id)
+	err = stmt.Get(&row, id.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get runner: %w", err)
 	}
-	return &r, nil
+	return row.runner()
 }

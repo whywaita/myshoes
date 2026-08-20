@@ -865,16 +865,50 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 	}
 }
 
+type sqlTargetRow struct {
+	UUID              string                 `db:"uuid"`
+	Scope             string                 `db:"scope"`
+	GitHubToken       string                 `db:"github_token"`
+	TokenExpiredAt    time.Time              `db:"token_expired_at"`
+	GHEDomain         sql.NullString         `db:"ghe_domain"`
+	ResourceType      datastore.ResourceType `db:"resource_type"`
+	ProviderURL       sql.NullString         `db:"provider_url"`
+	Status            datastore.TargetStatus `db:"status"`
+	StatusDescription sql.NullString         `db:"status_description"`
+	CreatedAt         time.Time              `db:"created_at"`
+	UpdatedAt         time.Time              `db:"updated_at"`
+}
+
+func (r sqlTargetRow) target() (*datastore.Target, error) {
+	u, err := uuid.Parse(r.UUID)
+	if err != nil {
+		return nil, err
+	}
+	return &datastore.Target{
+		UUID:              u,
+		Scope:             r.Scope,
+		GitHubToken:       r.GitHubToken,
+		TokenExpiredAt:    r.TokenExpiredAt,
+		GHEDomain:         r.GHEDomain,
+		ResourceType:      r.ResourceType,
+		ProviderURL:       r.ProviderURL,
+		Status:            r.Status,
+		StatusDescription: r.StatusDescription,
+		CreatedAt:         r.CreatedAt,
+		UpdatedAt:         r.UpdatedAt,
+	}, nil
+}
+
 func getTargetFromSQL(testDB *sqlx.DB, uuid uuid.UUID) (*datastore.Target, error) {
-	var t datastore.Target
+	var row sqlTargetRow
 	query := `SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&t, uuid)
+	err = stmt.Get(&row, uuid.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target: %w", err)
 	}
-	return &t, nil
+	return row.target()
 }
