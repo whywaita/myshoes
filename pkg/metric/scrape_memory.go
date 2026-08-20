@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"uuid"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/whywaita/myshoes/pkg/config"

@@ -1,6 +1,6 @@
 module github.com/whywaita/myshoes
 
-go 1.27
+go 1.25
 
 require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
@@ -16,6 +16,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.23.2
 	github.com/r3labs/diff/v2 v2.15.1
+	github.com/satori/go.uuid v1.2.0
 	goji.io v2.0.2+incompatible
 	golang.org/x/oauth2 v0.32.0
 	golang.org/x/sync v0.18.0

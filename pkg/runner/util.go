@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/pkg/datastore"
-	"uuid"
 )
 
 // ToName convert uuid to runner name
@@ -16,7 +16,7 @@ func ToName(u string) string {
 // ToUUID convert runner name to uuid
 func ToUUID(name string) (uuid.UUID, error) {
 	u := strings.TrimPrefix(name, "myshoes-")
-	return uuid.Parse(u)
+	return uuid.FromString(u)
 }
 
 // ToReason convert status from GitHub to datastore.RunnerStatus

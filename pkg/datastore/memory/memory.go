@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"uuid"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
@@ -214,7 +214,7 @@ func (m *Memory) ListRunnersByTargetID(ctx context.Context, targetID uuid.UUID) 
 
 	var runners []datastore.Runner
 	for _, r := range m.runners {
-		if r.TargetID == targetID {
+		if uuid.Equal(r.TargetID, targetID) {
 			runners = append(runners, r)
 		}
 	}
