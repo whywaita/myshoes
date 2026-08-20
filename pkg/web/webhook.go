@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v80/github"
-	uuid "github.com/satori/go.uuid"
+	"uuid"
 
 	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -167,7 +167,7 @@ func processCheckRun(ctx context.Context, ds datastore.Datastore, repoName, repo
 		return nil
 	}
 
-	jobID := uuid.NewV4()
+	jobID := datastore.UUID{UUID: uuid.NewV4()}
 	j := datastore.Job{
 		UUID: jobID,
 		GHEDomain: sql.NullString{

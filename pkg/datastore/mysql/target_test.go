@@ -11,15 +11,15 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
-	uuid "github.com/satori/go.uuid"
+	"uuid"
 
 	"github.com/whywaita/myshoes/internal/testutils"
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
-var testTargetID = uuid.FromStringOrNil("8a72d42c-372c-4e0d-9c6a-4304d44af137")
-var testTargetID2 = uuid.FromStringOrNil("d14ccfea-b123-4ada-974e-bbff0937e9c7")
-var testTargetID3 = uuid.FromStringOrNil("5c1816ff-4813-46b0-b1ba-30d135a2f3f5")
+var testTargetID = datastore.UUID{UUID: uuid.MustParse("8a72d42c-372c-4e0d-9c6a-4304d44af137")}
+var testTargetID2 = datastore.UUID{UUID: uuid.MustParse("d14ccfea-b123-4ada-974e-bbff0937e9c7")}
+var testTargetID3 = datastore.UUID{UUID: uuid.MustParse("5c1816ff-4813-46b0-b1ba-30d135a2f3f5")}
 var testScopeOrg = "octocat"
 var testScopeRepo = "octocat/hello-world"
 var testScopeRepo2 = "octocat/hello-world2"
@@ -170,7 +170,7 @@ func TestMySQL_GetTarget(t *testing.T) {
 	}
 
 	tests := []struct {
-		input uuid.UUID
+		input datastore.UUID
 		want  *datastore.Target
 		err   bool
 	}{
@@ -477,7 +477,7 @@ func TestMySQL_DeleteTarget(t *testing.T) {
 	}
 
 	tests := []struct {
-		input uuid.UUID
+		input datastore.UUID
 		want  *datastore.Target
 		err   bool
 	}{
@@ -581,7 +581,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tID := uuid.NewV4()
+		tID := datastore.UUID{UUID: uuid.NewV4()}
 		if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
 			UUID:           tID,
 			Scope:          testScopeRepo,
@@ -606,7 +606,7 @@ func TestMySQL_UpdateStatus(t *testing.T) {
 			t.Fatalf("failed to get target from SQL: %+v", err)
 		}
 		if got != nil {
-			got.UUID = uuid.UUID{}
+			got.UUID = datastore.UUID{}
 			got.CreatedAt = time.Time{}
 			got.UpdatedAt = time.Time{}
 		}
@@ -683,7 +683,7 @@ func TestMySQL_UpdateToken(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tID := uuid.NewV4()
+		tID := datastore.UUID{UUID: uuid.NewV4()}
 		if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
 			UUID:           tID,
 			Scope:          testScopeRepo,
@@ -707,7 +707,7 @@ func TestMySQL_UpdateToken(t *testing.T) {
 			t.Fatalf("failed to get target from SQL: %+v", err)
 		}
 		if got != nil {
-			got.UUID = uuid.UUID{}
+			got.UUID = datastore.UUID{}
 			got.CreatedAt = time.Time{}
 			got.UpdatedAt = time.Time{}
 		}
@@ -825,7 +825,7 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tID := uuid.NewV4()
+		tID := datastore.UUID{UUID: uuid.NewV4()}
 		if err := testDatastore.CreateTarget(context.Background(), datastore.Target{
 			UUID:           tID,
 			Scope:          testScopeRepo,
@@ -849,7 +849,7 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 			t.Fatalf("failed to get target from SQL: %+v", err)
 		}
 		if got != nil {
-			got.UUID = uuid.UUID{}
+			got.UUID = datastore.UUID{}
 			got.CreatedAt = time.Time{}
 			got.UpdatedAt = time.Time{}
 			got.TokenExpiredAt = time.Time{}
@@ -865,14 +865,14 @@ func TestMySQL_UpdateTargetParam(t *testing.T) {
 	}
 }
 
-func getTargetFromSQL(testDB *sqlx.DB, uuid uuid.UUID) (*datastore.Target, error) {
+func getTargetFromSQL(testDB *sqlx.DB, id datastore.UUID) (*datastore.Target, error) {
 	var t datastore.Target
 	query := `SELECT uuid, scope, ghe_domain, github_token, token_expired_at, resource_type, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&t, uuid)
+	err = stmt.Get(&t, id.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target: %w", err)
 	}

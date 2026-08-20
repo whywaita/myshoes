@@ -10,13 +10,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
-	uuid "github.com/satori/go.uuid"
+	"uuid"
 
 	"github.com/whywaita/myshoes/internal/testutils"
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
-var testJobID = uuid.FromStringOrNil("1b4e5b7a-e3c1-4829-9cfd-eac4183f2c95")
+var testJobID = datastore.UUID{UUID: uuid.MustParse("1b4e5b7a-e3c1-4829-9cfd-eac4183f2c95")}
 
 func TestMySQL_EnqueueJob(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
@@ -174,7 +174,7 @@ func TestMySQL_DeleteJob(t *testing.T) {
 	}
 
 	tests := []struct {
-		input uuid.UUID
+		input datastore.UUID
 		want  *datastore.Job
 		err   bool
 	}{
@@ -206,14 +206,14 @@ func TestMySQL_DeleteJob(t *testing.T) {
 	}
 }
 
-func getJobFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Job, error) {
+func getJobFromSQL(testDB *sqlx.DB, id datastore.UUID) (*datastore.Job, error) {
 	var j datastore.Job
 	query := `SELECT uuid, ghe_domain, repository, check_event, target_id FROM jobs WHERE uuid = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&j, id)
+	err = stmt.Get(&j, id.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get job: %w", err)
 	}

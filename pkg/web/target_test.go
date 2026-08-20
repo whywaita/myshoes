@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v80/github"
-	uuid "github.com/satori/go.uuid"
+	"uuid"
 
 	"github.com/whywaita/myshoes/internal/testutils"
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -216,7 +216,7 @@ func Test_handleTargetCreate_recreated(t *testing.T) {
 		t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
 	}
 
-	got, err := testDatastore.GetTarget(context.Background(), u)
+	got, err := testDatastore.GetTarget(context.Background(), datastore.UUID{UUID: u})
 	if err != nil {
 		t.Fatalf("failed to get created target: %+v", err)
 	}
@@ -277,7 +277,7 @@ func Test_handleTargetCreate_recreated_update(t *testing.T) {
 		t.Fatalf("must be response statuscode is 201, but got %d: %+v", code, string(content))
 	}
 
-	got, err := testDatastore.GetTarget(context.Background(), u)
+	got, err := testDatastore.GetTarget(context.Background(), datastore.UUID{UUID: u})
 	if err != nil {
 		t.Fatalf("failed to get created target: %+v", err)
 	}
@@ -614,7 +614,7 @@ func Test_handleTargetDelete(t *testing.T) {
 		{
 			input: targetUUID,
 			want: &datastore.Target{
-				UUID:           targetUUID,
+				UUID:           datastore.UUID{UUID: targetUUID},
 				Scope:          "repo",
 				GitHubToken:    testGitHubAppToken,
 				TokenExpiredAt: testTime,
@@ -641,7 +641,7 @@ func Test_handleTargetDelete(t *testing.T) {
 			t.Fatalf("must be response statuscode is 204, but got %d: %+v", code, string(content))
 		}
 
-		got, err := testDatastore.GetTarget(context.Background(), test.input)
+		got, err := testDatastore.GetTarget(context.Background(), datastore.UUID{UUID: test.input})
 		if err != nil {
 			t.Fatalf("failed to get target from datastore: %+v", err)
 		}

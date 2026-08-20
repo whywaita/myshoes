@@ -7,25 +7,23 @@ import (
 	"sync"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
-
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
 // Memory is implement datastore on-memory
 type Memory struct {
 	mu      *sync.RWMutex
-	targets map[uuid.UUID]datastore.Target
-	jobs    map[uuid.UUID]datastore.Job
-	runners map[uuid.UUID]datastore.Runner
+	targets map[datastore.UUID]datastore.Target
+	jobs    map[datastore.UUID]datastore.Job
+	runners map[datastore.UUID]datastore.Runner
 }
 
 // New create map
 func New() (*Memory, error) {
 	m := &sync.RWMutex{}
-	t := map[uuid.UUID]datastore.Target{}
-	j := map[uuid.UUID]datastore.Job{}
-	r := map[uuid.UUID]datastore.Runner{}
+	t := map[datastore.UUID]datastore.Target{}
+	j := map[datastore.UUID]datastore.Job{}
+	r := map[datastore.UUID]datastore.Runner{}
 
 	return &Memory{
 		mu:      m,
@@ -45,7 +43,7 @@ func (m *Memory) CreateTarget(ctx context.Context, target datastore.Target) erro
 }
 
 // GetTarget get a target
-func (m *Memory) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target, error) {
+func (m *Memory) GetTarget(ctx context.Context, id datastore.UUID) (*datastore.Target, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -87,7 +85,7 @@ func (m *Memory) ListTargets(ctx context.Context) ([]datastore.Target, error) {
 }
 
 // DeleteTarget delete a target
-func (m *Memory) DeleteTarget(ctx context.Context, id uuid.UUID) error {
+func (m *Memory) DeleteTarget(ctx context.Context, id datastore.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -96,7 +94,7 @@ func (m *Memory) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 }
 
 // UpdateTargetStatus update status in target
-func (m *Memory) UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus datastore.TargetStatus, description string) error {
+func (m *Memory) UpdateTargetStatus(ctx context.Context, targetID datastore.UUID, newStatus datastore.TargetStatus, description string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -119,7 +117,7 @@ func (m *Memory) UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, new
 }
 
 // UpdateToken update token in target
-func (m *Memory) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error {
+func (m *Memory) UpdateToken(ctx context.Context, targetID datastore.UUID, newToken string, newExpiredAt time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -135,7 +133,7 @@ func (m *Memory) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken s
 }
 
 // UpdateTargetParam update parameter of target
-func (m *Memory) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType, newProviderURL string) error {
+func (m *Memory) UpdateTargetParam(ctx context.Context, targetID datastore.UUID, newResourceType datastore.ResourceType, newProviderURL string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -176,7 +174,7 @@ func (m *Memory) ListJobs(ctx context.Context) ([]datastore.Job, error) {
 }
 
 // DeleteJob delete a job
-func (m *Memory) DeleteJob(ctx context.Context, id uuid.UUID) error {
+func (m *Memory) DeleteJob(ctx context.Context, id datastore.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -208,13 +206,13 @@ func (m *Memory) ListRunners(ctx context.Context) ([]datastore.Runner, error) {
 }
 
 // ListRunnersByTargetID get a not deleted runners that has target_id
-func (m *Memory) ListRunnersByTargetID(ctx context.Context, targetID uuid.UUID) ([]datastore.Runner, error) {
+func (m *Memory) ListRunnersByTargetID(ctx context.Context, targetID datastore.UUID) ([]datastore.Runner, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	var runners []datastore.Runner
 	for _, r := range m.runners {
-		if uuid.Equal(r.TargetID, targetID) {
+		if r.TargetID == targetID {
 			runners = append(runners, r)
 		}
 	}
@@ -238,7 +236,7 @@ func (m *Memory) ListRunnersLogBySince(ctx context.Context, since time.Time) ([]
 }
 
 // GetRunner get a runner
-func (m *Memory) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner, error) {
+func (m *Memory) GetRunner(ctx context.Context, id datastore.UUID) (*datastore.Runner, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -251,7 +249,7 @@ func (m *Memory) GetRunner(ctx context.Context, id uuid.UUID) (*datastore.Runner
 }
 
 // DeleteRunner delete a runner
-func (m *Memory) DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time, reason datastore.RunnerStatus) error {
+func (m *Memory) DeleteRunner(ctx context.Context, id datastore.UUID, deletedAt time.Time, reason datastore.RunnerStatus) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

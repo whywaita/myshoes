@@ -11,12 +11,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 
-	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/internal/testutils"
 	"github.com/whywaita/myshoes/pkg/datastore"
+	"uuid"
 )
 
-var testRunnerID = uuid.FromStringOrNil("7943e412-c0ae-4068-ab24-3e71a13fbe53")
+var testRunnerID = datastore.UUID{UUID: uuid.MustParse("7943e412-c0ae-4068-ab24-3e71a13fbe53")}
 
 func TestMySQL_CreateRunner(t *testing.T) {
 	testDatastore, teardown := testutils.GetTestDatastore()
@@ -218,14 +218,14 @@ func TestMySQL_ListRunnersNotReturnDeleted(t *testing.T) {
 			RepositoryURL:  "https://github.com/octocat/Hello-World",
 			RequestWebhook: "{}",
 		}
-		input.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		input.UUID = datastore.UUID{UUID: uuid.MustParse(fmt.Sprintf(u, i))}
 		err := testDatastore.CreateRunner(context.Background(), input)
 		if err != nil {
 			t.Fatalf("failed to create runner: %+v", err)
 		}
 	}
 
-	err := testDatastore.DeleteRunner(context.Background(), uuid.FromStringOrNil(fmt.Sprintf(u, 0)), time.Now(), "deleted")
+	err := testDatastore.DeleteRunner(context.Background(), datastore.UUID{UUID: uuid.MustParse(fmt.Sprintf(u, 0))}, time.Now(), "deleted")
 	if err != nil {
 		t.Fatalf("failed to delete runner: %+v", err)
 	}
@@ -250,7 +250,7 @@ func TestMySQL_ListRunnersNotReturnDeleted(t *testing.T) {
 			RepositoryURL:  "https://github.com/octocat/Hello-World",
 			RequestWebhook: "{}",
 		}
-		r.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		r.UUID = datastore.UUID{UUID: uuid.MustParse(fmt.Sprintf(u, i))}
 		want = append(want, r)
 	}
 
@@ -285,7 +285,7 @@ func TestMySQL_ListRunnersLogBySince(t *testing.T) {
 			RepositoryURL:  "https://github.com/octocat/Hello-World",
 			RequestWebhook: "{}",
 		}
-		input.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		input.UUID = datastore.UUID{UUID: uuid.MustParse(fmt.Sprintf(u, i))}
 		err := testDatastore.CreateRunner(context.Background(), input)
 		if err != nil {
 			t.Fatalf("failed to create runner: %+v", err)
@@ -314,7 +314,7 @@ func TestMySQL_ListRunnersLogBySince(t *testing.T) {
 			RepositoryURL:  "https://github.com/octocat/Hello-World",
 			RequestWebhook: "{}",
 		}
-		r.UUID = uuid.FromStringOrNil(fmt.Sprintf(u, i))
+		r.UUID = datastore.UUID{UUID: uuid.MustParse(fmt.Sprintf(u, i))}
 		want = append(want, r)
 	}
 
@@ -350,7 +350,7 @@ func TestMySQL_GetRunner(t *testing.T) {
 	}
 
 	tests := []struct {
-		input uuid.UUID
+		input datastore.UUID
 		want  *datastore.Runner
 		err   bool
 	}{
@@ -423,7 +423,7 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 	}
 
 	tests := []struct {
-		input uuid.UUID
+		input datastore.UUID
 		want  *datastore.Runner
 		err   bool
 	}{
@@ -462,21 +462,21 @@ func TestMySQL_DeleteRunner(t *testing.T) {
 	}
 }
 
-func getRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
+func getRunnerFromSQL(testDB *sqlx.DB, id datastore.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
 	query := `SELECT runner_id, shoes_type, ip_address, target_id, cloud_id, created_at, updated_at, resource_type, repository_url, request_webhook, runner_user, provider_url FROM runner_detail WHERE runner_id = ?`
 	stmt, err := testDB.Preparex(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&r, id)
+	err = stmt.Get(&r, id.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get runner: %w", err)
 	}
 	return &r, nil
 }
 
-func getRunningRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
+func getRunningRunnerFromSQL(testDB *sqlx.DB, id datastore.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
 	query := `SELECT detail.runner_id, shoes_type, ip_address, target_id, cloud_id, detail.created_at, updated_at, detail.resource_type, detail.repository_url, detail.request_webhook
 FROM runner_detail AS detail JOIN runnesr_running AS running ON detail.runner_id = running.runner_id WHERE detail.runner_id = ?`
@@ -484,14 +484,14 @@ FROM runner_detail AS detail JOIN runnesr_running AS running ON detail.runner_id
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&r, id)
+	err = stmt.Get(&r, id.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get runner: %w", err)
 	}
 	return &r, nil
 }
 
-func getDeletedRunnerFromSQL(testDB *sqlx.DB, id uuid.UUID) (*datastore.Runner, error) {
+func getDeletedRunnerFromSQL(testDB *sqlx.DB, id datastore.UUID) (*datastore.Runner, error) {
 	var r datastore.Runner
 	query := `SELECT detail.runner_id, shoes_type, ip_address, target_id, cloud_id, detail.created_at, updated_at, detail.resource_type, detail.repository_url, detail.request_webhook
 FROM runner_detail AS detail JOIN runners_deleted AS deleted ON detail.runner_id = deleted.runner_id WHERE detail.runner_id = ?`
@@ -499,7 +499,7 @@ FROM runner_detail AS detail JOIN runners_deleted AS deleted ON detail.runner_id
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare: %w", err)
 	}
-	err = stmt.Get(&r, id)
+	err = stmt.Get(&r, id.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get runner: %w", err)
 	}

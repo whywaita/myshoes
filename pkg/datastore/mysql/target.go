@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
@@ -34,10 +33,10 @@ func (m *MySQL) CreateTarget(ctx context.Context, target datastore.Target) error
 }
 
 // GetTarget get a target
-func (m *MySQL) GetTarget(ctx context.Context, id uuid.UUID) (*datastore.Target, error) {
+func (m *MySQL) GetTarget(ctx context.Context, id datastore.UUID) (*datastore.Target, error) {
 	var t datastore.Target
 	query := `SELECT uuid, scope, github_token, token_expired_at, resource_type, provider_url, status, status_description, created_at, updated_at FROM targets WHERE uuid = ?`
-	if err := m.Conn.GetContext(ctx, &t, query, id.String()); err != nil {
+	if err := m.Conn.GetContext(ctx, &t, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrNotFound
 		}
@@ -75,9 +74,9 @@ func (m *MySQL) ListTargets(ctx context.Context) ([]datastore.Target, error) {
 }
 
 // DeleteTarget delete a target
-func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
+func (m *MySQL) DeleteTarget(ctx context.Context, id datastore.UUID) error {
 	query := `UPDATE targets SET status = "deleted" WHERE uuid = ?`
-	if _, err := m.Conn.ExecContext(ctx, query, id.String()); err != nil {
+	if _, err := m.Conn.ExecContext(ctx, query, id); err != nil {
 		return fmt.Errorf("failed to execute DELETE query: %w", err)
 	}
 
@@ -85,9 +84,9 @@ func (m *MySQL) DeleteTarget(ctx context.Context, id uuid.UUID) error {
 }
 
 // UpdateTargetStatus update status in target
-func (m *MySQL) UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus datastore.TargetStatus, description string) error {
+func (m *MySQL) UpdateTargetStatus(ctx context.Context, targetID datastore.UUID, newStatus datastore.TargetStatus, description string) error {
 	query := `UPDATE targets SET status = ?, status_description = ? WHERE uuid = ?`
-	if _, err := m.Conn.ExecContext(ctx, query, newStatus, description, targetID.String()); err != nil {
+	if _, err := m.Conn.ExecContext(ctx, query, newStatus, description, targetID); err != nil {
 		return fmt.Errorf("failed to execute UPDATE query: %w", err)
 	}
 
@@ -95,9 +94,9 @@ func (m *MySQL) UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newS
 }
 
 // UpdateToken update token in target
-func (m *MySQL) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error {
+func (m *MySQL) UpdateToken(ctx context.Context, targetID datastore.UUID, newToken string, newExpiredAt time.Time) error {
 	query := `UPDATE targets SET github_token = ?, token_expired_at = ? WHERE uuid = ?`
-	if _, err := m.Conn.ExecContext(ctx, query, newToken, newExpiredAt, targetID.String()); err != nil {
+	if _, err := m.Conn.ExecContext(ctx, query, newToken, newExpiredAt, targetID); err != nil {
 		return fmt.Errorf("failed to execute UPDATE query: %w", err)
 	}
 
@@ -105,9 +104,9 @@ func (m *MySQL) UpdateToken(ctx context.Context, targetID uuid.UUID, newToken st
 }
 
 // UpdateTargetParam update parameter of target
-func (m *MySQL) UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType datastore.ResourceType, newProviderURL sql.NullString) error {
+func (m *MySQL) UpdateTargetParam(ctx context.Context, targetID datastore.UUID, newResourceType datastore.ResourceType, newProviderURL sql.NullString) error {
 	query := `UPDATE targets SET resource_type = ?, provider_url = ? WHERE uuid = ?`
-	if _, err := m.Conn.ExecContext(ctx, query, newResourceType, newProviderURL, targetID.String()); err != nil {
+	if _, err := m.Conn.ExecContext(ctx, query, newResourceType, newProviderURL, targetID); err != nil {
 		return fmt.Errorf("failed to execute UPDATE query: %w", err)
 	}
 

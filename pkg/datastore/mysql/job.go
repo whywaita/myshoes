@@ -6,14 +6,13 @@ import (
 	"errors"
 	"fmt"
 
-	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/pkg/datastore"
 )
 
 // EnqueueJob add a job
 func (m *MySQL) EnqueueJob(ctx context.Context, job datastore.Job) error {
 	query := `INSERT INTO jobs(uuid, ghe_domain, repository, check_event, target_id) VALUES (?, ?, ?, ?, ?)`
-	if _, err := m.Conn.ExecContext(ctx, query, job.UUID, job.GHEDomain, job.Repository, job.CheckEventJSON, job.TargetID.String()); err != nil {
+	if _, err := m.Conn.ExecContext(ctx, query, job.UUID, job.GHEDomain, job.Repository, job.CheckEventJSON, job.TargetID); err != nil {
 		return fmt.Errorf("failed to execute INSERT query: %w", err)
 	}
 
@@ -43,9 +42,9 @@ func (m *MySQL) ListJobs(ctx context.Context) ([]datastore.Job, error) {
 }
 
 // DeleteJob delete a job
-func (m *MySQL) DeleteJob(ctx context.Context, id uuid.UUID) error {
+func (m *MySQL) DeleteJob(ctx context.Context, id datastore.UUID) error {
 	query := `DELETE FROM jobs WHERE uuid = ?`
-	if _, err := m.Conn.ExecContext(ctx, query, id.String()); err != nil {
+	if _, err := m.Conn.ExecContext(ctx, query, id); err != nil {
 		return fmt.Errorf("failed to execute DELETE query: %w", err)
 	}
 

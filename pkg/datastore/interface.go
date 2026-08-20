@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
-
 	"github.com/whywaita/myshoes/pkg/gh"
 	"github.com/whywaita/myshoes/pkg/logger"
 )
@@ -29,27 +27,27 @@ var (
 // Datastore is persistent storage
 type Datastore interface {
 	CreateTarget(ctx context.Context, target Target) error
-	GetTarget(ctx context.Context, id uuid.UUID) (*Target, error)
+	GetTarget(ctx context.Context, id UUID) (*Target, error)
 	GetTargetByScope(ctx context.Context, scope string) (*Target, error)
 	ListTargets(ctx context.Context) ([]Target, error)
-	DeleteTarget(ctx context.Context, id uuid.UUID) error
+	DeleteTarget(ctx context.Context, id UUID) error
 
 	// Deprecated: Use datastore.UpdateTargetStatus.
-	UpdateTargetStatus(ctx context.Context, targetID uuid.UUID, newStatus TargetStatus, description string) error
-	UpdateToken(ctx context.Context, targetID uuid.UUID, newToken string, newExpiredAt time.Time) error
+	UpdateTargetStatus(ctx context.Context, targetID UUID, newStatus TargetStatus, description string) error
+	UpdateToken(ctx context.Context, targetID UUID, newToken string, newExpiredAt time.Time) error
 
-	UpdateTargetParam(ctx context.Context, targetID uuid.UUID, newResourceType ResourceType, newProviderURL sql.NullString) error
+	UpdateTargetParam(ctx context.Context, targetID UUID, newResourceType ResourceType, newProviderURL sql.NullString) error
 
 	EnqueueJob(ctx context.Context, job Job) error
 	ListJobs(ctx context.Context) ([]Job, error)
-	DeleteJob(ctx context.Context, id uuid.UUID) error
+	DeleteJob(ctx context.Context, id UUID) error
 
 	CreateRunner(ctx context.Context, runner Runner) error
 	ListRunners(ctx context.Context) ([]Runner, error)
-	ListRunnersByTargetID(ctx context.Context, targetID uuid.UUID) ([]Runner, error)
+	ListRunnersByTargetID(ctx context.Context, targetID UUID) ([]Runner, error)
 	ListRunnersLogBySince(ctx context.Context, since time.Time) ([]Runner, error)
-	GetRunner(ctx context.Context, id uuid.UUID) (*Runner, error)
-	DeleteRunner(ctx context.Context, id uuid.UUID, deletedAt time.Time, reason RunnerStatus) error
+	GetRunner(ctx context.Context, id UUID) (*Runner, error)
+	DeleteRunner(ctx context.Context, id UUID, deletedAt time.Time, reason RunnerStatus) error
 
 	// Lock
 	GetLock(ctx context.Context) error
@@ -58,8 +56,8 @@ type Datastore interface {
 
 // Target is a target repository that will add auto-scaling runner.
 type Target struct {
-	UUID  uuid.UUID `db:"uuid" json:"id"`
-	Scope string    `db:"scope" json:"scope"` // repo (:owner/:repo) or org (:organization)
+	UUID  UUID   `db:"uuid" json:"id"`
+	Scope string `db:"scope" json:"scope"` // repo (:owner/:repo) or org (:organization)
 	// deprecated
 	GitHubToken    string         `db:"github_token" json:"github_token"`
 	TokenExpiredAt time.Time      `db:"token_expired_at" json:"token_expired_at"`
@@ -107,7 +105,7 @@ func ListTargets(ctx context.Context, ds Datastore) ([]Target, error) {
 }
 
 // UpdateTargetStatus update datastore
-func UpdateTargetStatus(ctx context.Context, ds Datastore, targetID uuid.UUID, newStatus TargetStatus, description string) error {
+func UpdateTargetStatus(ctx context.Context, ds Datastore, targetID UUID, newStatus TargetStatus, description string) error {
 	target, err := ds.GetTarget(ctx, targetID)
 	if err != nil {
 		return fmt.Errorf("failed to get target: %w", err)
@@ -170,11 +168,11 @@ const (
 
 // Job is a runner job
 type Job struct {
-	UUID           uuid.UUID      `db:"uuid"`
+	UUID           UUID           `db:"uuid"`
 	GHEDomain      sql.NullString `db:"ghe_domain"`
 	Repository     string         `db:"repository"` // repo (:owner/:repo)
 	CheckEventJSON string         `db:"check_event"`
-	TargetID       uuid.UUID      `db:"target_id"`
+	TargetID       UUID           `db:"target_id"`
 	CreatedAt      time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt      time.Time      `db:"updated_at" json:"updated_at"`
 }
@@ -198,10 +196,10 @@ func (j *Job) RepoURL() string {
 
 // Runner is a runner
 type Runner struct {
-	UUID           uuid.UUID      `db:"runner_id"`
+	UUID           UUID           `db:"runner_id"`
 	ShoesType      string         `db:"shoes_type"`
 	IPAddress      string         `db:"ip_address"`
-	TargetID       uuid.UUID      `db:"target_id"`
+	TargetID       UUID           `db:"target_id"`
 	CloudID        string         `db:"cloud_id"`
 	Deleted        bool           `db:"deleted"`
 	Status         RunnerStatus   `db:"status"`
