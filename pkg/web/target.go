@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/r3labs/diff/v2"
-	"uuid"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/datastore"
 	"github.com/whywaita/myshoes/pkg/gh"
@@ -221,7 +221,7 @@ func handleTargetDelete(w http.ResponseWriter, r *http.Request, ds datastore.Dat
 
 func parseReqTargetID(r *http.Request) (uuid.UUID, error) {
 	targetIDStr := pat.Param(r, "id")
-	targetID, err := uuid.Parse(targetIDStr)
+	targetID, err := uuid.FromString(targetIDStr)
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("failed to parse target id: %w", err)
 	}

@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v80/github"
-	"uuid"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/internal/testutils"
 	"github.com/whywaita/myshoes/pkg/datastore"

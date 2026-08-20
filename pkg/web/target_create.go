@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"uuid"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"

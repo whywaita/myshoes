@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	uuid "github.com/satori/go.uuid"
 	"github.com/whywaita/myshoes/internal/util"
 	"github.com/whywaita/myshoes/pkg/config"
 	"github.com/whywaita/myshoes/pkg/datastore"
@@ -26,7 +27,6 @@ import (
 	"github.com/whywaita/myshoes/pkg/runner"
 	"github.com/whywaita/myshoes/pkg/shoes"
 	"github.com/whywaita/myshoes/pkg/starter/safety"
-	"uuid"
 )
 
 var (
