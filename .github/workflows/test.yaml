@@ -25,7 +25,7 @@ jobs:
           go-version-file: 'go.mod'
       - name: lint
         run: |
-          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
           staticcheck ./...
       - name: vet
         run: |
@@ -44,4 +44,3 @@ jobs:
        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
        with:
          push: false
-         tags: ${{ steps.meta.outputs.tags }}
