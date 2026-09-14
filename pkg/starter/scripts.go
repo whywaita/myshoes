@@ -353,7 +353,11 @@ fi
 # insert anything to setup env when running as a service
 
 # run the host process which keep the listener alive
-NODE_PATH="./externals/node20/bin/node"
+# Prefer Node 24, retaining support for older runner distributions.
+NODE_PATH="./externals/node24/bin/node"
+if [ ! -e "\${NODE_PATH}" ]; then
+  NODE_PATH="./externals/node20/bin/node"
+fi
 if [ ! -e "\${NODE_PATH}" ]; then
   NODE_PATH="./externals/node16/bin/node"
 fi
