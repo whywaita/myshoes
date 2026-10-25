@@ -25,7 +25,7 @@ jobs:
           go-version-file: 'go.mod'
       - name: lint
         run: |
-          go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.2
           staticcheck ./...
       - name: vet
         run: |
