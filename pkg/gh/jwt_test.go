@@ -131,3 +131,110 @@ func Test_IsInstalledGitHubApp(t *testing.T) {
 		}
 	}
 }
+
+// An installation must not match a scope whose owner only shares a prefix
+// with the installation account (e.g. "example" vs "example-other").
+func Test_IsInstalledGitHubApp_OwnerExactMatch(t *testing.T) {
+	t.Cleanup(setStubFunctions)
+
+	idExample := int64(40)
+	idExampleOther := int64(41)
+	all := "all"
+	selected := "selected"
+	example := "example"
+	exampleOther := "example-other"
+	registered := "example-other/registered"
+
+	GHlistInstallations = func(ctx context.Context) ([]*github.Installation, error) {
+		return []*github.Installation{
+			{ID: &idExample, Account: &github.User{Login: &example}, RepositorySelection: &all},
+			{ID: &idExampleOther, Account: &github.User{Login: &exampleOther}, RepositorySelection: &selected},
+		}, nil
+	}
+	GHlistAppsInstalledRepo = func(ctx context.Context, installationID int64) ([]*github.Repository, error) {
+		if installationID != idExampleOther {
+			return nil, nil
+		}
+		return []*github.Repository{{FullName: &registered}}, nil
+	}
+
+	tests := []struct {
+		scope string
+		want  int64
+		err   bool
+	}{
+		{scope: "example", want: idExample},
+		{scope: "example/repo", want: idExample},
+		{scope: "EXAMPLE/repo", want: idExample},
+		{scope: "example-other", want: idExampleOther},
+		{scope: "example-other/registered", want: idExampleOther},
+		{scope: "example-other/not-registered", want: -1, err: true},
+		{scope: "example-another/repo", want: -1, err: true},
+		{scope: "exam/repo", want: -1, err: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.scope, func(t *testing.T) {
+			got, err := IsInstalledGitHubApp(context.Background(), tt.scope)
+			if (err != nil) != tt.err {
+				t.Fatalf("unexpected error: %+v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("want %d, but got %d", tt.want, got)
+			}
+		})
+	}
+}
+
+// GitHub REST API may return null elements in array responses, and
+// go-github decodes them into nil pointers without error.
+func Test_IsInstalledGitHubApp_NilSafe(t *testing.T) {
+	t.Cleanup(setStubFunctions)
+
+	idNoAccount := int64(20)
+	idNoLogin := int64(21)
+	idSelected := int64(22)
+	idNoSelection := int64(23)
+	all := "all"
+	selected := "selected"
+	exampleNil := "example-nil"
+	exampleSelected := "example-nil-selected"
+	registered := "example-nil-selected/registered"
+
+	GHlistInstallations = func(ctx context.Context) ([]*github.Installation, error) {
+		return []*github.Installation{
+			nil,
+			{ID: &idNoAccount, RepositorySelection: &all},
+			{ID: &idNoLogin, Account: &github.User{}, RepositorySelection: &all},
+			{Account: &github.User{Login: &exampleNil}, RepositorySelection: &all},
+			{ID: &idNoSelection, Account: &github.User{Login: &exampleNil}},
+			{ID: &idSelected, Account: &github.User{Login: &exampleSelected}, RepositorySelection: &selected},
+		}, nil
+	}
+	GHlistAppsInstalledRepo = func(ctx context.Context, installationID int64) ([]*github.Repository, error) {
+		return []*github.Repository{nil, {}, {FullName: &registered}}, nil
+	}
+
+	tests := []struct {
+		scope string
+		want  int64
+		err   bool
+	}{
+		{scope: "example-nil-selected/registered", want: idSelected},
+		{scope: "example-nil-selected/not-registered", want: -1, err: true},
+		{scope: "example-nil/repo", want: -1, err: true},
+		{scope: "unknown/repo", want: -1, err: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.scope, func(t *testing.T) {
+			got, err := IsInstalledGitHubApp(context.Background(), tt.scope)
+			if (err != nil) != tt.err {
+				t.Fatalf("unexpected error: %+v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("want %d, but got %d", tt.want, got)
+			}
+		})
+	}
+}
