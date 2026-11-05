@@ -128,11 +128,13 @@ func GetLatestRunnerVersion(ctx context.Context, scope string) (string, error) {
 func getRunnerVersion(applications []*github.RunnerApplicationDownload) (string, error) {
 	// filename": "actions-runner-linux-x64-2.164.0.tar.gz"
 	for _, app := range applications {
-		if *app.OS == "linux" && *app.Architecture == "x64" {
-			v := strings.ReplaceAll(*app.Filename, "actions-runner-linux-x64-", "")
-			v = strings.ReplaceAll(v, ".tar.gz", "")
-			return fmt.Sprintf("v%s", v), nil
+		if app.GetOS() != "linux" || app.GetArchitecture() != "x64" || app.GetFilename() == "" {
+			continue
 		}
+
+		v := strings.ReplaceAll(app.GetFilename(), "actions-runner-linux-x64-", "")
+		v = strings.ReplaceAll(v, ".tar.gz", "")
+		return fmt.Sprintf("v%s", v), nil
 	}
 
 	return "", fmt.Errorf("not found runner version")

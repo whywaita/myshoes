@@ -38,26 +38,35 @@ func IsInstalledGitHubApp(ctx context.Context, inputScope string) (int64, error)
 	}
 
 	for _, i := range installations {
-		if i.SuspendedAt != nil {
+		// GitHub API may return null elements in array responses,
+		// and they are decoded into nil pointers.
+		if i == nil || i.SuspendedAt != nil {
 			continue
 		}
 
-		if strings.HasPrefix(inputScope, *i.Account.Login) {
-			// i.Account.Login is username or Organization name.
+		login := i.GetAccount().GetLogin()
+		id := i.GetID()
+		if login == "" || id == 0 {
+			// an empty login matches any scope as a prefix, so skip it.
+			continue
+		}
+
+		if strings.HasPrefix(inputScope, login) {
+			// login is username or Organization name.
 			// e.g.) `https://github.com/example/sample` -> `example/sample`
-			// strings.HasPrefix search scope include i.Account.Login.
+			// strings.HasPrefix search scope include login.
 
 			switch {
-			case strings.EqualFold(*i.RepositorySelection, "all"):
-				// "all" can use GitHub Apps in all repositories that joined i.Account.Login.
-				return *i.ID, nil
-			case strings.EqualFold(*i.RepositorySelection, "selected"):
+			case strings.EqualFold(i.GetRepositorySelection(), "all"):
+				// "all" can use GitHub Apps in all repositories that joined login.
+				return id, nil
+			case strings.EqualFold(i.GetRepositorySelection(), "selected"):
 				// "selected" can use GitHub Apps in only some repositories that permitted.
 				// So, need to check more using other endpoint.
-				err := isInstalledGitHubAppSelected(ctx, inputScope, *i.ID)
+				err := isInstalledGitHubAppSelected(ctx, inputScope, id)
 				if err == nil {
 					// found
-					return *i.ID, nil
+					return id, nil
 				}
 			}
 		}
@@ -99,7 +108,7 @@ func isInstalledGitHubAppSelected(ctx context.Context, inputScope string, instal
 		return nil
 	case Repository:
 		for _, repo := range installedRepository {
-			if strings.EqualFold(*repo.FullName, inputScope) {
+			if strings.EqualFold(repo.GetFullName(), inputScope) {
 				return nil
 			}
 		}
