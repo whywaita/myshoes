@@ -37,6 +37,10 @@ func IsInstalledGitHubApp(ctx context.Context, inputScope string) (int64, error)
 		return -1, fmt.Errorf("failed to get list of installations: %w", err)
 	}
 
+	// inputScope is "owner" or "owner/repo".
+	// e.g.) `https://github.com/example/sample` -> `example/sample`
+	owner, _ := DivideScope(inputScope)
+
 	for _, i := range installations {
 		// GitHub API may return null elements in array responses,
 		// and they are decoded into nil pointers.
@@ -47,15 +51,13 @@ func IsInstalledGitHubApp(ctx context.Context, inputScope string) (int64, error)
 		login := i.GetAccount().GetLogin()
 		id := i.GetID()
 		if login == "" || id == 0 {
-			// an empty login matches any scope as a prefix, so skip it.
 			continue
 		}
 
-		if strings.HasPrefix(inputScope, login) {
-			// login is username or Organization name.
-			// e.g.) `https://github.com/example/sample` -> `example/sample`
-			// strings.HasPrefix search scope include login.
-
+		// login is username or Organization name.
+		// Compare the owner exactly (GitHub logins are case-insensitive),
+		// so that "example" does not match "example-other/repo".
+		if strings.EqualFold(owner, login) {
 			switch {
 			case strings.EqualFold(i.GetRepositorySelection(), "all"):
 				// "all" can use GitHub Apps in all repositories that joined login.
